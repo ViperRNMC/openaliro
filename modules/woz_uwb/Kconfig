@@ -1,0 +1,80 @@
+# Woz UWB engine for the Nordic door-lock add-on (NCS v3.3.0).
+# Options: WOZ_UWB / WOZ_UWB_RESPONDER / WOZ_ALIRO.
+
+config WOZ_UWB
+	bool "Woz UWB (DW3000) bring-up"
+	select SPI
+	select GPIO
+	help
+	  Compile the minimal DW3110 (DWM3000EVB) bring-up driver (uwb_min.c).
+
+config WOZ_UWB_RESPONDER
+	bool "Woz DS-TWR responder"
+	depends on WOZ_UWB
+	help
+	  DS-TWR responder that produces a distance in cm. Runs on the ISC
+	  deps/dw3000 driver via ccc_shim_rx.c.
+
+config WOZ_ALIRO
+	bool "Woz Aliro/CCC credential-bound STS engine"
+	depends on WOZ_UWB_RESPONDER
+	help
+	  CCC credential-bound STS substitution (ccc_shim + --wrap). Consumes an
+	  externally supplied URSK (the add-on hands us the plaintext URSK in
+	  UltraWideBandImpl::_ConfigureRangingSession).
+
+choice
+	prompt "AES-ECB backend for the CCC key ladder"
+	default WOZ_CRYPTO_PSA
+	depends on WOZ_ALIRO
+	help
+	  Selects which file defines crypto_aes_ecb_encrypt() (ccc_kdf.h) — the one
+	  AES-128/256 ECB primitive the whole CCC key ladder and AES-CCM* build on.
+	  This is the only per-platform crypto seam; see docs/porting.md.
+
+config WOZ_CRYPTO_PSA
+	bool "PSA Crypto (nRF/NCS default)"
+	help
+	  ccc_crypto_psa.c over the PSA Crypto API (nrf_security / CryptoCell on nRF).
+	  Default: the nRF build is byte-identical to before this option existed.
+
+config WOZ_CRYPTO_MBEDTLS
+	bool "mbedTLS AES (ESP32-S3 / generic Zephyr)"
+	select MBEDTLS
+	help
+	  ccc_crypto_mbedtls.c over mbedtls_aes_crypt_ecb — no PSA dependency, for
+	  SoCs without nrf_security's PSA backend (e.g. ESP32-S3, which has
+	  hardware-accelerated AES via mbedTLS). See ports/esp32s3/.
+endchoice
+
+config WOZ_UWB_SELFTEST
+	bool "One-shot UWB init self-test after boot (diagnostic; no iPhone)"
+	depends on WOZ_ALIRO
+	help
+	  Fire woz_uwb_start_aliro() once, CONFIG_WOZ_UWB_SELFTEST_DELAY_MS after boot,
+	  with a canned ranging config, to capture the DW3000 bring-up + Pre-POLL listen
+	  DIAG over RTT WITHOUT commissioning + a live Wallet Aliro UWB solicitation. This
+	  isolates the HW/radio init from the Aliro credential path. Diagnostic only —
+	  never enable in a shipping image.
+
+config WOZ_UWB_SELFTEST_DELAY_MS
+	int "UWB self-test delay after boot (ms)"
+	depends on WOZ_UWB_SELFTEST
+	default 15000
+	help
+	  Delay before the one-shot woz_uwb_start_aliro(). Keep generous so Thread has
+	  rejoined on an already-commissioned device before the deferred 128 MHz
+	  HFCLK boost that the first UWB entry performs.
+
+config WOZ_PRETTY_SHELL
+	bool "Clean/curated UART log output (suppress bring-up diagnostics)"
+	depends on WOZ_ALIRO
+	help
+	  Collapse the verbose bring-up console into a curated timeline (tap ->
+	  auth -> ranging -> unlock). When set, the per-frame RX diagnostics in
+	  ccc_shim_rx.c / uwb_rxdiag.c compile to no-ops (DIAGK, see woz_diag.h),
+	  one clean per-block ranging line is emitted instead, and the app re-emits
+	  the commissioning QR URL through its own logger so Matter can drop to WRN.
+	  Pairs with integration/overlays/woz-pretty.conf, which carries the
+	  matching log-level cuts. Default n = today's verbose output, byte-for-byte.
+	  Reverse by dropping the PRETTY=1 build switch (flag returns to n).

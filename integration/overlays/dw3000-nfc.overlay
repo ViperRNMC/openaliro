@@ -1,0 +1,88 @@
+/*
+ * DW3000 (UWB) + NFC12A1 pin overlay for matter-aliro-door-lock-app.
+ * Applied AFTER the app's own board overlay, so these values override the
+ * upstream defaults via DTS merge.
+ *
+ * NFC12A1 (ST25R300) on SPIM1: SCK P0.06, MOSI P0.07, MISO P0.25, CS P0.26,
+ *   IRQ P1.08, RST P1.07  (A2-A5 ribbon wiring).
+ * DW3000 (DWM3000EVB)  on SPIM4: SCK P1.15, MOSI P1.13, MISO P1.14, CS P1.12,
+ *   RSTn P1.09, IRQ P1.10, WAKEUP P1.11  (Arduino header, seated shield).
+ */
+
+/* NFC reader — retarget the add-on's default SPIM1 pinout to our ribbon wiring. */
+&pinctrl {
+	spi1_default_alt: spi1_default_alt {
+		group1 {
+			psels = <NRF_PSEL(SPIM_SCK, 0, 6)>,
+				<NRF_PSEL(SPIM_MOSI, 0, 7)>,
+				<NRF_PSEL(SPIM_MISO, 0, 25)>;
+		};
+	};
+
+	spi1_sleep_alt: spi1_sleep_alt {
+		group1 {
+			psels = <NRF_PSEL(SPIM_SCK, 0, 6)>,
+				<NRF_PSEL(SPIM_MOSI, 0, 7)>,
+				<NRF_PSEL(SPIM_MISO, 0, 25)>;
+			low-power-enable;
+		};
+	};
+};
+
+&spi1 {
+	cs-gpios = <&gpio0 26 GPIO_ACTIVE_LOW>;
+
+	nucleo_nfc@0 {
+		spi-max-frequency = <4000000>;
+		irq-gpios = <&gpio1 8 GPIO_ACTIVE_HIGH>;
+		reset-gpios = <&gpio1 7 (GPIO_ACTIVE_LOW | GPIO_PULL_DOWN)>;
+	};
+};
+
+&gpio1 {
+	status = "okay";
+	/* PORT event (not GPIOTE IN) to save power. P1.08 = NFC12A1 IRQ (ribbon). */
+	sense-edge-mask = <0x00000100>;
+};
+
+/* ── DW3000 (DWM3000EVB, SPIM4) — Woz UWB ranging engine (dw3000@0 node) ──
+ * Arduino SPI header P1.15/13/14 + CS P1.12 (free now that the NFC reader moved
+ * to the A2-A5 ribbon). Side-band GPIOs per the seated DWM3000EVB.
+ */
+&pinctrl {
+	spi4_default: spi4_default {
+		group1 {
+			psels = <NRF_PSEL(SPIM_SCK,  1, 15)>,
+				<NRF_PSEL(SPIM_MOSI, 1, 13)>,
+				<NRF_PSEL(SPIM_MISO, 1, 14)>;
+		};
+	};
+
+	spi4_sleep: spi4_sleep {
+		group1 {
+			psels = <NRF_PSEL(SPIM_SCK,  1, 15)>,
+				<NRF_PSEL(SPIM_MOSI, 1, 13)>,
+				<NRF_PSEL(SPIM_MISO, 1, 14)>;
+			low-power-enable;
+		};
+	};
+};
+
+&spi4 {
+	status = "okay";
+	pinctrl-0 = <&spi4_default>;
+	pinctrl-1 = <&spi4_sleep>;
+	pinctrl-names = "default", "sleep";
+	cs-gpios = <&gpio1 12 GPIO_ACTIVE_LOW>;
+
+	dw3000: dw3000@0 {
+		compatible = "decawave,dw3000";
+		reg = <0>;
+		/* 8 MHz (not 32): the add-on app core runs at 65 MHz, so SPIM4's 32 MHz
+		 * mode isn't reliable here. 8 MHz is a proven seated-shield speed. */
+		spi-max-frequency = <8000000>;
+		reset-gpios  = <&gpio1  9 GPIO_ACTIVE_LOW>;
+		irq-gpios    = <&gpio1 10 GPIO_ACTIVE_HIGH>;
+		wakeup-gpios = <&gpio1 11 GPIO_ACTIVE_HIGH>;
+	};
+};

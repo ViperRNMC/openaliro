@@ -1,0 +1,36 @@
+diff --git a/applications/matter-aliro-door-lock-app/src/matter/app_task.cpp b/applications/matter-aliro-door-lock-app/src/matter/app_task.cpp
+index 2529dd5..37c0178 100644
+--- a/applications/matter-aliro-door-lock-app/src/matter/app_task.cpp
++++ b/applications/matter-aliro-door-lock-app/src/matter/app_task.cpp
+@@ -344,6 +344,31 @@ CHIP_ERROR AppTask::Init()
+ CHIP_ERROR AppTask::StartApp()
+ {
+ 	ReturnErrorOnFailure(Init());
++
++#ifdef CONFIG_WOZ_PRETTY_SHELL
++	/* Curated console runs Matter at WRN, which silences its own SetupQRCode line.
++	 * Re-emit the commissioning QR URL + manual pairing code once here, on module
++	 * `app` (unaffected by MATTER_LOG_LEVEL), so the code is never lost. */
++	{
++		chip::PayloadContents wozPayload;
++		if (GetPayloadContents(wozPayload, chip::RendezvousInformationFlags(
++							   chip::RendezvousInformationFlag::kBLE)) == CHIP_NO_ERROR) {
++			char wozQrBuf[128];
++			char wozUrl[256];
++			chip::MutableCharSpan wozQr(wozQrBuf);
++			if (GetQRCode(wozQr, wozPayload) == CHIP_NO_ERROR &&
++			    GetQRCodeUrl(wozUrl, sizeof(wozUrl), wozQr) == CHIP_NO_ERROR) {
++				LOG_INF("commis  %s", wozUrl);
++			}
++			char wozManBuf[64];
++			chip::MutableCharSpan wozMan(wozManBuf);
++			if (GetManualPairingCode(wozMan, wozPayload) == CHIP_NO_ERROR) {
++				LOG_INF("commis  manual=%s", wozMan.data());
++			}
++		}
++	}
++#endif /* CONFIG_WOZ_PRETTY_SHELL */
++
+ 	VerifyOrReturnError(AliroInit() == EXIT_SUCCESS, CHIP_ERROR_INTERNAL, LOG_ERR("Failed to initialize Aliro"));
+ 	VerifyOrReturnError(DoorLock::AliroStateControl::UpdateAliroState() == ALIRO_NO_ERROR, CHIP_ERROR_INTERNAL,
+ 			    LOG_ERR("Failed to update Aliro state"));

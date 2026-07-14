@@ -1,0 +1,41 @@
+ISC License
+
+Copyright (c) 2026 asxeem
+
+Permission to use, copy, modify, and/or distribute this software for any
+purpose with or without fee is hereby granted, provided that the above
+copyright notice and this permission notice appear in all copies.
+
+THE SOFTWARE IS PROVIDED "AS IS" AND THE AUTHOR DISCLAIMS ALL WARRANTIES
+WITH REGARD TO THIS SOFTWARE INCLUDING ALL IMPLIED WARRANTIES OF
+MERCHANTABILITY AND FITNESS. IN NO EVENT SHALL THE AUTHOR BE LIABLE FOR
+ANY SPECIAL, DIRECT, INDIRECT, OR CONSEQUENTIAL DAMAGES OR ANY DAMAGES
+WHATSOEVER RESULTING FROM LOSS OF USE, DATA OR PROFITS, WHETHER IN AN
+ACTION OF CONTRACT, NEGLIGENCE OR OTHER TORTIOUS ACTION, ARISING OUT OF
+OR IN CONNECTION WITH THE USE OR PERFORMANCE OF THIS SOFTWARE.
+
+-------------------------------------------------------------------------------
+THIRD-PARTY COMPONENTS
+
+The ISC license above covers only this project's own code. Vendored and upstream
+code keeps its own license, identified by the SPDX-License-Identifier header in
+each file:
+
+- deps/dw3000/ (root, platform/, Zephyr glue, except the Qorvo file below) —
+  Bruno Randolf's DW3000 driver: ISC (some files Apache-2.0).
+  Texts: deps/dw3000/LICENSE.txt, LICENSES/Apache-2.0.txt
+
+- deps/dw3000/dwt_uwb_driver/ and deps/dw3000/platform/deca_compat.c — Qorvo UWB
+  driver: LicenseRef-QORVO-2. Source redistribution is allowed with notices kept,
+  but use is restricted to a Qorvo IC and reverse-engineering the driver is
+  prohibited. Text: deps/dw3000/dwt_uwb_driver/LICENSES/LicenseRef-QORVO-2.txt
+
+- modules/woz_aliro_ecp/src/nfc_prop_ecp.cpp — Nordic Semiconductor:
+  LicenseRef-Nordic-5-Clause; use tied to Nordic devices.
+  Text: LICENSES/LicenseRef-Nordic-5-Clause.txt
+
+- integration/patches/*.patch modify Nordic sdk-nrf / Zephyr upstream
+  (Apache-2.0 / LicenseRef-Nordic-5-Clause), fetched into workspace/.
+
+Because of the Qorvo terms, the repository as a whole is source-available, not
+open source in the OSI sense.

@@ -1,0 +1,30 @@
+# west.yml — pin record + optional manifest for the aliro-nfc-uwb build.
+#
+# The public Nordic door-lock add-on (below) is itself a west manifest that
+# imports NCS (sdk-nrf v3.3.0) + Zephyr + all modules, so pulling it at this exact
+# rev reproduces the ~6 GB build workspace.
+#
+# The project-specific modules (woz_* and dw3000) live in THIS tree and are added
+# to the build via ZEPHYR_EXTRA_MODULES. They are intentionally NOT west projects.
+#
+# Bootstrap manually (or just run ../bootstrap.sh, which does this):
+#   git clone https://github.com/nrfconnect/ncs-door-lock-and-access-control <ws>/ncs-door-lock-and-access-control
+#   git -C <ws>/ncs-door-lock-and-access-control checkout a5ad7fde1041d81690710a949c98eda1985fee0b
+#   west init -l <ws>/ncs-door-lock-and-access-control   # NOT `init -m … --mr <SHA>`:
+#   cd <ws> && west update                               #   `--mr <SHA>` => git clone --branch <SHA>, invalid
+
+manifest:
+  remotes:
+    - name: nrfconnect
+      url-base: https://github.com/nrfconnect
+
+  projects:
+    # Nordic Aliro door-lock + access-control add-on (public). Its own west.yml
+    # imports sdk-nrf v3.3.0 (+ zephyr + modules).
+    - name: ncs-door-lock-and-access-control
+      remote: nrfconnect
+      revision: a5ad7fde1041d81690710a949c98eda1985fee0b
+      import: true
+
+  self:
+    path: aliro-nfc-uwb

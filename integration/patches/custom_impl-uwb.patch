@@ -1,0 +1,497 @@
+diff --git a/subsys/aliro/uwb/custom_impl/uwb_impl.cpp b/subsys/aliro/uwb/custom_impl/uwb_impl.cpp
+index 7731eb0..53dd5eb 100644
+--- a/subsys/aliro/uwb/custom_impl/uwb_impl.cpp
++++ b/subsys/aliro/uwb/custom_impl/uwb_impl.cpp
+@@ -2,58 +2,339 @@
+  * Copyright (c) 2025 Nordic Semiconductor ASA
+  *
+  * SPDX-License-Identifier: LicenseRef-Nordic-5-Clause
++ *
++ * Woz UltraWideBandImpl: bridges the add-on Aliro UWB facade to the Woz
++ * FiRa/CCC engine. Mirrors Nordic's qm35_impl wiring, minus the QM35 cherry_core
++ * (UCI) path: our FiRa MAC runs natively on the nRF5340 driving a DW3110, so
++ * _Init synthesizes the device capabilities and builds the adapter directly.
+  */
+ 
+ #include "uwb_impl.h"
+ 
+ #include <errno.h>
++#include <string.h>
++#include <zephyr/logging/log.h>
++#include <zephyr/sys/byteorder.h>
++#include <zephyr/sys/util.h>
++
++#ifdef CONFIG_WOZ_ALIRO
++#include <cherry/cherry_ccc.h>
++#include "woz_uwb_facade.h"
++#endif // CONFIG_WOZ_ALIRO
++
++LOG_MODULE_REGISTER(woz_uwb_impl, LOG_LEVEL_INF);
+ 
+ namespace Aliro::Uwb {
+ 
+-int UltraWideBandImpl::_Init([[maybe_unused]] const Callbacks &)
++#ifdef CONFIG_WOZ_ALIRO
++
++namespace {
++
++/** @brief Range poll cadence while a session is active. */
++constexpr uint32_t kPollMs{ 200 };
++/** @brief Largest incoming Aliro ranging-service message we accept (stack-framed). */
++constexpr size_t kMaxBleMessage{ 256 };
++
++/** @brief Map an aliro_uwb_err to a negative errno (0 on success). */
++int ConvertErr(aliro_uwb_err err)
+ {
+-	return -ENOSYS;
++	switch (err) {
++	case ALIRO_UWB_ERR_NONE:
++		return 0;
++	case ALIRO_UWB_ERR_INVALID_PARAMETER:
++	case ALIRO_UWB_ERR_MSG_MALFORMED:
++		return -EINVAL;
++	case ALIRO_UWB_ERR_UWBS_TIMEOUT:
++		return -ETIMEDOUT;
++	default:
++		return -EIO;
++	}
++}
++
++/** @brief Map a Cherry CCC session state to the add-on's RangingSessionState. */
++RangingSessionState MapState(enum cherry_ccc_session_state st)
++{
++	switch (st) {
++	case CHERRY_CCC_SESSION_STATE_INIT:
++		return RangingSessionState::Initialized;
++	case CHERRY_CCC_SESSION_STATE_IDLE:
++		return RangingSessionState::Idle;
++	case CHERRY_CCC_SESSION_STATE_ACTIVE:
++		return RangingSessionState::Ranging;
++	case CHERRY_CCC_SESSION_STATE_DEINIT:
++		return RangingSessionState::Destroyed;
++	default:
++		return RangingSessionState::Uninitialized;
++	}
++}
++
++} // namespace
++
++#endif // CONFIG_WOZ_ALIRO
++
++int UltraWideBandImpl::_Init(const Callbacks &callbacks)
++{
++	mCallbacks = callbacks;
++
++#ifdef CONFIG_WOZ_ALIRO
++	k_work_init_delayable(&mPollWork, &PollWorkHandler);
++
++	/* No UCI transport to query; our shim's cherry_create is a trivial ctx
++	 * holder and never fires the core callback, so pass nullptr. */
++	mCtx = cherry_create("dw3000-fira", nullptr, this);
++	if (!mCtx) {
++		LOG_ERR("cherry_create failed");
++		return -ENODEV;
++	}
++
++	/* Synthesize the DW3110's Aliro/CCC capabilities (channels 5+9, all slot
++	 * durations, SYNC codes 9..12, default+continuous+no hopping, RAN>=1,
++	 * protocol 1.0, UWB config 0, pulse shape 0). aliro_uwb_adapter_create_reader
++	 * deep-copies these, so the locals need not outlive this call. */
++	static uint16_t proto[] = { 0x0100 };
++	static uint16_t uwbConfigs[] = { 0x0000 };
++	static uint8_t pulseCombos[] = { 0x00 };
++
++	cherry_ccc_capabilities ccc{};
++	ccc.slot_bitmask = 0xFF;
++	ccc.sync_code_index_bitmask = 0x00000F00u; /* codes 9..12. */
++	ccc.hopping_config_bitmask = 0x1A;         /* default(b1)+continuous(b3)+none(b4). */
++	ccc.channel_bitmask = 0x03;                /* ch5 + ch9. */
++	ccc.protocol_versions.len = 1;
++	ccc.protocol_versions.items = proto;
++	ccc.uwb_configs.len = 1;
++	ccc.uwb_configs.items = uwbConfigs;
++	ccc.pulse_shape_combos.len = 1;
++	ccc.pulse_shape_combos.items = pulseCombos;
++	ccc.minimum_ran_multiplier = 1;
++	ccc.qorvo_vendor_feature_1_supported = false;
++
++	cherry_core_event_device_capabilities caps{};
++	caps.status_err = CHERRY_ERR_NONE;
++	caps.ccc_capabilities = &ccc;
++
++	mAliroCtx = aliro_uwb_adapter_create_reader(mCtx, &caps, &mReaderConfig);
++	if (!mAliroCtx) {
++		LOG_ERR("aliro_uwb_adapter_create_reader failed");
++		cherry_destroy_sync(mCtx);
++		mCtx = nullptr;
++		return -EIO;
++	}
++#endif // CONFIG_WOZ_ALIRO
++
++	mInitialized = true;
++	LOG_INF("Woz UWB facade initialized");
++	return 0;
+ }
+ 
+ int UltraWideBandImpl::_Deinit()
+ {
+-	return -ENOSYS;
++#ifdef CONFIG_WOZ_ALIRO
++	k_work_cancel_delayable(&mPollWork);
++	mRanging = false;
++	if (mSession) {
++		aliro_uwb_session_destroy(mSession);
++		mSession = nullptr;
++	}
++	mHandle.reset();
++	woz_uwb_stop();
++	if (mAliroCtx) {
++		aliro_uwb_adapter_destroy(mAliroCtx);
++		mAliroCtx = nullptr;
++	}
++	if (mCtx) {
++		cherry_destroy_sync(mCtx);
++		mCtx = nullptr;
++	}
++#endif // CONFIG_WOZ_ALIRO
++	mInitialized = false;
++	return 0;
+ }
+ 
+-void UltraWideBandImpl::
+-	_BleTimeSync() { /* No operation for dummy implementation; override in derived classes if needed. */ };
++void UltraWideBandImpl::_BleTimeSync() {}
+ 
+-int UltraWideBandImpl::_HandleBleMessage([[maybe_unused]] const uint8_t *, [[maybe_unused]] size_t,
+-					 [[maybe_unused]] SessionContextHandle)
++int UltraWideBandImpl::_HandleBleMessage(const uint8_t *data, size_t length,
++					 [[maybe_unused]] SessionContextHandle sessionContextData)
+ {
++	if (!data || length == 0) {
++		return -EINVAL;
++	}
++#ifdef CONFIG_WOZ_ALIRO
++	if (!mSession) {
++		return -ENOENT;
++	}
++	if (length > kMaxBleMessage) {
++		LOG_ERR("BLE message too long: %zu", length);
++		return -EMSGSIZE;
++	}
++	/* aliro_uwb_session_message_handle does not retain the message, so a stack
++	 * frame (aliro_uwb_message has a flexible data[] member) avoids the heap. */
++	alignas(aliro_uwb_message) uint8_t storage[sizeof(aliro_uwb_message) + kMaxBleMessage];
++	auto *message = reinterpret_cast<aliro_uwb_message *>(storage);
++	message->len = length;
++	memcpy(message->data, data, length);
++	return ConvertErr(aliro_uwb_session_message_handle(mSession, message));
++#else
+ 	return -ENOSYS;
++#endif // CONFIG_WOZ_ALIRO
+ }
+ 
+-int UltraWideBandImpl::_ConfigureRangingSession([[maybe_unused]] SessionIdentifier,
+-						[[maybe_unused]] const CryptoTypes::Ursk &,
+-						[[maybe_unused]] ProtocolVersion, [[maybe_unused]] SessionContextHandle)
++int UltraWideBandImpl::_ConfigureRangingSession([[maybe_unused]] SessionIdentifier sessionId,
++						[[maybe_unused]] const CryptoTypes::Ursk &ursk,
++						[[maybe_unused]] ProtocolVersion protocolVersion,
++						[[maybe_unused]] SessionContextHandle sessionContextHandle)
+ {
++#ifdef CONFIG_WOZ_ALIRO
++	if (!mAliroCtx) {
++		return -EBUSY;
++	}
++	if (mSession) {
++		LOG_WRN("A ranging session is already active");
++		return -EBUSY;
++	}
++
++	aliro_uwb_session *session =
++		aliro_uwb_session_create(mAliroCtx, sessionId, &SessionHandlerCallback, &TransmitBleMessage, this);
++	if (!session) {
++		return -ENOMEM;
++	}
++
++	int rc = ConvertErr(aliro_uwb_session_set_ursk(session, ursk.data()));
++	if (rc == 0) {
++		rc = ConvertErr(aliro_uwb_session_set_protocol_version(session, protocolVersion));
++	}
++	if (rc != 0) {
++		aliro_uwb_session_destroy(session);
++		return rc;
++	}
++
++	mSession = session;
++	mHandle = sessionContextHandle;
++	LOG_INF("Aliro ranging session configured (sid=0x%08x)", sessionId);
++	return 0;
++#else
+ 	return -ENOSYS;
++#endif // CONFIG_WOZ_ALIRO
+ }
+ 
+-int UltraWideBandImpl::_InitiateRangingSession([[maybe_unused]] SessionContextHandle)
++int UltraWideBandImpl::_InitiateRangingSession([[maybe_unused]] SessionContextHandle sessionContextData)
+ {
++#ifdef CONFIG_WOZ_ALIRO
++	if (!mSession || !mHandle || !(*mHandle == sessionContextData)) {
++		return -ENOENT;
++	}
++	/* Builds M1 and transmits it via TransmitBleMessage; M1-M4 then flow through
++	 * _HandleBleMessage until the adapter starts the session (cherry_ccc_shim). */
++	return ConvertErr(aliro_uwb_session_init_setup(mSession));
++#else
+ 	return -ENOSYS;
++#endif // CONFIG_WOZ_ALIRO
+ }
+ 
+-int UltraWideBandImpl::_TerminateRangingSession([[maybe_unused]] SessionContextHandle)
++int UltraWideBandImpl::_TerminateRangingSession([[maybe_unused]] SessionContextHandle sessionContextData)
+ {
+-	return -ENOSYS;
++#ifdef CONFIG_WOZ_ALIRO
++	if (mHandle && (*mHandle == sessionContextData)) {
++		k_work_cancel_delayable(&mPollWork);
++		mRanging = false;
++		if (mSession) {
++			aliro_uwb_session_destroy(mSession);
++			mSession = nullptr;
++		}
++		mHandle.reset();
++		woz_uwb_stop();
++	}
++#endif // CONFIG_WOZ_ALIRO
++	return 0;
+ }
+ 
+-int UltraWideBandImpl::_SuspendRangingSession([[maybe_unused]] SessionContextHandle)
++int UltraWideBandImpl::_SuspendRangingSession([[maybe_unused]] SessionContextHandle sessionContextData)
+ {
+-	return -ENOSYS;
++#ifdef CONFIG_WOZ_ALIRO
++	if (!mSession || !mHandle || !(*mHandle == sessionContextData)) {
++		return -ENOENT;
++	}
++	return ConvertErr(aliro_uwb_session_suspend(mSession));
++#else
++	return 0;
++#endif // CONFIG_WOZ_ALIRO
+ }
+ 
+-int UltraWideBandImpl::_ResumeRangingSession([[maybe_unused]] SessionContextHandle)
++int UltraWideBandImpl::_ResumeRangingSession([[maybe_unused]] SessionContextHandle sessionContextData)
+ {
+-	return -ENOSYS;
++#ifdef CONFIG_WOZ_ALIRO
++	if (!mSession || !mHandle || !(*mHandle == sessionContextData)) {
++		return -ENOENT;
++	}
++	return ConvertErr(aliro_uwb_session_resume(mSession));
++#else
++	return 0;
++#endif // CONFIG_WOZ_ALIRO
++}
++
++void UltraWideBandImpl::ReportRange([[maybe_unused]] SessionContextHandle handle)
++{
++#ifdef CONFIG_WOZ_ALIRO
++	int32_t cm = 0;
++	if (woz_uwb_last_range_cm(&cm) && mCallbacks.mRangingData) {
++		if (cm < 0) {
++			cm = 0;
++		}
++		sys_put_be16(static_cast<uint16_t>(cm), mDistanceCm.data());
++		mCallbacks.mRangingData(handle,
++					UwbRangingData{ .mData = mDistanceCm.data(), .mLength = mDistanceCm.size() });
++	}
++#endif // CONFIG_WOZ_ALIRO
++}
++
++#ifdef CONFIG_WOZ_ALIRO
++
++void UltraWideBandImpl::TransmitBleMessage(aliro_uwb_message *message, aliro_uwb_session *uwbSessionCtx, void *userData,
++					   [[maybe_unused]] bool timeout)
++{
++	auto *self = static_cast<UltraWideBandImpl *>(userData);
++	if (message && self && self->mSession == uwbSessionCtx && self->mHandle && self->mCallbacks.mBleMessageTransmit) {
++		self->mCallbacks.mBleMessageTransmit(*self->mHandle, message->data, message->len);
++	}
++	/* Consume the adapter-built message. */
++	aliro_uwb_session_message_free(message);
+ }
+ 
++void UltraWideBandImpl::SessionHandlerCallback(aliro_uwb_session_event *event, void *userData)
++{
++	auto *self = static_cast<UltraWideBandImpl *>(userData);
++	if (!event || !self) {
++		return;
++	}
++
++	if (event->type == ALIRO_UWB_SESSION_EVENT_TYPE_SESSION_STATUS && self->mHandle) {
++		const enum cherry_ccc_session_state st = event->data.status->session_state;
++		if (st == CHERRY_CCC_SESSION_STATE_ACTIVE) {
++			self->mRanging = true;
++			k_work_schedule(&self->mPollWork, K_MSEC(kPollMs));
++		} else if (st == CHERRY_CCC_SESSION_STATE_DEINIT) {
++			self->mRanging = false;
++		}
++		if (self->mCallbacks.mRangingSessionStateChanged) {
++			self->mCallbacks.mRangingSessionStateChanged(*self->mHandle, MapState(st));
++		}
++	} else if (event->type == ALIRO_UWB_SESSION_EVENT_TYPE_SESSION_ERROR) {
++		LOG_INF("Aliro session error: 0x%x", static_cast<unsigned int>(event->data.error->status_err));
++	}
++
++	aliro_uwb_session_event_free(event);
++}
++
++void UltraWideBandImpl::PollWorkHandler(k_work *work)
++{
++	auto *dwork = k_work_delayable_from_work(work);
++	auto *self = CONTAINER_OF(dwork, UltraWideBandImpl, mPollWork);
++	if (self->mRanging && self->mHandle) {
++		self->ReportRange(*self->mHandle);
++		k_work_schedule(&self->mPollWork, K_MSEC(kPollMs));
++	}
++}
++
++#endif // CONFIG_WOZ_ALIRO
++
+ } // namespace Aliro::Uwb
+diff --git a/subsys/aliro/uwb/custom_impl/uwb_impl.h b/subsys/aliro/uwb/custom_impl/uwb_impl.h
+index 0688558..111fbe3 100644
+--- a/subsys/aliro/uwb/custom_impl/uwb_impl.h
++++ b/subsys/aliro/uwb/custom_impl/uwb_impl.h
+@@ -2,22 +2,36 @@
+  * Copyright (c) 2025 Nordic Semiconductor ASA
+  *
+  * SPDX-License-Identifier: LicenseRef-Nordic-5-Clause
++ *
++ * Woz UltraWideBandImpl: drives a live Apple Wallet Aliro UWB ranging session
++ * on the lock-native FiRa MAC (DW3110) via the vendored Qorvo aliro_uwb_adapter.
++ * The adapter runs the M1-M4 ranging-setup handshake; its cherry_ccc_* seam is
++ * implemented by the woz_uwb module's cherry_ccc_shim.c over fira_session +
++ * ccc_shim. Distance is polled from the FiRa engine and pushed up as BE16 cm.
+  */
+ 
+ #pragma once
+ 
+ #include "uwb.h"
+ 
++#ifdef CONFIG_WOZ_ALIRO
++#include <aliro_uwb_adapter/aliro_uwb_adapter.h>
++#include <aliro_uwb_adapter/aliro_uwb_session.h>
++#include <cherry/cherry.h>
++#endif // CONFIG_WOZ_ALIRO
++
++#include <zephyr/kernel.h>
++
++#include <array>
++#include <cerrno>
+ #include <cstddef>
++#include <optional>
+ 
+ namespace Aliro::Uwb {
+ 
+ /**
+  * @class UltraWideBandImpl
+- * @brief Dummy implementation of the UltraWideBand interface.
+- *
+- * This class provides the dummy implementation of the UltraWideBand interface, handling UWB operations
+- * such as initialization, ranging session management, and BLE message handling.
++ * @brief Aliro UWB facade backed by the Woz FiRa/CCC engine on a DW3110.
+  */
+ class UltraWideBandImpl final : public UltraWideBand {
+ private:
+@@ -25,11 +39,7 @@ private:
+ 	friend UltraWideBand &UltraWideBandInstance();
+ 	friend UltraWideBandImpl &UltraWideBandInstanceImpl();
+ 
+-	/**
+-	 * @brief Gets the instance of the UltraWideBand implementation.
+-	 *
+-	 * @return The instance of the UltraWideBand implementation.
+-	 */
++	/** @brief Singleton accessor. */
+ 	static UltraWideBandImpl &Instance()
+ 	{
+ 		static UltraWideBandImpl sInstance;
+@@ -46,34 +56,64 @@ private:
+ 	int _TerminateRangingSession(SessionContextHandle sessionContextData);
+ 	int _SuspendRangingSession(SessionContextHandle sessionContextData);
+ 	int _ResumeRangingSession(SessionContextHandle sessionContextData);
+-	const char *_GetFirmwareVersion() { return nullptr; }
+-	bool _IsInitialized() { return false; }
++	const char *_GetFirmwareVersion() { return "woz-uwb-fira"; }
++	bool _IsInitialized() { return mInitialized; }
++	int _StartRadarSession() { return -ENOSYS; }
+ 	void _StopRadarSession() {}
+ 
++	/** @brief Poll the FiRa engine's latest range and push it up as BE16 cm. */
++	void ReportRange(SessionContextHandle handle);
++
++#ifdef CONFIG_WOZ_ALIRO
++	/** @brief Adapter -> BLE transmit trampoline (aliro_uwb_adapter_transmit_message_t). */
++	static void TransmitBleMessage(aliro_uwb_message *message, aliro_uwb_session *uwbSessionCtx, void *userData,
++				       bool timeout);
++	/** @brief Adapter session-event trampoline (aliro_uwb_session_cb_t). */
++	static void SessionHandlerCallback(aliro_uwb_session_event *event, void *userData);
++	/** @brief Periodic range poll while a session is active. */
++	static void PollWorkHandler(k_work *work);
++#endif // CONFIG_WOZ_ALIRO
++
++	Callbacks mCallbacks{};
++	bool mInitialized{ false };
++
++#ifdef CONFIG_WOZ_ALIRO
++	cherry *mCtx{ nullptr };
++	aliro_uwb_adapter *mAliroCtx{ nullptr };
++	/* One physical DW3110 ranges a single session at a time; the walk-up demo
++	 * needs exactly one. A second ConfigureRangingSession returns -EBUSY. */
++	aliro_uwb_session *mSession{ nullptr };
++	std::optional<SessionContextHandle> mHandle{};
++	bool mRanging{ false };
++	k_work_delayable mPollWork{};
++	std::array<uint8_t, 2> mDistanceCm{};
++
++	aliro_uwb_adapter_reader_config mReaderConfig{
++		.min_ran_multiplier = 1,
++		.preferred_hopping_configs = { .configs = { ALIRO_HOPPING_CONFIG_DISABLED,
++							    ALIRO_HOPPING_CONFIG_CONTINUOUS_DEFAULT },
++					       .count = 2 },
++		.mac_mode = 0, /* 1 ranging round, offset 0 (single antenna). */
++		.r1_antennas = { 0, 0 },
++		.r2_antennas = { 0, 0 },
++	};
++#endif // CONFIG_WOZ_ALIRO
++
+ 	UltraWideBandImpl() = default;
+ 	~UltraWideBandImpl() = default;
+-
+ 	UltraWideBandImpl(const UltraWideBandImpl &) = delete;
+ 	UltraWideBandImpl &operator=(const UltraWideBandImpl &) = delete;
+ 	UltraWideBandImpl(UltraWideBandImpl &&) = delete;
+ 	UltraWideBandImpl &operator=(UltraWideBandImpl &&) = delete;
+ };
+ 
+-/**
+- * @brief Get the singleton instance of the UltraWideBand interface.
+- *
+- * @return Reference to the UltraWideBand instance.
+- */
++/** @brief Get the singleton instance of the UltraWideBand interface. */
+ inline UltraWideBand &UltraWideBandInstance()
+ {
+ 	return UltraWideBandImpl::Instance();
+ }
+ 
+-/**
+- * @brief Get the singleton instance of the UltraWideBand implementation.
+- *
+- * @return Reference to the UltraWideBandImpl instance.
+- */
++/** @brief Get the singleton instance of the UltraWideBand implementation. */
+ inline UltraWideBandImpl &UltraWideBandInstanceImpl()
+ {
+ 	return UltraWideBandImpl::Instance();

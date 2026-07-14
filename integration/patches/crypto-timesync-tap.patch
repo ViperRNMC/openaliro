@@ -1,0 +1,37 @@
+diff --git a/applications/matter-aliro-door-lock-app/src/aliro/interface_impl/crypto.cpp b/applications/matter-aliro-door-lock-app/src/aliro/interface_impl/crypto.cpp
+index 6560d40..a4891a3 100644
+--- a/applications/matter-aliro-door-lock-app/src/aliro/interface_impl/crypto.cpp
++++ b/applications/matter-aliro-door-lock-app/src/aliro/interface_impl/crypto.cpp
+@@ -12,6 +12,7 @@
+ 
+ #include <psa/crypto.h>
+ #include <zephyr/logging/log.h>
++#include <zephyr/sys/printk.h>
+ 
+ #include <algorithm>
+ #include <cstdio>
+@@ -349,6 +350,24 @@ AliroError AeadDecrypt(CryptoTypes::KeyId keyId, const uint8_t *cipherTextWithTa
+ 			     LOG_WRN("AEAD decryption failed [Error: %d]", status));
+ 
+ 	plainTextLength = outLength;
++
++#if !defined(CONFIG_WOZ_PRETTY_SHELL)
++	/* DIAG (temporary -- Gate-A timesync tap; remove once UWB_Device_Time capture is
++	 * wired): the Aliro blob is crypto-agnostic and calls this for EVERY BLE message, so a
++	 * Procedure-0 Time Sync is decrypted here. keyId groups AUTH (ExpeditedSK) vs ranging
++	 * (BleSK); the first BleSK-keyId decrypt is the Time Sync, whose plaintext carries
++	 * UWB_Device_Time (8B, ~0x0027xxxx us -- magnitude of the M4 UWB_Time0).
++	 * Suppressed under the curated console (it prints decrypted plaintext). */
++	{
++		const size_t dn = outLength < 48u ? outLength : 48u;
++		printk("AEAD-DEC keyId=%u len=%u pt=", (unsigned)keyId, (unsigned)outLength);
++		for (size_t i = 0; i < dn; i++) {
++			printk("%02x", (unsigned)plainText[i]);
++		}
++		printk("\n");
++	}
++#endif /* !CONFIG_WOZ_PRETTY_SHELL */
++
+ 	return ALIRO_NO_ERROR;
+ }
+ 

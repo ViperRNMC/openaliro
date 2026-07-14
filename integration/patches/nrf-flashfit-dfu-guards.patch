@@ -1,0 +1,143 @@
+diff --git a/applications/matter_weather_station/src/app_task.cpp b/applications/matter_weather_station/src/app_task.cpp
+index d8e5b89ab4..6615c5dd48 100644
+--- a/applications/matter_weather_station/src/app_task.cpp
++++ b/applications/matter_weather_station/src/app_task.cpp
+@@ -17,7 +17,7 @@
+ #include "board/led_widget.h"
+ #include "clusters/identify.h"
+ 
+-#ifdef CONFIG_MCUMGR_TRANSPORT_BT
++#ifdef CONFIG_CHIP_DFU_OVER_BT_SMP
+ #include "dfu/smp/dfu_over_smp.h"
+ #endif
+ 
+@@ -372,7 +372,7 @@ void AppTask::UpdateLedState()
+ CHIP_ERROR AppTask::Init()
+ {
+ 	/* Initialize Matter stack */
+-#ifdef CONFIG_MCUMGR_TRANSPORT_BT
++#ifdef CONFIG_CHIP_DFU_OVER_BT_SMP
+ 	ReturnErrorOnFailure(
+ 		Nrf::Matter::PrepareServer(Nrf::Matter::InitData{ .mPostServerInitClbk = []() -> CHIP_ERROR {
+ 			Nrf::GetDFUOverSMP().StartServer();
+diff --git a/samples/matter/common/cmake/source_common.cmake b/samples/matter/common/cmake/source_common.cmake
+index 595ebea190..a4ae1359e4 100644
+--- a/samples/matter/common/cmake/source_common.cmake
++++ b/samples/matter/common/cmake/source_common.cmake
+@@ -24,7 +24,7 @@ target_sources(app PRIVATE
+ zephyr_linker_sources(SECTIONS ${MATTER_COMMONS_SRC_DIR}/clusters/cluster_init.ld)
+ 
+ # Set specific sources that depend on Kconfigs
+-if(CONFIG_CHIP_OTA_REQUESTOR OR CONFIG_MCUMGR_TRANSPORT_BT)
++if(CONFIG_CHIP_OTA_REQUESTOR)
+     target_sources(app PRIVATE ${MATTER_COMMONS_SRC_DIR}/dfu/ota/ota_util.cpp)
+ endif()
+ 
+@@ -32,7 +32,7 @@ if(CONFIG_PWM)
+     target_sources(app PRIVATE ${MATTER_COMMONS_SRC_DIR}/pwm/pwm_device.cpp)
+ endif()
+ 
+-if(CONFIG_MCUMGR_TRANSPORT_BT)
++if(CONFIG_CHIP_DFU_OVER_BT_SMP)
+     target_sources(app PRIVATE ${MATTER_COMMONS_SRC_DIR}/dfu/smp/dfu_over_smp.cpp)
+     zephyr_library_link_libraries(MCUBOOT_BOOTUTIL)
+ endif()
+diff --git a/samples/matter/common/src/app/matter_init.cpp b/samples/matter/common/src/app/matter_init.cpp
+index d38e6f3272..0b86c17ffa 100644
+--- a/samples/matter/common/src/app/matter_init.cpp
++++ b/samples/matter/common/src/app/matter_init.cpp
+@@ -23,7 +23,7 @@
+ #include "dfu/ota/ota_util.h"
+ #endif
+ 
+-#ifdef CONFIG_MCUMGR_TRANSPORT_BT
++#ifdef CONFIG_CHIP_DFU_OVER_BT_SMP
+ #include "dfu/smp/dfu_over_smp.h"
+ #endif
+ 
+@@ -263,7 +263,7 @@ void DoInitChipServer(intptr_t /* unused */)
+ 	Nrf::Matter::OtaConfirmNewImage();
+ #endif
+ 
+-#ifdef CONFIG_MCUMGR_TRANSPORT_BT
++#ifdef CONFIG_CHIP_DFU_OVER_BT_SMP
+ 	/* Initialize DFU over SMP */
+ 	Nrf::GetDFUOverSMP().Init();
+ 	Nrf::GetDFUOverSMP().ConfirmNewImage();
+diff --git a/samples/matter/common/src/board/board.cpp b/samples/matter/common/src/board/board.cpp
+index 2d806f0da3..f6fa428663 100644
+--- a/samples/matter/common/src/board/board.cpp
++++ b/samples/matter/common/src/board/board.cpp
+@@ -13,7 +13,7 @@
+ 
+ #include <zephyr/logging/log.h>
+ 
+-#ifdef CONFIG_MCUMGR_TRANSPORT_BT
++#ifdef CONFIG_CHIP_DFU_OVER_BT_SMP
+ #include "dfu/smp/dfu_over_smp.h"
+ #endif
+ 
+@@ -278,7 +278,7 @@ void Board::StartBLEAdvertisementHandler(const ButtonAction &action)
+ 	if (action == ButtonAction::Pressed) {
+ 		if (sInstance.mState == DeviceState::DeviceProvisioned) {
+ /* In this case we need to run only Bluetooth LE SMP advertising if it is available */
+-#ifdef CONFIG_MCUMGR_TRANSPORT_BT
++#ifdef CONFIG_CHIP_DFU_OVER_BT_SMP
+ 			GetDFUOverSMP().StartServer();
+ #else
+ 			LOG_INF("Software update is disabled");
+diff --git a/samples/matter/common/src/dfu/ota/ota_util.h b/samples/matter/common/src/dfu/ota/ota_util.h
+index fe57443d85..e26ef6be3c 100644
+--- a/samples/matter/common/src/dfu/ota/ota_util.h
++++ b/samples/matter/common/src/dfu/ota/ota_util.h
+@@ -6,8 +6,6 @@
+ 
+ #pragma once
+ 
+-#include <platform/nrfconnect/ExternalFlashManager.h>
+-
+ #if CONFIG_CHIP_OTA_REQUESTOR
+ #include "ota_image_processor_base_impl.h"
+ #include <platform/nrfconnect/OTAImageProcessorImpl.h>
+diff --git a/samples/matter/common/src/dfu/smp/dfu_over_smp.cpp b/samples/matter/common/src/dfu/smp/dfu_over_smp.cpp
+index 73c516f630..7ebcb14a98 100644
+--- a/samples/matter/common/src/dfu/smp/dfu_over_smp.cpp
++++ b/samples/matter/common/src/dfu/smp/dfu_over_smp.cpp
+@@ -14,10 +14,9 @@
+ #error "DFU over SMP requires MCUmgr IMG and OS groups"
+ #endif
+ 
+-#include "dfu/ota/ota_util.h"
+-
+ #include <platform/CHIPDeviceLayer.h>
+ #include <platform/nrfconnect/DFUSync.h>
++#include <platform/nrfconnect/ExternalFlashManager.h>
+ 
+ #include <lib/support/logging/CHIPLogging.h>
+ 
+diff --git a/samples/matter/common/src/diagnostic/diagnostic_logs_provider.cpp b/samples/matter/common/src/diagnostic/diagnostic_logs_provider.cpp
+index c1a5298faa..f6b2b1a7b6 100644
+--- a/samples/matter/common/src/diagnostic/diagnostic_logs_provider.cpp
++++ b/samples/matter/common/src/diagnostic/diagnostic_logs_provider.cpp
+@@ -32,7 +32,7 @@ bool IsValidIntent(IntentEnum intent)
+ }
+ 
+ #ifdef CONFIG_LOG
+-const char *GetIntentStr(IntentEnum intent)
++[[maybe_unused]] const char *GetIntentStr(IntentEnum intent)
+ {
+ 	switch (intent) {
+ 	case IntentEnum::kEndUserSupport:
+diff --git a/samples/matter/temperature_sensor/src/app_task.cpp b/samples/matter/temperature_sensor/src/app_task.cpp
+index 3113c95308..01cc2dfc2b 100644
+--- a/samples/matter/temperature_sensor/src/app_task.cpp
++++ b/samples/matter/temperature_sensor/src/app_task.cpp
+@@ -79,7 +79,7 @@ void AppTask::ButtonEventHandler(Nrf::ButtonState state, Nrf::ButtonMask hasChan
+ #ifndef CONFIG_NCS_SAMPLE_MATTER_CUSTOM_BLUETOOTH_ADVERTISING
+ 				if (Nrf::GetBoard().GetDeviceState() == Nrf::DeviceState::DeviceProvisioned) {
+ /* In this case we need to run only Bluetooth LE SMP advertising if it is available */
+-#ifdef CONFIG_MCUMGR_TRANSPORT_BT
++#ifdef CONFIG_CHIP_DFU_OVER_BT_SMP
+ 					GetDFUOverSMP().StartServer();
+ #else
+ 					LOG_INF("Software update is disabled");

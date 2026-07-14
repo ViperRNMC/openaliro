@@ -1,0 +1,26 @@
+# Fetched west workspace (~6.5 GB: NCS + add-on) — reproduced by bootstrap.sh.
+# In a git worktree this may be a symlink to the main checkout's workspace, so
+# ignore both the directory and the symlink form.
+workspace/
+/workspace
+.claude/
+
+# Build output
+/build/
+build/
+build-*/
+*.aliro_build_sig
+twister-out/
+.west/
+
+# Local bench config / secrets — J-Link serials, iPhone UDIDs, shell TTY.
+# Commit bench.env.example only.
+bench.env
+
+# macOS
+.DS_Store
+
+# claude
+CLAUDE.md
+.claude/
+
