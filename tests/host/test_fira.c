@@ -88,6 +88,10 @@ void test_fira(void)
 	T_OK("fp.nlos_reject", !fira_session_first_path_ok(10, 10, 10, 100000));
 	/* No first path at all -> reject. */
 	T_OK("fp.zero_reject", !fira_session_first_path_ok(0, 0, 0, 5000));
+	/* Realistic DW3000 Ipatov magnitudes (~2^20) must not overflow the
+	 * f1^2+f2^2+f3^2 accumulation and still classify a strong LOS path. */
+	T_OK("fp.realistic_los",
+	     fira_session_first_path_ok(1u << 20, 1u << 20, 1u << 20, 2u));
 
 	t_group("layer 4: cross-block consensus builds and breaks trust");
 	fira_session_set_ccc_range_cm(90, 30u);
@@ -110,4 +114,20 @@ void test_fira(void)
 	fira_session_last_range(&cm, NULL, NULL, &block, NULL);
 	T_EQ("spoof.range_kept", cm, 303);
 	T_EQ("spoof.block_kept", block, 36u);
+
+	t_group("layer 4: trust saturates at K and an outlier forces a full rebuild");
+	fira_session_set_ccc_range_cm(200, 40u);
+	fira_session_set_ccc_range_cm(202, 41u);
+	fira_session_set_ccc_range_cm(201, 42u); /* K reached */
+	fira_session_set_ccc_range_cm(203, 43u); /* extra agreeing: trust caps at K */
+	fira_session_set_ccc_range_cm(199, 44u);
+	T_OK("sat.trusted", fira_session_range_trusted());
+	/* One jump > SPREAD must drop trust to a single fresh sample, so a lone
+	 * agreeing block after it is NOT enough — a full K-run has to rebuild. */
+	fira_session_set_ccc_range_cm(400, 45u); /* jump -> run restarts at 1 */
+	T_OK("sat.jump.untrusted", !fira_session_range_trusted());
+	fira_session_set_ccc_range_cm(402, 46u); /* 2 */
+	T_OK("sat.one_after_jump_insufficient", !fira_session_range_trusted());
+	fira_session_set_ccc_range_cm(401, 47u); /* 3 -> K reached again */
+	T_OK("sat.full_rebuild_trusted", fira_session_range_trusted());
 }
