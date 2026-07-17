@@ -22,6 +22,7 @@ UNIT_SRCS=(
 	"$SRC/aliro/aliro_uwb_msg.c"
 	"$SRC/aliro/aliro_uwb_session.c"
 	"$SRC/ccc/cherry_ccc_shim.c"
+	"$SRC/ccc/ccc_shim_rx.c"
 	"$SRC/fira/fira_session.c"
 	"$SRC/facade/woz_uwb_facade.c"
 )
@@ -43,11 +44,13 @@ TEST_SRCS=(
 	"$HOST/test_cherry.c"
 	"$HOST/test_fira.c"
 	"$HOST/test_facade.c"
+	"$HOST/test_prepoll_gate.c"
+	"$HOST/test_prepoll_round.c"
 )
 
 SHIM_SRCS=(
 	"$SHIM/shim.c"
-	"$SHIM/hw_stub.c"
+	"$SHIM/dw_rx_stub.c"
 )
 
 # Include search path: shim first so <zephyr/...> resolves to the stubs.
@@ -55,6 +58,7 @@ INCS=(
 	-I"$SHIM"
 	-I"$HOST"
 	-I"$SRC/ccc"
+	-I"$SRC/driver"
 	-I"$SRC/aliro"
 	-I"$SRC/aliro/include"
 	-I"$SRC/fira"

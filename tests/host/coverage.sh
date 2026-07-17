@@ -7,9 +7,12 @@
 #
 # Deliberately excluded from UNIT_SRCS, and why:
 #   - ccc_crypto_psa.c            on-target AES backend; the host AES double replaces it
-#   - ccc_shim_rx/_wrap.c, driver/*, facade/woz_log*.c
+#   - ccc_shim_wrap.c, driver/*, facade/woz_log*.c
 #                                 hardware register I/O — host coverage there just
 #                                 exercises stubs; these are on-target / HIL tests
+#                                 (ccc_shim_rx.c graduated INTO the suite once it grew
+#                                 a real state machine — listen-gate, rearm logic —
+#                                 driven via recording doubles in shim/dw_rx_stub.c)
 #   - modules/woz_aliro_ecp/*     Nordic-owned + NFC hardware
 #
 # Artifacts under build/coverage/ (build/ is gitignored). The instrumented suite

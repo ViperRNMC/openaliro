@@ -665,6 +665,18 @@ int32_t __wrap_dwt_rxenable(int32_t mode)
 /** @brief try_prepoll() decode duration (hi32 ~4 ns units), reported on the ARM-FAIL line to attribute the pre-arm latency. */
 extern uint32_t g_ccc_dbg_decode;
 
+/** @brief Listen-gate: true only while the Pre-POLL listener is up. ccc_prepoll_stop() closes it so no callback rearm can re-enable RX after a session stop; ccc_prepoll_listen() reopens it before its arm. */
+static volatile bool g_listen_gate;
+
+/** @brief Gate-checked RX arm for every self-rearm site below; refuses once the listen-gate is closed. */
+static int32_t gated_rxenable(int32_t mode)
+{
+	if (!g_listen_gate) {
+		return (int32_t)DWT_ERROR;
+	}
+	return __real_dwt_rxenable(mode);
+}
+
 /** Flip to SP3/ND, load the pre-warmed CCC STS (g_warm_index), and arm a delayed RX to catch the POLL that follows the Pre-POLL. */
 static int arm_poll_sp3(uint32_t prepoll_ip)
 {
@@ -726,7 +738,7 @@ static int arm_poll_sp3(uint32_t prepoll_ip)
 	uint32_t dsys = dwt_readsystimestamphi32() - prepoll_ip;
 	dwt_setdelayedtrxtime(prepoll_ip + CCC_RX_SLOT_HI32 - CCC_RX_POLL_LEAD);
 	dwt_setrxtimeout(CCC_RX_POLL_WIN_TO);
-	if (__real_dwt_rxenable(DWT_START_RX_DELAYED | DWT_IDLE_ON_DLY_ERR) != DWT_SUCCESS) {
+	if (gated_rxenable(DWT_START_RX_DELAYED | DWT_IDLE_ON_DLY_ERR) != DWT_SUCCESS) {
 		/* dsys >= (SLOT - LEAD) => "late": the DELAYED RX never opened, so rxto
 		 * stays 0 and the POLL is lost.  Log the first few to size the gap. */
 		static uint32_t arm_fail_n;
@@ -750,7 +762,7 @@ static void revert_to_sp0_listen(void)
 	dwt_forcetrxoff(); /* a refused delayed TX leaves the sequencer pending — clear it first */
 	__real_dwt_configurestsmode((uint8_t)DWT_STS_MODE_OFF);
 	dwt_setrxtimeout(0u);
-	(void)__real_dwt_rxenable(DWT_START_RX_IMMEDIATE);
+	(void)gated_rxenable(DWT_START_RX_IMMEDIATE);
 }
 
 /** @brief Dummy Response_0 body — NOT radiated (SP3/ND sends STS only), but the TX sequence writes a frame body before dwt_starttx. */
@@ -809,7 +821,7 @@ static int arm_final_sp3(uint32_t poll_ip)
 	now = dwt_readsystimestamphi32();
 	dwt_setdelayedtrxtime(dx - CCC_RX_POLL_LEAD);
 	dwt_setrxtimeout(CCC_RX_POLL_WIN_TO);
-	r = __real_dwt_rxenable(DWT_START_RX_DELAYED | DWT_IDLE_ON_DLY_ERR);
+	r = gated_rxenable(DWT_START_RX_DELAYED | DWT_IDLE_ON_DLY_ERR);
 	if (dbg_n < 8u) {
 		DIAGK("FINALARM r=%d dx-now=%d(%dus) idx=%08x\n",
 		       r, (int32_t)((dx - CCC_RX_POLL_LEAD) - now),
@@ -945,11 +957,11 @@ static void prepoll_rx_rearm(const dwt_cb_data_t *cb)
 			g_await_poll = true; /* SP3 armed; do not re-arm SP0 */
 		} else {
 			dwt_setrxtimeout(0u);
-			(void)__real_dwt_rxenable(DWT_START_RX_IMMEDIATE);
+			(void)gated_rxenable(DWT_START_RX_IMMEDIATE);
 		}
 	} else {
 		dwt_setrxtimeout(0u);
-		(void)__real_dwt_rxenable(DWT_START_RX_IMMEDIATE);
+		(void)gated_rxenable(DWT_START_RX_IMMEDIATE);
 	}
 
 	if (ip != 0u && g_cia < 64u) {
@@ -1022,7 +1034,25 @@ int ccc_prepoll_listen(uint8_t channel, uint8_t preamble_code)
 	ccc_shim_rx_log_reset();
 	DIAGK("prepoll_listen: SP0 RX up (ch=%u code=%u plen64 sts=off; sp0code=%u) — listening for Apple Pre-POLL\n",
 	       (unsigned)channel, (unsigned)CCC_RX_PREPOLL_CODE, (unsigned)preamble_code);
+	g_listen_gate = true; /* reopen the listen-gate a prior ccc_prepoll_stop() closed */
 	(void)__real_dwt_rxenable(DWT_START_RX_IMMEDIATE);
 	return 0;
+}
+
+/* Stop the permanent Pre-POLL listener: close the listen-gate (every self-rearm
+ * site checks it via gated_rxenable), then force the radio out of RX/TX.  The
+ * DW3000 callbacks run on the dedicated coop (-11) isr workqueue with
+ * busy-polled SPI and synchronous printk, so a callback never yields
+ * mid-flight: one in flight when a preemptive-thread caller gets here has
+ * already run to completion (its rearm landed BEFORE our forcetrxoff), and any
+ * later callback sees the gate closed.  A residual rearm window exists only if
+ * this is ever called from an ISR or a coop thread at prio <= -11. */
+void ccc_prepoll_stop(void)
+{
+	if (!g_listen_gate) {
+		return; /* never started or already stopped — the driver may be unprobed, so no SPI */
+	}
+	g_listen_gate = false; /* order matters: close the gate, then kill RX */
+	dwt_forcetrxoff();
 }
 #endif /* WOZ_CCC_PREPOLL_LISTEN */

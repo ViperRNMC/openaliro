@@ -73,6 +73,9 @@ bool ccc_shim_rx_awaiting_poll(void);
 /** BENCH: bring up a raw continuous SP0 receiver for the CCC Pre-POLL (target only). */
 int ccc_prepoll_listen(uint8_t channel, uint8_t preamble_code);
 
+/** Stop the Pre-POLL listener: close the self-rearm listen-gate, then force the radio off (target only). */
+void ccc_prepoll_stop(void);
+
 /** @brief The bound session's `STS_Index0` (for UAD/Pre-POLL derivation); 0 if unbound. */
 uint32_t ccc_shim_sts_index0(void);
 
