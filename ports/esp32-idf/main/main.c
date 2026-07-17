@@ -13,15 +13,9 @@
 #include "esp_log.h"
 
 #include "woz_uwb_facade.h"
-#include "aliro_ble.h"
+#include "aliro_reader.h"
 
 static const char *TAG = "woz_esp32s3";
-
-/* PROVISIONAL: the advertised BLE-UWB protocol version(s). The real values are
- * the provisioned aliroSupportedBLEUWBProtocolVersions (Matter attr 133), set in
- * Phase 4; this placeholder must be reconciled against a real capture / the
- * provisioned set before an iPhone will negotiate. */
-static const uint16_t demo_proto_versions[] = { 0x0100u };
 
 /* Dummy 32-byte URSK for a peerless bring-up smoke test (mirrors uwb_selftest.c). */
 static const uint8_t demo_ursk[32] = {
@@ -50,21 +44,13 @@ void app_main(void)
 		 rc == 0 ? "(DW3000 up, responder listening)"
 			 : "(FAILED -- check wiring/SPI)");
 
-	/* Phase 2.1: bring up the Aliro BLE transport (advertise + GATT). Additive;
-	 * independent of the UWB responder above. L2CAP CoC + handshake follow. */
-	const struct aliro_ble_config ble_cfg = {
-		.proto_versions = demo_proto_versions,
-		.proto_versions_count = sizeof(demo_proto_versions) / sizeof(demo_proto_versions[0]),
-		.features = {
-			.timesync_procedure_0 = true,
-			.timesync_procedure_1 = false,
-			.le_coded_phy = false,
-		},
-	};
-	int brc = aliro_ble_start(&ble_cfg);
-	ESP_LOGI(TAG, "aliro_ble_start() = %d %s", brc,
-		 brc == 0 ? "(advertising Aliro service 0xFFF2)"
-			  : "(BLE bring-up FAILED)");
+	/* Phase 2: bring up the Aliro reader (BLE transport + session/transaction
+	 * layer). Additive; independent of the demo UWB responder above. The real
+	 * URSK-driven UWB start happens inside the reader once the Phase-3 handshake
+	 * is implemented. */
+	int brc = aliro_reader_start();
+	ESP_LOGI(TAG, "aliro_reader_start() = %d %s", brc,
+		 brc == 0 ? "(Aliro reader up)" : "(reader bring-up FAILED)");
 
 	while (1) {
 		int32_t cm;
