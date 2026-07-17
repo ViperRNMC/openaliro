@@ -13,6 +13,8 @@ nrfutil sdk-manager toolchain install --ncs-version v3.3.0
 Usage:  ./bootstrap.sh                       # workspace in ./workspace
 ALIRO_WS=/big/disk/ws ./bootstrap.sh # put the multi-GB workspace elsewhere
 
+**discussed in** [`docs/protocol-notes.md`](../../protocol-notes.md)
+
 ## API
 
 ### `launch()`

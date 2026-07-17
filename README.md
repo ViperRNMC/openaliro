@@ -2,8 +2,8 @@
 
 <p align="center">
   <b>walk up and the lock opens. tap and it opens.</b><br/>
-  an aliro digital key lock that pops your door from your iphone or apple watch:
-  by <i>walking up</i> (ultra wideband ranging) and by <i>tapping</i> (nfc).
+  an aliro digital key lock: your iphone or apple watch unlocks it
+  by <i>walking up</i> (ultra wideband ranging) or by <i>tapping</i> (nfc).
 </p>
 
 <p align="center">
@@ -21,55 +21,32 @@
 
 ---
 
-this is the lock side of an [aliro](https://csa-iot.org/all-solutions/aliro/) digital key. your iphone runs
-the whole conversation over bluetooth le and measures how far away it is over ultra wideband. walk up and the
-door unlocks, walk off and it locks itself again. it also pops open on a plain nfc tap. no app to open, no
-button to press.
+this is the lock side of an [aliro](https://csa-iot.org/all-solutions/aliro/) digital key. the phone
+authenticates over bluetooth le and measures its distance over ultra wideband: walk up and the door unlocks,
+walk off and it locks itself. a plain nfc tap opens it too. no app, no button.
 
 ## what it does
 
-- **hands-free unlock**: the door opens as you walk up and locks again once you leave.
-- **tap to unlock**: hold your iphone or watch to the reader (express mode, no face id needed).
-- **distance you can trust**: the ranging is tied to your key, so nobody can replay an unlock off a recorded
-  signal.
-- **no uwb coprocessor**: the whole secure ranging radio stack runs in firmware on a bare qorvo dw3110.
+- **hands-free unlock**: opens as you walk up, relocks once you leave.
+- **tap to unlock**: hold your iphone or watch to the reader (express mode, no face id).
+- **distance you can trust**: ranging is bound to your key, so a recorded signal can't replay an unlock.
+- **no uwb coprocessor**: the whole secure ranging stack runs in firmware on a bare qorvo dw3110.
 
 ## get started
 
-grab the toolchain once per machine:
-
 ```bash
-nrfutil sdk-manager toolchain install --ncs-version v3.3.0
-```
+nrfutil sdk-manager toolchain install --ncs-version v3.3.0   # once per machine
 
-then fetch the sdk, build, and flash:
-
-```bash
-make bootstrap     # fetch ncs v3.3.0 + the nordic add-on into ./workspace
+make bootstrap     # fetch ncs v3.3.0 + the nordic add-on (~6.5 gb) into ./workspace
 make build         # → ./build/merged.hex
 make flash-erase   # first flash of a net-core image
 make flash         # every flash after that
 ```
 
-<sub>the first flash needs <code>flash-erase</code>. after that, plain <code>flash</code> is enough. run <code>make</code> on its own for the full, grouped list.</sub>
-
-everything you can run:
-
-| command | does |
-|---|---|
-| `make` | grouped list of every target |
-| `make bootstrap` | fetch ncs v3.3.0 + add-on (~6.5 gb), apply patches |
-| `make build` | incremental build to `./build/merged.hex` |
-| `make rebuild` | force a clean pristine build |
-| `make flash-erase` | first flash of a net-core (hci) image |
-| `make flash` | every flash after the first |
-| `make build flash` | build, then flash |
-| `make selftest` | one-shot boot self-test, no iphone |
-| `make test` | host test suite for the ccc core (no toolchain or hardware) |
-| `make coverage` | line coverage of the ccc core, plus html report |
-| `make clean` | remove `./build` |
-
-build options pass through as make variables: `make build PRETTY=1 CHIP=dw3720` (chip defaults to dw3000; also `PRISTINE=1`, `SELFTEST=1`). the `./bootstrap.sh` and `./build.sh` scripts still work directly if you prefer.
+also handy: `make test` (host test suite, no toolchain or hardware), `make coverage`,
+`make selftest` (boot self-test, no iphone), `make rebuild`, `make term`, `make clean`.
+run `make` alone for the full grouped list. options pass as variables:
+`make build PRETTY=1 CHIP=dw3720` (also `PRISTINE=1`, `SELFTEST=1`).
 
 ## what you need
 
@@ -112,8 +89,15 @@ flowchart LR
 | secure uwb ranging (distance) | working, validated on hardware |
 | distance-gated unlock / relock | working |
 
-the full image builds, links, and fits (app flash ≈ 92.9%, `merged.hex`, exit 0), and approach unlock has
-been driven end to end on an nrf5340 dk with a live iphone.
+the full image builds, links, and fits, and approach unlock has been driven end to end on an nrf5340 dk with
+a live iphone.
+
+## docs
+
+- [`docs/README.md`](docs/README.md): generated code map of the repo, with per-module api references in
+  [`docs/architecture/`](docs/architecture/).
+- [`docs/ARCHITECTURE.md`](docs/ARCHITECTURE.md): how the pieces fit together.
+- [`docs/protocol-notes.md`](docs/protocol-notes.md): protocol behavior observed on real hardware.
 
 <details>
 <summary><b>under the hood</b> (why this is hard, and how it's built)</summary>

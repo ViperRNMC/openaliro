@@ -4,6 +4,7 @@
 | subsystem | about |
 |---|---|
 | [`modules/woz_uwb/src/ccc/aliro_kdf.h`](aliro_kdf.h.md) | @file aliro_kdf.h — UWB Ranging Secret Key (URSK) length. |
+| [`modules/woz_uwb/src/ccc/aliro_round_config.h`](aliro_round_config.h.md) | @file aliro_round_config.h — one knob for the CCC ranging round's responder count. |
 | [`modules/woz_uwb/src/ccc/ccc_crypto_mbedtls.c`](ccc_crypto_mbedtls.c.md) | @file ccc_crypto_mbedtls.c — AES-ECB block via mbedTLS, backing the CCC key schedule on SoCs without a PSA provider (e.g |
 | [`modules/woz_uwb/src/ccc/ccc_crypto_psa.c`](ccc_crypto_psa.c.md) | @file ccc_crypto_psa.c — On-target AES-ECB block (PSA/CC312) backing the CCC key schedule. |
 | [`modules/woz_uwb/src/ccc/ccc_kdf.c`](ccc_kdf.c.md) | @file ccc_kdf.c — UWB key schedule + SP0 Pre-POLL frame codec. |
