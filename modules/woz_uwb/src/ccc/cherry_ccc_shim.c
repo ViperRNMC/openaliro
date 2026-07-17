@@ -11,6 +11,7 @@
 #include <zephyr/sys/util.h>
 
 #include "woz_uwb_facade.h"
+#include "aliro_round_config.h" /* ALIRO_NUM_RESPONDERS — EXPERIMENT-2RESP */
 
 LOG_MODULE_REGISTER(woz_ccc_shim, LOG_LEVEL_INF);
 
@@ -212,7 +213,7 @@ enum cherry_err cherry_session_start(struct cherry_session *session)
 	rcfg[9] = (uint8_t)(c->sts_index >> 16);
 	rcfg[10] = (uint8_t)(c->sts_index >> 8);
 	rcfg[11] = (uint8_t)(c->sts_index);                /* STS_Index0 (BE) */
-	rcfg[12] = 1u;                                      /* Number_Responder_Nodes */
+	rcfg[12] = (uint8_t)ALIRO_NUM_RESPONDERS;          /* Number_Responder_Nodes — EXPERIMENT-2RESP; shared with M3 via aliro_round_config.h so the SaltedHash can't desync. */
 	rcfg[13] = (uint8_t)(c->ranging_duration_ms / 96u);/* Session_RAN_Multiplier */
 	rcfg[14] = c->slot_per_rr;                          /* Number_Slot_per_Round */
 	rcfg[15] = (uint8_t)(c->slot_duration / 400u);     /* Number_Chaps_per_Slot */

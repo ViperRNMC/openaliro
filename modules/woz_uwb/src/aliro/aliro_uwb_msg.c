@@ -8,6 +8,7 @@
 
 #include <aliro_uwb_adapter/aliro_uwb_adapter.h>
 
+#include "aliro_round_config.h" /* ALIRO_NUM_RESPONDERS — EXPERIMENT-2RESP */
 #include "woz_alloc.h"
 #include <string.h>
 
@@ -180,7 +181,13 @@ aliro_uwb_msg_build_m3(struct aliro_uwb_session *session)
 		     chaps_per_slot) &&
 	     aliro_uwb_msg_builder_add_u8(
 		     &builder,
-		     ALIRO_UWB_RANGING_SERVICE_ATTR_NUMBER_RESPONDERS_NODES, 1) &&
+		     /* EXPERIMENT-2RESP: responder count from the shared knob
+		      * (ALIRO_NUM_RESPONDERS, default 1). MUST equal rcfg[12] in
+		      * cherry_ccc_shim.c — both feed the RangingConfiguration SaltedHash
+		      * the Wallet independently recomputes; a mismatch diverges every
+		      * derived STS/key and nothing decodes. See aliro_round_config.h. */
+		     ALIRO_UWB_RANGING_SERVICE_ATTR_NUMBER_RESPONDERS_NODES,
+		     ALIRO_NUM_RESPONDERS) &&
 	     aliro_uwb_msg_builder_add_u8(
 		     &builder,
 		     ALIRO_UWB_RANGING_SERVICE_ATTR_NUMBER_SLOTS_PER_ROUND,
