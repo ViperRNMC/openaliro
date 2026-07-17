@@ -1,0 +1,33 @@
+# The same host suite rebuilt under ASan + UBSan (make test-san). The parser and
+# session code here ultimately consume attacker-controlled radio input, so memory
+# bugs and UB in this core are security bugs — they fail loud, not silent.
+name: sanitizers
+
+on:
+  push:
+    branches: [main]
+    paths:
+      - modules/woz_uwb/**
+      - tests/host/**
+      - Makefile
+      - .github/workflows/sanitizers.yml
+  pull_request:
+    paths:
+      - modules/woz_uwb/**
+      - tests/host/**
+      - Makefile
+      - .github/workflows/sanitizers.yml
+  workflow_dispatch:
+
+# Superseded runs on the same ref are wasted work — cancel them.
+concurrency:
+  group: ${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: ${{ github.event_name == 'pull_request' }}
+
+jobs:
+  asan-ubsan:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - name: run host suite under ASan + UBSan
+        run: make test-san

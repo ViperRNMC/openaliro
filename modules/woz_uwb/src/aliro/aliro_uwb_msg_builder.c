@@ -154,12 +154,14 @@ bool aliro_uwb_msg_builder_add_u16_array(struct aliro_uwb_msg_builder *builder,
 					 uint8_t id, size_t count,
 					 const uint16_t *values)
 {
-	uint8_t buf[2 * count];
 	size_t i;
 
 	if (count == 0 || !values) {
 		return false;
 	}
+
+	uint8_t buf[2 * count];
+
 	for (i = 0; i < count; i++) {
 		buf[2 * i] = (uint8_t)(values[i] >> 8);
 		buf[2 * i + 1] = (uint8_t)values[i];

@@ -72,6 +72,9 @@ void woz_uwb_stop(void)
 {
 	/* Unbind the CCC STS so the permanent Pre-POLL receiver ignores frames. */
 	ccc_shim_unbind();
+	/* Close the listen-gate and force the DW3000 out of RX so the SP0
+	 * Pre-POLL listener stops self-rearming (RX LED dark until restart). */
+	ccc_prepoll_stop();
 }
 
 bool woz_uwb_last_range_cm(int32_t *cm_out)

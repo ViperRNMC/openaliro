@@ -1,0 +1,141 @@
+--- a/applications/matter-aliro-door-lock-app/src/aliro/Kconfig
++++ b/applications/matter-aliro-door-lock-app/src/aliro/Kconfig
+@@ -78,8 +78,27 @@
+ 	  time forward to validFrom (never backward) instead of failing.
+ 	  Trade-off: a credential issuer that signs a future-dated document can
+ 	  advance the reader clock early, weakening not-before enforcement and
+-	  shifting schedule evaluation for time-bounded credentials.
++	  shifting schedule evaluation for time-bounded credentials. With
++	  DOOR_LOCK_TIME_CONCEPT_PERSIST enabled the ratcheted clock is
++	  persisted within the hour, so such an advance also survives reboot.
+ 
++config DOOR_LOCK_TIME_CONCEPT_PERSIST
++	bool "Persist the wall clock and restore it after reboot"
++	default y
++	depends on DOOR_LOCK_TIME_CONCEPT && SETTINGS
++	help
++	  The reader wall clock lives in RAM and the commissioner sets it
++	  exactly once at commissioning, so any reboot leaves the reader
++	  without valid time. If enabled, the wall clock is written to the
++	  settings storage once per hour (and shortly after it first becomes
++	  valid or is corrected), and the system clock is seeded from the
++	  stored value at boot. After a reboot time then resumes at worst
++	  one hour plus the power-off duration behind real time instead of
++	  being absent. The restored clock understates real time by that
++	  amount, which weakens validUntil/expiry and schedule enforcement
++	  correspondingly but never moves the clock backward or forward
++	  beyond what was actually observed.
++
+ endmenu # Aliro features
+ 
+ rsource "platform/Kconfig"
+--- a/applications/matter-aliro-door-lock-app/src/aliro/storage/storage_keys.h
++++ b/applications/matter-aliro-door-lock-app/src/aliro/storage/storage_keys.h
+@@ -23,4 +23,10 @@
+ 
+ #endif // CONFIG_DOOR_LOCK_STEP_UP_PHASE
+ 
++#ifdef CONFIG_DOOR_LOCK_TIME_CONCEPT_PERSIST
++
++constexpr char kStorageKeyNameWallClock[] = "UT";
++
++#endif // CONFIG_DOOR_LOCK_TIME_CONCEPT_PERSIST
++
+ } // namespace Aliro::StorageKeys
+--- a/applications/matter-aliro-door-lock-app/src/aliro/init.cpp
++++ b/applications/matter-aliro-door-lock-app/src/aliro/init.cpp
+@@ -40,6 +40,11 @@
+ #include "shell.h"
+ #endif // CONFIG_DOOR_LOCK_CLI
+ 
++#ifdef CONFIG_DOOR_LOCK_TIME_CONCEPT_PERSIST
++#include <system/SystemClock.h>
++#include <zephyr/kernel.h>
++#endif // CONFIG_DOOR_LOCK_TIME_CONCEPT_PERSIST
++
+ #include "aliro_state_control.h"
+ #include "storage.h"
+ #include "storage_keys.h"
+@@ -103,8 +108,71 @@
+ 	logAppFeature("CredCA", (applicationFeatures & kFeatureCredentialIssuerCaPublicKeySupported) != 0);
+ 	logAppFeature("ReaderCert", (applicationFeatures & kFeatureReaderCertificateSupported) != 0);
+ 	logAppFeature("Matter", (applicationFeatures & kFeatureMatterSupported) != 0);
++}
++
++#ifdef CONFIG_DOOR_LOCK_TIME_CONCEPT_PERSIST
++
++/* The wall clock lives in RAM and the commissioner sets it exactly once, so a
++ * reboot leaves the reader without valid time (the Last Known Good Time
++ * fallback is frozen at commissioning). Persist the clock periodically and
++ * seed it back at boot; the restored value understates real time by at most
++ * the persist period plus the power-off duration.
++ */
++
++constexpr uint32_t kWallClockPollSeconds{ 60 };
++constexpr uint64_t kWallClockPersistPeriodSeconds{ 3600 };
++
++uint64_t sLastPersistedUnixTime;
++k_work_delayable sWallClockPersistWork;
++
++void PersistWallClock(k_work *work)
++{
++	chip::System::Clock::Microseconds64 nowUs;
++
++	if (chip::System::SystemClock().GetClock_RealTime(nowUs) == CHIP_NO_ERROR) {
++		const uint64_t now = nowUs.count() / 1000000ULL;
++		/* Persist hourly, immediately after the clock first becomes valid
++		 * (sLastPersistedUnixTime == 0), and after any backward correction. */
++		if (now >= sLastPersistedUnixTime + kWallClockPersistPeriodSeconds || now < sLastPersistedUnixTime) {
++			const int rc =
++				KeyValueStorage::Instance().Save(Aliro::StorageKeys::kStorageKeyNameWallClock,
++								 reinterpret_cast<const uint8_t *>(&now), sizeof(now));
++			if (rc == 0) {
++				sLastPersistedUnixTime = now;
++			} else {
++				LOG_ERR("Failed to persist wall clock: %d", rc);
++			}
++		}
++	}
++
++	k_work_schedule(k_work_delayable_from_work(work), K_SECONDS(kWallClockPollSeconds));
+ }
+ 
++void RestoreWallClock()
++{
++	uint64_t persisted{};
++	const int rc = KeyValueStorage::Instance().Get(Aliro::StorageKeys::kStorageKeyNameWallClock,
++						       reinterpret_cast<uint8_t *>(&persisted), sizeof(persisted));
++
++	if (rc == 0 && persisted != 0) {
++		sLastPersistedUnixTime = persisted;
++		chip::System::Clock::Microseconds64 nowUs;
++		if (chip::System::SystemClock().GetClock_RealTime(nowUs) != CHIP_NO_ERROR) {
++			chip::System::SystemClock().SetClock_RealTime(
++				chip::System::Clock::Microseconds64(persisted * 1000000ULL));
++			LOG_WRN("Wall clock seeded from persisted value (unix %llu); behind real time by at least the power-off duration",
++				static_cast<unsigned long long>(persisted));
++		}
++	} else if (rc != -ENOENT) {
++		LOG_ERR("Failed to read persisted wall clock: %d", rc);
++	}
++
++	k_work_init_delayable(&sWallClockPersistWork, PersistWallClock);
++	k_work_schedule(&sWallClockPersistWork, K_SECONDS(kWallClockPollSeconds));
++}
++
++#endif // CONFIG_DOOR_LOCK_TIME_CONCEPT_PERSIST
++
+ } // namespace
+ 
+ int AliroInit()
+@@ -150,6 +218,10 @@
+ 	VerifyOrReturnValue(ec == ALIRO_NO_ERROR, EXIT_FAILURE, LOG_ERR("Cannot load Access Documents"));
+ #endif // CONFIG_DOOR_LOCK_STEP_UP_PHASE && CONFIG_DOOR_LOCK_STORAGE_MAX_STORED_ACCESS_DOCUMENTS > 0
+ 
++#ifdef CONFIG_DOOR_LOCK_TIME_CONCEPT_PERSIST
++	RestoreWallClock();
++#endif // CONFIG_DOOR_LOCK_TIME_CONCEPT_PERSIST
++
+ #ifdef CONFIG_DOOR_LOCK_CLI
+ 	InitShellCommands(kpersistentManager);
+ #endif // CONFIG_DOOR_LOCK_CLI

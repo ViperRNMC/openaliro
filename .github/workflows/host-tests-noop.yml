@@ -1,0 +1,26 @@
+# No-op twin of host-tests for PRs that touch none of its paths. `test` and
+# `coverage` are required status checks, and a path-skipped workflow never
+# reports — leaving the PR stuck at "Expected". Same workflow + job names,
+# inverse trigger (paths-ignore vs paths on the identical list), so exactly one
+# of the pair reports per PR. Per GitHub docs: "Handling skipped but required
+# checks".
+name: host-tests
+
+on:
+  pull_request:
+    paths-ignore:
+      - modules/woz_uwb/**
+      - tests/host/**
+      - Makefile
+      - .github/workflows/host-tests.yml
+
+jobs:
+  test:
+    runs-on: ubuntu-latest
+    steps:
+      - run: echo "no core/test changes — host suite not needed"
+
+  coverage:
+    runs-on: ubuntu-latest
+    steps:
+      - run: echo "no core/test changes — coverage not needed"

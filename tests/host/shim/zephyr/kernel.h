@@ -53,4 +53,10 @@ static inline uint32_t k_uptime_get_32(void)
 	return (uint32_t)k_uptime_get();
 }
 
+/** Cycle counter for the listener's latency probes; us resolution is plenty. */
+static inline uint32_t k_cycle_get_32(void)
+{
+	return (uint32_t)woz_host_monotonic_us();
+}
+
 #endif /* WOZ_HOST_SHIM_KERNEL_H */

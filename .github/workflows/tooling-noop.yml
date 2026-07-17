@@ -1,0 +1,20 @@
+# No-op twin of tooling for PRs that touch none of its paths. `shellcheck` is a
+# required status check, and a path-skipped workflow never reports — leaving the
+# PR stuck at "Expected". Same workflow + job name, inverse trigger
+# (paths-ignore vs paths on the identical list), so exactly one of the pair
+# reports per PR. ws-seed is not a required check, so it has no twin here.
+# Per GitHub docs: "Handling skipped but required checks".
+name: tooling
+
+on:
+  pull_request:
+    paths-ignore:
+      - "**.sh"
+      - Makefile
+      - .github/workflows/tooling.yml
+
+jobs:
+  shellcheck:
+    runs-on: ubuntu-latest
+    steps:
+      - run: echo "no shell-script changes — shellcheck not needed"

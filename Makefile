@@ -37,7 +37,7 @@ ENV := $(strip \
   $(if $(SELFTEST),UWB_SELFTEST=$(SELFTEST)) \
   $(if $(STRICT),STRICT=$(STRICT)))
 
-.PHONY: help bootstrap ws-seed ws-clean build rebuild pretty selftest test coverage test-ws flash flash-erase term clean
+.PHONY: help bootstrap ws-seed ws-clean build rebuild pretty selftest test test-san coverage test-ws flash flash-erase term clean
 
 ##@ Setup
 ## bootstrap: fetch NCS v3.3.0 + add-on (~6.5 GB), apply patches  ·  first run only
@@ -79,6 +79,10 @@ test:
 ##   rebuilt at -O0. Artifacts under build/coverage/ (html/index.html).
 coverage:
 	@$(REPO_ROOT)/tests/host/coverage.sh
+
+## test-san: host suite rebuilt under ASan + UBSan  ·  memory-bug gate
+test-san:
+	@SAN=1 $(REPO_ROOT)/tests/host/run.sh
 
 ## test-ws: hermetic tests for per-worktree workspace auto-seeding
 ##   Runs in a temp dir with a stub bootstrap — no west, no hardware, and it

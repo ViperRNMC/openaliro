@@ -50,5 +50,7 @@ void test_aliro_session(void);
 void test_cherry(void);
 void test_fira(void);
 void test_facade(void);
+void test_prepoll_gate(void);
+void test_prepoll_round(void);
 
 #endif /* WOZ_HOST_TEST_H */

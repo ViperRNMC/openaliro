@@ -1,0 +1,57 @@
+# Host-side correctness gate: the pure-C KAT suite plus line coverage of our
+# core. No NCS toolchain, no hardware — plain cc on a stock runner (run.sh).
+name: host-tests
+
+on:
+  push:
+    branches: [main]
+    paths:
+      - modules/woz_uwb/**
+      - tests/host/**
+      - Makefile
+      - .github/workflows/host-tests.yml
+  pull_request:
+    paths:
+      - modules/woz_uwb/**
+      - tests/host/**
+      - Makefile
+      - .github/workflows/host-tests.yml
+  workflow_dispatch:
+
+# Superseded runs on the same ref are wasted work — cancel them.
+concurrency:
+  group: ${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: ${{ github.event_name == 'pull_request' }}
+
+jobs:
+  test:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - name: run host KAT suite
+        run: make test
+
+  coverage:
+    runs-on: ubuntu-latest
+    env:
+      CC: clang # coverage.sh's instrumentation flags are clang-only
+      COV_MIN: "85" # line-% floor; total was 89.2% when set
+    steps:
+      - uses: actions/checkout@v4
+      - name: install llvm (llvm-profdata / llvm-cov)
+        run: sudo apt-get update -q && sudo apt-get install -y -q llvm
+      - name: build instrumented + run + report
+        run: make coverage
+      - name: enforce line-coverage floor
+        run: |
+          python3 - <<'EOF'
+          import json, os, sys
+          t = json.load(open("build/coverage/summary.json"))["data"][0]["totals"]
+          pct, floor = t["lines"]["percent"], float(os.environ["COV_MIN"])
+          print(f"total line coverage {pct:.2f}% (floor {floor:.0f}%)")
+          sys.exit(0 if pct >= floor else 1)
+          EOF
+      - uses: actions/upload-artifact@v4
+        with:
+          name: coverage-html
+          path: build/coverage/html

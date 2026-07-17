@@ -10,6 +10,7 @@
 #include <deca_device_api.h>
 
 #include "ccc_shim.h"
+#include "aliro_round_config.h" /* ALIRO_NUM_RESPONDERS / ALIRO_FINAL_SLOT_OFFSET — EXPERIMENT-2RESP */
 #include "ccc_kdf.h"      /* CCC_DURSK_LEN / CCC_STS_V_LEN + mUPSK/UAD/SP0 crypto */
 #include "ccc_mac.h"      /* ccc_parse_mhr / ccc_pre_poll_parse — Pre-POLL decode */
 #include "fira_session.h" /* fira_session_current_slot / fira_session_get_ursk */
@@ -316,11 +317,14 @@ static void prepoll_decode(const uint8_t *frame, uint16_t datalength)
 	if (g_poll_stride != 0u) {
 		uint32_t widx = g_poll_sts_index + g_poll_stride;
 
-		/* Warm the POLL (widx), Response_0 (widx+1) AND Final (widx+2) — same round, same dURSK, only STS-V advances — so no leg runs a KDF. */
+		/* Warm the POLL (widx), Response_0 (widx+1) AND Final — same round, same dURSK, only STS-V advances — so no leg runs a KDF. */
+		/* EXPERIMENT-2RESP: the phone's Final RFRAME sits ALIRO_FINAL_SLOT_OFFSET
+		 * slots past the POLL (n=1 -> widx+2, n=2 -> widx+3; responder 1's silent
+		 * slot is widx+2). Response_0 stays at widx+1 (we are responder 0). */
 		if (ccc_shim_sts_for_index(widx, g_warm_dursk, g_warm_sts_v) == 0 &&
 		    ccc_shim_sts_for_index(widx + 1u, g_warm_resp_dursk,
 					   g_warm_resp_sts_v) == 0 &&
-		    ccc_shim_sts_for_index(widx + 2u, g_warm_final_dursk,
+		    ccc_shim_sts_for_index(widx + ALIRO_FINAL_SLOT_OFFSET, g_warm_final_dursk,
 					   g_warm_final_sts_v) == 0) {
 			g_warm_index = widx;
 			g_warm_valid = true;
@@ -388,6 +392,40 @@ static void final_data_decode(const uint8_t *frame, uint16_t datalength)
 		       (unsigned)fd.num_responders, (unsigned)fd.responders[0].timestamp);
 		g_fd_logged++;
 	}
+
+#if ALIRO_NUM_RESPONDERS >= 2
+	/* EXPERIMENT-2RESP (dual-anchor builds only; compiled out of the 1:1 baseline):
+	 * the decisive outcome signal. num_responders is the count the phone actually
+	 * built into the round; it rides the SP0 Final_Data on the permanent listen,
+	 * independent of the SP3 Final-RFRAME arm, so it survives an arm miss. Log every
+	 * record plus the Final_Data arrival slot offset (Final_Data RX - most-recent
+	 * POLL RX, whole slots): 4 => the phone grew the round for 2 responders (PASS),
+	 * 3 => it kept the 1-responder round (SOFT-FAIL). */
+	{
+		/* One ranging slot in full 40-bit DTU. Equals CCC_RX_SLOT_HI32 (499000, the
+		 * hi32/bits[39:8] domain) << 8; defined locally because that macro lives
+		 * further down inside the WOZ_CCC_PREPOLL_LISTEN block. Keep the two equal. */
+		const uint64_t slot_dtu = (uint64_t)499000u << 8;
+		uint8_t fdts[5] = { 0 };
+		uint64_t fd_rx;
+		int fd_slots;
+
+		dwt_readrxtimestamp_ipatov(fdts);
+		fd_rx = ts5_to_u64(fdts);
+		fd_slots = (g_t_poll_rx != 0u)
+				   ? (int)((fd_rx - g_t_poll_rx) / slot_dtu)
+				   : -1;
+		DIAGK("FINALDATA-2RESP blk=%u nresp=%u fd_slots=%d\n",
+		       (unsigned)fd.ranging_block, (unsigned)fd.num_responders, fd_slots);
+		for (uint8_t i = 0u; i < fd.num_responders && i < 2u; i++) {
+			DIAGK("  resp[%u] idx=%u ts=%u unc=%u status=%u\n", (unsigned)i,
+			       (unsigned)fd.responders[i].responder_index,
+			       (unsigned)fd.responders[i].timestamp,
+			       (unsigned)fd.responders[i].timestamp_uncertainty,
+			       (unsigned)fd.responders[i].ranging_status);
+		}
+	}
+#endif /* ALIRO_NUM_RESPONDERS >= 2 */
 
 	/* DS-TWR: reply1 = Response TX - POLL RX, round2 = Final RX - Response TX; ccc_responder_ds_twr pulls round1/reply2 from the Final_Data. ToF in 15.65 ps ticks. */
 	{
@@ -665,6 +703,18 @@ int32_t __wrap_dwt_rxenable(int32_t mode)
 /** @brief try_prepoll() decode duration (hi32 ~4 ns units), reported on the ARM-FAIL line to attribute the pre-arm latency. */
 extern uint32_t g_ccc_dbg_decode;
 
+/** @brief Listen-gate: true only while the Pre-POLL listener is up. ccc_prepoll_stop() closes it so no callback rearm can re-enable RX after a session stop; ccc_prepoll_listen() reopens it before its arm. */
+static volatile bool g_listen_gate;
+
+/** @brief Gate-checked RX arm for every self-rearm site below; refuses once the listen-gate is closed. */
+static int32_t gated_rxenable(int32_t mode)
+{
+	if (!g_listen_gate) {
+		return (int32_t)DWT_ERROR;
+	}
+	return __real_dwt_rxenable(mode);
+}
+
 /** Flip to SP3/ND, load the pre-warmed CCC STS (g_warm_index), and arm a delayed RX to catch the POLL that follows the Pre-POLL. */
 static int arm_poll_sp3(uint32_t prepoll_ip)
 {
@@ -726,7 +776,7 @@ static int arm_poll_sp3(uint32_t prepoll_ip)
 	uint32_t dsys = dwt_readsystimestamphi32() - prepoll_ip;
 	dwt_setdelayedtrxtime(prepoll_ip + CCC_RX_SLOT_HI32 - CCC_RX_POLL_LEAD);
 	dwt_setrxtimeout(CCC_RX_POLL_WIN_TO);
-	if (__real_dwt_rxenable(DWT_START_RX_DELAYED | DWT_IDLE_ON_DLY_ERR) != DWT_SUCCESS) {
+	if (gated_rxenable(DWT_START_RX_DELAYED | DWT_IDLE_ON_DLY_ERR) != DWT_SUCCESS) {
 		/* dsys >= (SLOT - LEAD) => "late": the DELAYED RX never opened, so rxto
 		 * stays 0 and the POLL is lost.  Log the first few to size the gap. */
 		static uint32_t arm_fail_n;
@@ -750,7 +800,7 @@ static void revert_to_sp0_listen(void)
 	dwt_forcetrxoff(); /* a refused delayed TX leaves the sequencer pending — clear it first */
 	__real_dwt_configurestsmode((uint8_t)DWT_STS_MODE_OFF);
 	dwt_setrxtimeout(0u);
-	(void)__real_dwt_rxenable(DWT_START_RX_IMMEDIATE);
+	(void)gated_rxenable(DWT_START_RX_IMMEDIATE);
 }
 
 /** @brief Dummy Response_0 body — NOT radiated (SP3/ND sends STS only), but the TX sequence writes a frame body before dwt_starttx. */
@@ -791,7 +841,8 @@ static int tx_response_sp3(uint32_t poll_ip, uint32_t resp_idx)
 	return (r == DWT_SUCCESS) ? 0 : -EIO;
 }
 
-/** Arm the delayed SP3-ND RX for the phone's Final (POLL + 2 slots) at STS index Poll_STS_Index+2, packing the g_armed_final_* STS (no KDF). */
+/** Arm the delayed SP3-ND RX for the phone's Final at STS index Poll_STS_Index+ALIRO_FINAL_SLOT_OFFSET, packing the g_armed_final_* STS (no KDF).
+ *  EXPERIMENT-2RESP: the 1:1 baseline uses POLL + 2 slots / index+2; a 2-responder round puts the Final at POLL + 3 (responder 1's silent slot sits at POLL + 2). */
 static int arm_final_sp3(uint32_t poll_ip)
 {
 	static uint32_t dbg_n;
@@ -805,16 +856,16 @@ static int arm_final_sp3(uint32_t poll_ip)
 	dwt_configurestskey(&k);
 	__real_dwt_configurestsiv(&v);
 	dwt_configurestsloadiv();
-	dx = poll_ip + 2u * CCC_RX_SLOT_HI32; /* Final RMARKER = POLL + 2 slots */
+	dx = poll_ip + ALIRO_FINAL_SLOT_OFFSET * CCC_RX_SLOT_HI32; /* EXPERIMENT-2RESP: Final RMARKER = POLL + ALIRO_FINAL_SLOT_OFFSET slots (n=1 -> +2, n=2 -> +3) */
 	now = dwt_readsystimestamphi32();
 	dwt_setdelayedtrxtime(dx - CCC_RX_POLL_LEAD);
 	dwt_setrxtimeout(CCC_RX_POLL_WIN_TO);
-	r = __real_dwt_rxenable(DWT_START_RX_DELAYED | DWT_IDLE_ON_DLY_ERR);
+	r = gated_rxenable(DWT_START_RX_DELAYED | DWT_IDLE_ON_DLY_ERR);
 	if (dbg_n < 8u) {
 		DIAGK("FINALARM r=%d dx-now=%d(%dus) idx=%08x\n",
 		       r, (int32_t)((dx - CCC_RX_POLL_LEAD) - now),
 		       (int32_t)((dx - CCC_RX_POLL_LEAD) - now) / 250,
-		       (unsigned)(g_armed_index + 2u));
+		       (unsigned)(g_armed_index + ALIRO_FINAL_SLOT_OFFSET)); /* EXPERIMENT-2RESP: n=1 -> +2, n=2 -> +3 */
 		dbg_n++;
 	}
 	return (r == DWT_SUCCESS) ? 0 : -EIO;
@@ -887,6 +938,12 @@ static void prepoll_rx_rearm(const dwt_cb_data_t *cb)
 	if (g_await_final) {
 		unsigned cper = (st & 0x10000000u) ? 1u : 0u;
 		int d = (ip != 0u) ? (int)(ip - g_poll_ip_for_final) : 0;
+#if ALIRO_NUM_RESPONDERS >= 2
+		/* EXPERIMENT-2RESP: Final RFRAME arrival slot offset (Final RX - POLL RX in
+		 * whole slots). Expect 3 if the phone accepted the 2-responder round, 2 if
+		 * it fell back to 1 responder (in which case this arm at +3 misses it). */
+		int d_slots = (ip != 0u) ? (int)((ip - g_poll_ip_for_final) / CCC_RX_SLOT_HI32) : -1;
+#endif
 		int16_t stsq = 0;
 		int qret = 0;
 
@@ -899,10 +956,17 @@ static void prepoll_rx_rearm(const dwt_cb_data_t *cb)
 			g_final_sts_verdict = qret;
 			g_final_sts_index = stsq;
 		}
+#if ALIRO_NUM_RESPONDERS >= 2
+		/* Final result (DS-TWR leg 3): cper=0 => the idx+3 STS correlated; ip is the responder's third timestamp, d = Final - POLL. */
+		DIAGK("FINAL result st=%08x cper=%u ip=%08x d=%d(%dus) slots=%d stsq=%d/%d idx=%08x\n",
+		       (unsigned)st, cper, (unsigned)ip, d, d / 250, d_slots, (int)stsq, qret,
+		       (unsigned)(g_armed_index + ALIRO_FINAL_SLOT_OFFSET));
+#else
 		/* Final result (DS-TWR leg 3): cper=0 => the idx+2 STS correlated; ip is the responder's third timestamp, d = Final - POLL ~= 2 slots. */
 		DIAGK("FINAL result st=%08x cper=%u ip=%08x d=%d(%dus) stsq=%d/%d idx=%08x\n",
 		       (unsigned)st, cper, (unsigned)ip, d, d / 250, (int)stsq, qret,
-		       (unsigned)(g_armed_index + 2u));
+		       (unsigned)(g_armed_index + ALIRO_FINAL_SLOT_OFFSET));
+#endif
 		revert_to_sp0_listen();
 	} else if (g_await_poll) {
 		unsigned cper = (st & 0x10000000u) ? 1u : 0u;
@@ -945,11 +1009,11 @@ static void prepoll_rx_rearm(const dwt_cb_data_t *cb)
 			g_await_poll = true; /* SP3 armed; do not re-arm SP0 */
 		} else {
 			dwt_setrxtimeout(0u);
-			(void)__real_dwt_rxenable(DWT_START_RX_IMMEDIATE);
+			(void)gated_rxenable(DWT_START_RX_IMMEDIATE);
 		}
 	} else {
 		dwt_setrxtimeout(0u);
-		(void)__real_dwt_rxenable(DWT_START_RX_IMMEDIATE);
+		(void)gated_rxenable(DWT_START_RX_IMMEDIATE);
 	}
 
 	if (ip != 0u && g_cia < 64u) {
@@ -1022,7 +1086,25 @@ int ccc_prepoll_listen(uint8_t channel, uint8_t preamble_code)
 	ccc_shim_rx_log_reset();
 	DIAGK("prepoll_listen: SP0 RX up (ch=%u code=%u plen64 sts=off; sp0code=%u) — listening for Apple Pre-POLL\n",
 	       (unsigned)channel, (unsigned)CCC_RX_PREPOLL_CODE, (unsigned)preamble_code);
+	g_listen_gate = true; /* reopen the listen-gate a prior ccc_prepoll_stop() closed */
 	(void)__real_dwt_rxenable(DWT_START_RX_IMMEDIATE);
 	return 0;
+}
+
+/* Stop the permanent Pre-POLL listener: close the listen-gate (every self-rearm
+ * site checks it via gated_rxenable), then force the radio out of RX/TX.  The
+ * DW3000 callbacks run on the dedicated coop (-11) isr workqueue with
+ * busy-polled SPI and synchronous printk, so a callback never yields
+ * mid-flight: one in flight when a preemptive-thread caller gets here has
+ * already run to completion (its rearm landed BEFORE our forcetrxoff), and any
+ * later callback sees the gate closed.  A residual rearm window exists only if
+ * this is ever called from an ISR or a coop thread at prio <= -11. */
+void ccc_prepoll_stop(void)
+{
+	if (!g_listen_gate) {
+		return; /* never started or already stopped — the driver may be unprobed, so no SPI */
+	}
+	g_listen_gate = false; /* order matters: close the gate, then kill RX */
+	dwt_forcetrxoff();
 }
 #endif /* WOZ_CCC_PREPOLL_LISTEN */

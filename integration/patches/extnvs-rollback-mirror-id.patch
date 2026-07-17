@@ -1,0 +1,23 @@
+diff --git a/subsys/external_nvs/include/external_nvs/external_nvs.h b/subsys/external_nvs/include/external_nvs/external_nvs.h
+index 7aa14df..a457685 100644
+--- a/subsys/external_nvs/include/external_nvs/external_nvs.h
++++ b/subsys/external_nvs/include/external_nvs/external_nvs.h
+@@ -26,8 +26,16 @@ using Id = uint16_t;
+ 
+ #ifdef CONFIG_DOOR_LOCK_EXTERNAL_NVS_ROLLBACK_PROTECTION
+ 
+-/** @brief Reserved ID for the Unique ID. */
+-constexpr Id kUniqueIdReservedId{ 0xFFFF };
++/**
++ * @brief Reserved ID for the Unique ID.
++ *
++ * Must not be 0xFFFF: Zephyr NVS reserves ATE ID 0xFFFF for its internal
++ * sector-close and GC-done entries and excludes it from the lookup cache,
++ * so an entry written with that ID is never found by nvs_read() (-ENOENT).
++ * A Unique ID stored there is unreadable, which makes InitializeUniqueId()
++ * clear the whole storage on every boot.
++ */
++constexpr Id kUniqueIdReservedId{ 0xFFFE };
+ 
+ #endif // CONFIG_DOOR_LOCK_EXTERNAL_NVS_ROLLBACK_PROTECTION
+ 

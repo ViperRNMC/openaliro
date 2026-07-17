@@ -1,0 +1,30 @@
+# Verifies the 6 integration patches still apply to the pinned upstream
+# revisions (add-on, sdk-nrf, matter) via cheap sparse fetches — no workspace.
+# Runs only when a pin or a patch changes; the pins are otherwise immutable.
+name: patch-drift
+
+on:
+  push:
+    branches: [main]
+    paths:
+      - west.yml
+      - bootstrap.sh
+      - integration/patches/**
+      - tests/tooling/patch_drift_check.sh
+      - .github/workflows/patch-drift.yml
+  pull_request:
+    paths:
+      - west.yml
+      - bootstrap.sh
+      - integration/patches/**
+      - tests/tooling/patch_drift_check.sh
+      - .github/workflows/patch-drift.yml
+  workflow_dispatch:
+
+jobs:
+  drift:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - name: apply all patches against the pinned revisions
+        run: tests/tooling/patch_drift_check.sh

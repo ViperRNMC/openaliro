@@ -1,0 +1,27 @@
+diff --git a/applications/matter-aliro-door-lock-app/src/aliro/kpersistent_manager/kpersistent_manager_impl.cpp b/applications/matter-aliro-door-lock-app/src/aliro/kpersistent_manager/kpersistent_manager_impl.cpp
+index 5f76e80..b31c62c 100644
+--- a/applications/matter-aliro-door-lock-app/src/aliro/kpersistent_manager/kpersistent_manager_impl.cpp
++++ b/applications/matter-aliro-door-lock-app/src/aliro/kpersistent_manager/kpersistent_manager_impl.cpp
+@@ -163,8 +163,20 @@ AliroError KpersistentManagerImpl::GetAccessCredentialPublicKey(CryptoTypes::Key
+ 	VerifyOrReturnStatus(mKpersistentMap[index], ALIRO_INVALID_ARGUMENT);
+ 
+ 	AliroError status = AccessManagerInstance().GetPublicKey(index, publicKey);
+-	VerifyOrReturnStatus(status == ALIRO_NO_ERROR, ALIRO_PUBLIC_KEY_NOT_FOUND,
+-			     LOG_ERR("Cannot get Access Credential public key"));
++	if (status != ALIRO_NO_ERROR) {
++		LOG_ERR("Cannot get Access Credential public key");
++		/* Self-heal: the invariant above broke — this Kpersistent survived a
++		 * storage wipe its Access Credential did not (the two live in
++		 * different domains: PSA ITS vs Matter settings). An orphaned
++		 * Kpersistent can never verify a cryptogram, but its presence keeps
++		 * the FAST flow engaged, so every session fails identically and the
++		 * user device retries forever. Destroy it so the next session
++		 * negotiates the standard flow and re-establishes a consistent
++		 * credential/Kpersistent pair. */
++		LOG_WRN("Destroying orphaned Kpersistent (index %d) to recover via the standard flow", index);
++		RemoveKpersistent(index);
++		return ALIRO_PUBLIC_KEY_NOT_FOUND;
++	}
+ 
+ 	return ALIRO_NO_ERROR;
+ }
