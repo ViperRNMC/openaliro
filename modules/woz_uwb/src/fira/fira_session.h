@@ -27,9 +27,10 @@ uint32_t fira_session_current_slot(void);
 /* ── Range-integrity gate (anti-spoof / anti Ghost-Peak) ─────────────────────
  *
  * A DS-TWR distance is trustworthy only when it is (1) physically plausible,
- * (2) backed by a well-correlated STS, (3) carried on a clean first path, and
- * (4) consistent with recent blocks. Layers 1 and 4 are enforced in the range
- * store (fira_session_set_ccc_range_cm); layers 2 and 3 are pure predicates the
+ * (2) backed by a well-correlated STS, and (4) consistent with recent blocks.
+ * (Layer 3, an Ipatov first-path check, was removed — untunable on this HW —
+ * so the numbering keeps a gap.) Layers 1 and 4 are enforced in the range
+ * store (fira_session_set_ccc_range_cm); layer 2 is a pure predicate the
  * responder RX path evaluates, since it owns the DW3000 diagnostics. Every
  * threshold below is a bring-up default — tune on the bench.
  */
