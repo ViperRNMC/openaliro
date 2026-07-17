@@ -18,9 +18,11 @@
 IDF_EXPORT ?= $(HOME)/esp/esp-idf/export.sh
 IDFPY := . "$(IDF_EXPORT)" >/dev/null 2>&1 && idf.py
 
-# Serial-port override (else auto-detected). BAUD is the monitor rate.
+# Serial-port override (else auto-detected). BAUD is the console rate; LOG tees
+# the tio session to a file (make term LOG=session.log).
 PORT ?=
 BAUD ?= 115200
+LOG ?=
 
 # USB vendor ids (decimal, as ioreg reports them) used to classify ports.
 # Keep values trailing-whitespace-free: an inline comment would leak spaces into
@@ -52,7 +54,7 @@ else \
 fi
 endef
 
-.PHONY: help check-idf build menuconfig size flash app-flash flash-erase monitor ports clean
+.PHONY: help check-idf build menuconfig size flash app-flash flash-erase monitor term ports clean
 
 check-idf:
 	@[ -f "$(IDF_EXPORT)" ] || { echo "  ESP-IDF export.sh not found at $(IDF_EXPORT)" >&2; \
@@ -97,6 +99,17 @@ monitor: check-idf
 	@$(RESOLVE_PORT); \
 	echo "  monitoring $$port @ $(BAUD)  (ctrl-] quits)"; \
 	. "$(IDF_EXPORT)" >/dev/null 2>&1 && idf.py -p "$$port" -b $(BAUD) monitor
+
+## term: interactive serial console via tio (like the nRF `make term`)
+##   Simple + robust, no ESP backtrace decode (use `make monitor` for that).
+##   tio holds the port, so quit it (ctrl-t q) before `make flash`.
+##   Override: make term PORT=/dev/cu.usbmodemXXXX BAUD=115200 LOG=session.log
+term:
+	@command -v tio >/dev/null 2>&1 || { printf '  tio not found  ·  install: brew install tio\n' >&2; exit 1; }
+	@$(RESOLVE_PORT); \
+	logargs=; [ -n '$(LOG)' ] && logargs='-L --log-file $(LOG)'; \
+	printf '  tio %s @ %s 8N1  ·  ctrl-t q quits  ·  release before make flash\n' "$$port" '$(BAUD)'; \
+	exec tio -b $(BAUD) $$logargs "$$port"
 
 ##@ Housekeeping
 ## ports: list attached usbmodem ports, labelled by board
