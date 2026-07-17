@@ -1,7 +1,5 @@
 <p align="center">
-  <img src="assets/aliro-ios.jpg" height="250" alt="aliro unlock on ios" />
-  &nbsp;&nbsp;&nbsp;&nbsp;
-  <img src="assets/aliro-watchos.jpeg" height="250" alt="aliro unlock on watchos" />
+  <img src="assets/hero.gif" width="640" alt="aliro unlock on ios" />
 </p>
 
 # reverse engineering a phone's uwb proximity unlock

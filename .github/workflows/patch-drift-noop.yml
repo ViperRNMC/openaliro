@@ -1,0 +1,21 @@
+# No-op twin of patch-drift for PRs that touch none of its paths. `drift` is a
+# required status check, and a path-skipped workflow never reports — leaving the
+# PR stuck at "Expected". Same workflow + job name, inverse trigger (paths-ignore
+# vs paths on the identical list), so exactly one of the pair reports per PR.
+# Per GitHub docs: "Handling skipped but required checks".
+name: patch-drift
+
+on:
+  pull_request:
+    paths-ignore:
+      - west.yml
+      - bootstrap.sh
+      - integration/patches/**
+      - tests/tooling/patch_drift_check.sh
+      - .github/workflows/patch-drift.yml
+
+jobs:
+  drift:
+    runs-on: ubuntu-latest
+    steps:
+      - run: echo "no patch/pin changes — drift check not needed"

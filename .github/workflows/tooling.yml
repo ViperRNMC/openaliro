@@ -5,8 +5,21 @@ name: tooling
 on:
   push:
     branches: [main]
+    paths:
+      - "**.sh"
+      - Makefile
+      - .github/workflows/tooling.yml
   pull_request:
+    paths:
+      - "**.sh"
+      - Makefile
+      - .github/workflows/tooling.yml
   workflow_dispatch:
+
+# Superseded runs on the same ref are wasted work — cancel them.
+concurrency:
+  group: ${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: ${{ github.event_name == 'pull_request' }}
 
 jobs:
   ws-seed:

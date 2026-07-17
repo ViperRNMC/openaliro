@@ -14,12 +14,10 @@
 </p>
 
 <p align="center">
-  <img src="assets/aliro-ios.jpg" height="260" alt="aliro unlock on ios" />
-  &nbsp;&nbsp;&nbsp;&nbsp;
-  <img src="assets/aliro-watchos.jpeg" height="260" alt="aliro unlock on watchos" />
+  <img src="assets/hero.gif" width="640" alt="aliro unlock on ios" />
 </p>
 
-<p align="center"><sub>real unlocks on hardware: iphone on approach (left), apple watch (right).</sub></p>
+<p align="center"><sub>real unlock on hardware: iphone on approach.</sub></p>
 
 ---
 

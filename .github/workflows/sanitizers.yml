@@ -6,8 +6,23 @@ name: sanitizers
 on:
   push:
     branches: [main]
+    paths:
+      - modules/woz_uwb/**
+      - tests/host/**
+      - Makefile
+      - .github/workflows/sanitizers.yml
   pull_request:
+    paths:
+      - modules/woz_uwb/**
+      - tests/host/**
+      - Makefile
+      - .github/workflows/sanitizers.yml
   workflow_dispatch:
+
+# Superseded runs on the same ref are wasted work — cancel them.
+concurrency:
+  group: ${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: ${{ github.event_name == 'pull_request' }}
 
 jobs:
   asan-ubsan:
