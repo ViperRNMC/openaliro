@@ -31,7 +31,8 @@ static const char *const muted_sources[] = {
 	"access_document",
 };
 
-// One-shot init that mutes specified log sources by setting their filter to LOG_LEVEL_NONE across all backends, silencing debug output on startup.
+// One-shot init that mutes specified log sources by setting their filter to LOG_LEVEL_NONE across
+// all backends, silencing debug output on startup.
 static int woz_logquiet_init(void)
 {
 	for (size_t i = 0; i < ARRAY_SIZE(muted_sources); i++) {

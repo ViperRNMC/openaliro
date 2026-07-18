@@ -30,7 +30,8 @@ enum cherry_err {
 };
 
 /**
- * @brief Opaque per-technology FiRa capability blob; unused on this lock since only CCC capabilities are populated.
+ * @brief Opaque per-technology FiRa capability blob; unused on this lock since only CCC
+ * capabilities are populated.
  */
 struct cherry_fira_capabilities;
 /**
@@ -43,12 +44,14 @@ struct cherry_ccc_capabilities;
 struct cherry_radar_capabilities;
 
 /**
- * @brief UWBS capability container reported by the peer during device discovery; only the CCC capabilities member is consulted.
+ * @brief UWBS capability container reported by the peer during device discovery; only the CCC
+ * capabilities member is consulted.
  */
 struct cherry_core_event_device_capabilities {
 	enum cherry_err status_err;
 	/**
-	 * @brief FiRa capabilities advertised by the peer during device discovery; unused on this lock.
+	 * @brief FiRa capabilities advertised by the peer during device discovery; unused on this
+	 * lock.
 	 */
 	struct cherry_fira_capabilities *fira_capabilities;
 	/**
@@ -64,12 +67,10 @@ struct cherry_core_event_device_capabilities {
 /**
  * @brief Callback type for core (non-session) Cherry notification events.
  */
-typedef void (*cherry_core_cb_t)(struct cherry_core_event *event,
-				 void *user_data);
+typedef void (*cherry_core_cb_t)(struct cherry_core_event *event, void *user_data);
 
 /** Allocate a Cherry context (NULL on allocation failure). */
-struct cherry *cherry_create(const char *device, cherry_core_cb_t core_cb,
-			     void *user_data);
+struct cherry *cherry_create(const char *device, cherry_core_cb_t core_cb, void *user_data);
 
 /**
  * @brief Synchronously release a Cherry context and its resources.

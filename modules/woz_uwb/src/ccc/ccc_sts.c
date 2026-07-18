@@ -8,8 +8,7 @@
 
 #include <deca_device_api.h>
 
-int ccc_sts_apply(const uint8_t dursk[CCC_DURSK_LEN],
-		  const uint8_t sts_v[CCC_STS_V_LEN])
+int ccc_sts_apply(const uint8_t dursk[CCC_DURSK_LEN], const uint8_t sts_v[CCC_STS_V_LEN])
 {
 	uint8_t rev_key[CCC_DURSK_LEN];
 	dwt_sts_cp_key_t key;

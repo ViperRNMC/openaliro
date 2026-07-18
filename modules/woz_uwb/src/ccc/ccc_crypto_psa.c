@@ -16,8 +16,8 @@
  * @param out 16-byte buffer to receive the encrypted block.
  * @return 0 on success, -EINVAL on invalid parameters, -EIO on crypto failure.
  */
-int crypto_aes_ecb_encrypt(const uint8_t *key, size_t key_bits,
-			   const uint8_t in[16], uint8_t out[16])
+int crypto_aes_ecb_encrypt(const uint8_t *key, size_t key_bits, const uint8_t in[16],
+			   uint8_t out[16])
 {
 	psa_key_attributes_t attr = PSA_KEY_ATTRIBUTES_INIT;
 	psa_key_id_t key_id = PSA_KEY_ID_NULL;
@@ -25,8 +25,7 @@ int crypto_aes_ecb_encrypt(const uint8_t *key, size_t key_bits,
 	psa_status_t st;
 	int rc = -EIO;
 
-	if (key == NULL || in == NULL || out == NULL ||
-	    (key_bits != 128u && key_bits != 256u)) {
+	if (key == NULL || in == NULL || out == NULL || (key_bits != 128u && key_bits != 256u)) {
 		return -EINVAL;
 	}
 
@@ -40,8 +39,7 @@ int crypto_aes_ecb_encrypt(const uint8_t *key, size_t key_bits,
 	}
 
 	/* ECB has no IV, so the output is exactly one 16-byte block. */
-	st = psa_cipher_encrypt(key_id, PSA_ALG_ECB_NO_PADDING, in, 16, out, 16,
-				&out_len);
+	st = psa_cipher_encrypt(key_id, PSA_ALG_ECB_NO_PADDING, in, 16, out, 16, &out_len);
 	if (st == PSA_SUCCESS && out_len == 16u) {
 		rc = 0;
 	}

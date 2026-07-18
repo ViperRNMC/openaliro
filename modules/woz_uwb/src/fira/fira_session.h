@@ -7,9 +7,8 @@
 #include <stdint.h>
 
 /** @brief Fetch the most recent valid DS-TWR range; out-params optional (NULL to skip). */
-bool fira_session_last_range(int32_t *cm_out, uint16_t *addr_out,
-			     uint8_t *nlos_out, uint32_t *block_out,
-			     int64_t *age_ms_out);
+bool fira_session_last_range(int32_t *cm_out, uint16_t *addr_out, uint8_t *nlos_out,
+			     uint32_t *block_out, int64_t *age_ms_out);
 
 #if defined(CONFIG_WOZ_ALIRO)
 /** @brief Stash an Aliro URSK for the CCC Pre-POLL STS decode; NULL clears it. */
@@ -39,8 +38,8 @@ uint32_t fira_session_current_slot(void);
  * early-first-path / Ghost-Peak spoof drives ToF sharply negative); above MAX
  * is outside any Aliro proximity envelope. A small negative is legitimate
  * point-blank calibration slop and reads as 0 cm rather than being dropped. */
-#define FIRA_RANGE_NEG_TOL_CM 30	/* legit point-blank slop; drop beyond */
-#define FIRA_RANGE_MAX_CM     3000	/* usable envelope (30 m); tune to radio */
+#define FIRA_RANGE_NEG_TOL_CM 30   /* legit point-blank slop; drop beyond */
+#define FIRA_RANGE_MAX_CM     3000 /* usable envelope (30 m); tune to radio */
 
 /** @brief Layer 1: true if @p cm is a physically plausible DS-TWR distance. */
 bool fira_session_range_plausible(int32_t cm);
@@ -49,7 +48,7 @@ bool fira_session_range_plausible(int32_t cm);
  * <0 for bad, and its signed index is "good" at >= ~60% of the STS length. A
  * spoofed early path cannot reproduce the scrambled sequence, so its STS
  * quality collapses. Raise MIN toward the 60%-of-length index to tighten. */
-#define FIRA_STS_QUALITY_MIN 0	/* index floor; 0 = defer to driver verdict */
+#define FIRA_STS_QUALITY_MIN 0 /* index floor; 0 = defer to driver verdict */
 
 /** @brief Layer 2: true if the STS correlated well enough to trust its timestamp.
  *  @param driver_verdict  dwt_readstsquality() return (>=0 good, <0 bad).
@@ -62,8 +61,8 @@ bool fira_session_sts_quality_ok(int32_t driver_verdict, int16_t quality_index);
  * shell/telemetry still track live values); it is the trust bit now wired into
  * the unlock path via woz_uwb_trusted_range_cm(), which surfaces a distance only
  * once trust is built. */
-#define FIRA_RANGE_TRUST_K   3	/* consecutive agreeing blocks to trust */
-#define FIRA_RANGE_SPREAD_CM 50	/* max block-to-block delta to stay agreed */
+#define FIRA_RANGE_TRUST_K   3  /* consecutive agreeing blocks to trust */
+#define FIRA_RANGE_SPREAD_CM 50 /* max block-to-block delta to stay agreed */
 
 /** @brief Layer 4: true once >= K consecutive plausible, mutually consistent
  *  ranges have been latched. Cleared by any implausible or outlier block. */

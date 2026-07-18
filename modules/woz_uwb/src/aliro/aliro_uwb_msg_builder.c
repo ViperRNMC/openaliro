@@ -11,8 +11,7 @@
  * @param payload_len Number of payload bytes to reserve, in addition to the header.
  * @return true on successful allocation, false if allocation failed.
  */
-bool aliro_uwb_msg_builder_init(struct aliro_uwb_msg_builder *builder,
-				uint16_t payload_len)
+bool aliro_uwb_msg_builder_init(struct aliro_uwb_msg_builder *builder, uint16_t payload_len)
 {
 	size_t total = ALIRO_HEADER_LENGTH + payload_len;
 
@@ -35,9 +34,8 @@ bool aliro_uwb_msg_builder_init(struct aliro_uwb_msg_builder *builder,
  * @param id Message identifier byte.
  * @param payload_length Payload length, written big-endian.
  */
-void aliro_uwb_msg_builder_header(struct aliro_uwb_msg_builder *builder,
-				  uint8_t protocol, uint8_t id,
-				  uint16_t payload_length)
+void aliro_uwb_msg_builder_header(struct aliro_uwb_msg_builder *builder, uint8_t protocol,
+				  uint8_t id, uint16_t payload_length)
 {
 	uint8_t *p = builder->message->data;
 
@@ -55,13 +53,12 @@ void aliro_uwb_msg_builder_header(struct aliro_uwb_msg_builder *builder,
  * @param value Pointer to the attribute value bytes to copy, may be NULL if length is 0.
  * @return true if the attribute was appended, false if it would overrun the builder's capacity.
  */
-static bool add_attribute(struct aliro_uwb_msg_builder *builder, uint8_t id,
-			  uint8_t length, const uint8_t *value)
+static bool add_attribute(struct aliro_uwb_msg_builder *builder, uint8_t id, uint8_t length,
+			  const uint8_t *value)
 {
 	uint8_t *p = builder->message->data;
 
-	if (builder->message->len + ALIRO_ATTRIBUTE_HEADER_LENGTH + length >
-	    builder->capacity) {
+	if (builder->message->len + ALIRO_ATTRIBUTE_HEADER_LENGTH + length > builder->capacity) {
 		return false;
 	}
 
@@ -81,8 +78,7 @@ static bool add_attribute(struct aliro_uwb_msg_builder *builder, uint8_t id,
  * @param value 1-byte value to append.
  * @return true if the attribute was appended, false if it would overrun the builder's capacity.
  */
-bool aliro_uwb_msg_builder_add_u8(struct aliro_uwb_msg_builder *builder,
-				  uint8_t id, uint8_t value)
+bool aliro_uwb_msg_builder_add_u8(struct aliro_uwb_msg_builder *builder, uint8_t id, uint8_t value)
 {
 	return add_attribute(builder, id, sizeof(value), &value);
 }
@@ -94,10 +90,10 @@ bool aliro_uwb_msg_builder_add_u8(struct aliro_uwb_msg_builder *builder,
  * @param value 16-bit value to append, encoded big-endian.
  * @return true if the attribute was appended, false if it would overrun the builder's capacity.
  */
-bool aliro_uwb_msg_builder_add_u16(struct aliro_uwb_msg_builder *builder,
-				   uint8_t id, uint16_t value)
+bool aliro_uwb_msg_builder_add_u16(struct aliro_uwb_msg_builder *builder, uint8_t id,
+				   uint16_t value)
 {
-	uint8_t buf[2] = { (uint8_t)(value >> 8), (uint8_t)value };
+	uint8_t buf[2] = {(uint8_t)(value >> 8), (uint8_t)value};
 
 	return add_attribute(builder, id, sizeof(buf), buf);
 }
@@ -109,8 +105,8 @@ bool aliro_uwb_msg_builder_add_u16(struct aliro_uwb_msg_builder *builder,
  * @param value 32-bit value to append, encoded big-endian.
  * @return true if the attribute was appended, false if it would overrun the builder's capacity.
  */
-bool aliro_uwb_msg_builder_add_u32(struct aliro_uwb_msg_builder *builder,
-				   uint8_t id, uint32_t value)
+bool aliro_uwb_msg_builder_add_u32(struct aliro_uwb_msg_builder *builder, uint8_t id,
+				   uint32_t value)
 {
 	uint8_t buf[4] = {
 		(uint8_t)(value >> 24),
@@ -129,14 +125,13 @@ bool aliro_uwb_msg_builder_add_u32(struct aliro_uwb_msg_builder *builder,
  * @param value 64-bit value to append, encoded big-endian.
  * @return true if the attribute was appended, false if it would overrun the builder's capacity.
  */
-bool aliro_uwb_msg_builder_add_u64(struct aliro_uwb_msg_builder *builder,
-				   uint8_t id, uint64_t value)
+bool aliro_uwb_msg_builder_add_u64(struct aliro_uwb_msg_builder *builder, uint8_t id,
+				   uint64_t value)
 {
 	uint8_t buf[8] = {
-		(uint8_t)(value >> 56), (uint8_t)(value >> 48),
-		(uint8_t)(value >> 40), (uint8_t)(value >> 32),
-		(uint8_t)(value >> 24), (uint8_t)(value >> 16),
-		(uint8_t)(value >> 8),	(uint8_t)value,
+		(uint8_t)(value >> 56), (uint8_t)(value >> 48), (uint8_t)(value >> 40),
+		(uint8_t)(value >> 32), (uint8_t)(value >> 24), (uint8_t)(value >> 16),
+		(uint8_t)(value >> 8),  (uint8_t)value,
 	};
 
 	return add_attribute(builder, id, sizeof(buf), buf);
@@ -148,11 +143,11 @@ bool aliro_uwb_msg_builder_add_u64(struct aliro_uwb_msg_builder *builder,
  * @param id Attribute identifier byte.
  * @param count Number of 16-bit words in the values array.
  * @param values Pointer to the array of 16-bit values to append.
- * @return true if the attribute was appended, false if count is 0, values is NULL, or the attribute would overrun the builder's capacity.
+ * @return true if the attribute was appended, false if count is 0, values is NULL, or the attribute
+ * would overrun the builder's capacity.
  */
-bool aliro_uwb_msg_builder_add_u16_array(struct aliro_uwb_msg_builder *builder,
-					 uint8_t id, size_t count,
-					 const uint16_t *values)
+bool aliro_uwb_msg_builder_add_u16_array(struct aliro_uwb_msg_builder *builder, uint8_t id,
+					 size_t count, const uint16_t *values)
 {
 	size_t i;
 
@@ -177,9 +172,8 @@ bool aliro_uwb_msg_builder_add_u16_array(struct aliro_uwb_msg_builder *builder,
  * @param values Pointer to the raw bytes to append.
  * @return true if the attribute was appended, false if it would overrun the builder's capacity.
  */
-bool aliro_uwb_msg_builder_add_bytes(struct aliro_uwb_msg_builder *builder,
-				     uint8_t id, size_t count,
-				     const uint8_t *values)
+bool aliro_uwb_msg_builder_add_bytes(struct aliro_uwb_msg_builder *builder, uint8_t id,
+				     size_t count, const uint8_t *values)
 {
 	return add_attribute(builder, id, (uint8_t)count, values);
 }

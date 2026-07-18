@@ -21,27 +21,27 @@ extern uint32_t SystemCoreClock;
 extern void SystemCoreClockUpdate(void);
 
 /* --- ANSI palette ---------------------------------------------------------- */
-#define A_RST "\x1b[0m"
-#define A_DIM "\x1b[2m"
+#define A_RST    "\x1b[0m"
+#define A_DIM    "\x1b[2m"
 #define A_BANNER "\x1b[1;97m" /* bold bright-white: source-less boot banner */
-#define A_RED "\x1b[31m"
-#define A_YEL "\x1b[33m"
+#define A_RED    "\x1b[31m"
+#define A_YEL    "\x1b[33m"
 
 /* Per-module colours (skip red/yellow); hashed from the source name for stability. */
 static const char *const module_colors[] = {
-	"\x1b[36m",  /* cyan */
-	"\x1b[32m",  /* green */
-	"\x1b[35m",  /* magenta */
-	"\x1b[34m",  /* blue */
-	"\x1b[96m",  /* bright cyan */
-	"\x1b[92m",  /* bright green */
+	"\x1b[36m", /* cyan */
+	"\x1b[32m", /* green */
+	"\x1b[35m", /* magenta */
+	"\x1b[34m", /* blue */
+	"\x1b[96m", /* bright cyan */
+	"\x1b[92m", /* bright green */
 };
 #define N_MODULE_COLORS ARRAY_SIZE(module_colors)
 
 /* --- DWT-backed 64-bit timestamp ------------------------------------------- */
-static uint32_t g_freq;      /* DWT tick rate (== CPU clock), Hz */
-static uint32_t g_last_cyc;  /* last DWT->CYCCNT sample */
-static uint64_t g_acc_cyc;   /* wrap-free 64-bit cycle accumulator */
+static uint32_t g_freq;     /* DWT tick rate (== CPU clock), Hz */
+static uint32_t g_last_cyc; /* last DWT->CYCCNT sample */
+static uint64_t g_acc_cyc;  /* wrap-free 64-bit cycle accumulator */
 
 /** @brief Advance + read the 64-bit cycle accumulator (irq-safe; any context). */
 static log_timestamp_t woz_timestamp_get(void)
@@ -84,7 +84,8 @@ static int woz_sink_out(int c, void *ctx)
 	return c;
 }
 
-// Append a null-terminated string to the sink buffer one character at a time, stopping at end of string or exhausted buffer.
+// Append a null-terminated string to the sink buffer one character at a time, stopping at end of
+// string or exhausted buffer.
 static void woz_sink_str(struct woz_sink *s, const char *str)
 {
 	while (*str != '\0' && s->rem > 0u) {
@@ -108,8 +109,7 @@ static const char *module_color(const char *name)
 }
 
 /** @brief Render one message as `SEC.NS module message`, or delegate hexdumps. */
-static void woz_msg_format(const struct log_output *output, struct log_msg *msg,
-			   uint32_t flags)
+static void woz_msg_format(const struct log_output *output, struct log_msg *msg, uint32_t flags)
 {
 	size_t dlen = 0;
 	uint8_t *data = log_msg_get_data(msg, &dlen);
@@ -137,12 +137,10 @@ static void woz_msg_format(const struct log_output *output, struct log_msg *msg,
 	/* Cycles -> whole seconds + nanoseconds within the second. */
 	uint64_t ts = (uint64_t)log_msg_get_timestamp(msg);
 	uint64_t sec = (g_freq != 0u) ? (ts / g_freq) : 0u;
-	uint32_t ns = (g_freq != 0u)
-		? (uint32_t)(((ts % g_freq) * 1000000000ULL) / g_freq)
-		: 0u;
+	uint32_t ns = (g_freq != 0u) ? (uint32_t)(((ts % g_freq) * 1000000000ULL) / g_freq) : 0u;
 
 	char line[320];
-	struct woz_sink s = { line, sizeof(line) };
+	struct woz_sink s = {line, sizeof(line)};
 	char pre[48];
 
 	snprintk(pre, sizeof(pre), "%llu.%09u ", (unsigned long long)sec, ns);
@@ -174,7 +172,7 @@ static void woz_msg_format(const struct log_output *output, struct log_msg *msg,
 		/* Zephyr wraps every boot banner line in "*** … ***". Render the
 		 * body to a scratch buffer and drop that wrapper before emitting. */
 		char body[256];
-		struct woz_sink bs = { body, sizeof(body) };
+		struct woz_sink bs = {body, sizeof(body)};
 		cbpprintf(woz_sink_out, &bs, package);
 
 		char *bp = body;
@@ -182,8 +180,7 @@ static void woz_msg_format(const struct log_output *output, struct log_msg *msg,
 		while (blen > 0u && (bp[blen - 1] == '\n' || bp[blen - 1] == '\r')) {
 			blen--; /* defensive: strip any trailing newline first */
 		}
-		if (blen >= 4u && bp[0] == '*' && bp[1] == '*' && bp[2] == '*' &&
-		    bp[3] == ' ') {
+		if (blen >= 4u && bp[0] == '*' && bp[1] == '*' && bp[2] == '*' && bp[3] == ' ') {
 			bp += 4;
 			blen -= 4u;
 		}

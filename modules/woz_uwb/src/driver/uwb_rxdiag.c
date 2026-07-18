@@ -8,11 +8,11 @@
 
 #include <deca_device_api.h>
 
-#include "ccc_shim.h" /* ccc_shim_rx_notify_rx — empirical STS-index tracker */
+#include "ccc_shim.h"     /* ccc_shim_rx_notify_rx — empirical STS-index tracker */
 #include "fira_session.h" /* fira_session_last_range — latched DS-TWR distance */
-#include "uwb_rxdiag.h" /* our accessors + runtime stream toggle */
-#include "woz_diag.h" /* DIAGK — per-event/cfg/CAD trace, gated off in pretty mode */
-#include "woz_alloc.h" /* qrtc_get_us — monotonic microsecond wall-clock */
+#include "uwb_rxdiag.h"   /* our accessors + runtime stream toggle */
+#include "woz_diag.h"     /* DIAGK — per-event/cfg/CAD trace, gated off in pretty mode */
+#include "woz_alloc.h"    /* qrtc_get_us — monotonic microsecond wall-clock */
 
 LOG_MODULE_REGISTER(uwb_rxdiag, LOG_LEVEL_INF);
 
@@ -41,7 +41,8 @@ static volatile uint32_t g_rxok, g_rxto, g_rxerr, g_txdone;
 static volatile uint32_t g_last_err_status, g_last_ok_status;
 
 /** @brief Per-event frame-structure log (first @ref RXDIAG_EVENT_LOG RX events). */
-#define RXDIAG_EVENT_LOG 4 /* trimmed from 24: per-event printk starves the RX re-arm (Pre-POLL hunt) */
+#define RXDIAG_EVENT_LOG                                                                           \
+	4 /* trimmed from 24: per-event printk starves the RX re-arm (Pre-POLL hunt) */
 static uint32_t g_ev_logged;
 
 /** @brief RX-arrival cadence histogram: bins each RX phase within the 192 ms block grid. */
@@ -70,9 +71,8 @@ static void rxdiag_ev_log(const char *cls, const dwt_cb_data_t *d)
 		/* Read before chaining so sp is the mode of THIS reception, not the next window. */
 		unsigned sp = RXDIAG_CP_SPC(dwt_read_reg(RXDIAG_SYS_CFG));
 
-		DIAGK("rxdiag ev#%u %s sp%u st=%08x len=%u fl=%02x\n",
-		       (unsigned)g_ev_logged, cls, sp, (unsigned)d->status,
-		       (unsigned)d->datalength, (unsigned)d->rx_flags);
+		DIAGK("rxdiag ev#%u %s sp%u st=%08x len=%u fl=%02x\n", (unsigned)g_ev_logged, cls,
+		      sp, (unsigned)d->status, (unsigned)d->datalength, (unsigned)d->rx_flags);
 		g_ev_logged++;
 	}
 }
@@ -81,7 +81,8 @@ static void rxdiag_ev_log(const char *cls, const dwt_cb_data_t *d)
 /** @brief Decode-cost probe: last try_prepoll() duration, hi32 (~4 ns) units. */
 uint32_t g_ccc_dbg_decode;
 
-// RX-good callback shim: log RX diagnostics, invoke the armed CCC callback if set (SP3 POLL arm), then decode the Pre-POLL frame off the critical path to warm the next block's STS.
+// RX-good callback shim: log RX diagnostics, invoke the armed CCC callback if set (SP3 POLL arm),
+// then decode the Pre-POLL frame off the critical path to warm the next block's STS.
 static void shim_rxok(const dwt_cb_data_t *d)
 {
 	bool await = ccc_shim_rx_awaiting_poll();
@@ -99,7 +100,8 @@ static void shim_rxok(const dwt_cb_data_t *d)
 	if (g_blob_rxok != NULL) {
 		g_blob_rxok(d);
 	}
-	/* Decode the Pre-POLL after the arm to warm the next block's index; skip on the POLL event. */
+	/* Decode the Pre-POLL after the arm to warm the next block's index; skip on the POLL event.
+	 */
 	if (d != NULL && !await) {
 		uint32_t s0 = dwt_readsystimestamphi32();
 
@@ -173,13 +175,14 @@ static uint32_t g_stsmode_logged;
 int32_t __wrap_dwt_configure(dwt_config_t *config)
 {
 	if (config != NULL && g_cfg_logged < RXDIAG_CFG_LOG) {
-		DIAGK("rxdiag cfg#%u chan=%u plen=%u txc=%u rxc=%u sfd=%u rate=%u phrM=%u phrR=%u sfdTO=%u sts=%02x stsLen=%u\n",
-		       (unsigned)g_cfg_logged, (unsigned)config->chan,
-		       (unsigned)config->txPreambLength, (unsigned)config->txCode,
-		       (unsigned)config->rxCode, (unsigned)config->sfdType,
-		       (unsigned)config->dataRate, (unsigned)config->phrMode,
-		       (unsigned)config->phrRate, (unsigned)config->sfdTO,
-		       (unsigned)config->stsMode, (unsigned)config->stsLength);
+		DIAGK("rxdiag cfg#%u chan=%u plen=%u txc=%u rxc=%u sfd=%u rate=%u phrM=%u phrR=%u "
+		      "sfdTO=%u sts=%02x stsLen=%u\n",
+		      (unsigned)g_cfg_logged, (unsigned)config->chan,
+		      (unsigned)config->txPreambLength, (unsigned)config->txCode,
+		      (unsigned)config->rxCode, (unsigned)config->sfdType,
+		      (unsigned)config->dataRate, (unsigned)config->phrMode,
+		      (unsigned)config->phrRate, (unsigned)config->sfdTO, (unsigned)config->stsMode,
+		      (unsigned)config->stsLength);
 		g_cfg_logged++;
 	}
 	return __real_dwt_configure(config);
@@ -189,8 +192,7 @@ int32_t __wrap_dwt_configure(dwt_config_t *config)
 void __wrap_dwt_configurestsmode(uint8_t stsMode)
 {
 	if (g_stsmode_logged < RXDIAG_STSMODE_LOG) {
-		DIAGK("rxdiag stsmode#%u=%02x\n", (unsigned)g_stsmode_logged,
-		       (unsigned)stsMode);
+		DIAGK("rxdiag stsmode#%u=%02x\n", (unsigned)g_stsmode_logged, (unsigned)stsMode);
 		g_stsmode_logged++;
 	}
 	__real_dwt_configurestsmode(stsMode);
@@ -207,7 +209,8 @@ static void rxdiag_log(struct k_work *work)
 {
 	ARG_UNUSED(work);
 
-	/* "Idle" == no new GOOD frame since the last heartbeat; announce idle once, then stay quiet. */
+	/* "Idle" == no new GOOD frame since the last heartbeat; announce idle once, then stay
+	 * quiet. */
 	static uint32_t last_rxok;
 	static bool idle_announced;
 	bool active = (g_rxok != last_rxok);
@@ -225,26 +228,24 @@ static void rxdiag_log(struct k_work *work)
 
 		int32_t cm = 0;
 		int64_t age_ms = 0;
-		bool have_range = fira_session_last_range(&cm, NULL, NULL, NULL,
-							  &age_ms);
+		bool have_range = fira_session_last_range(&cm, NULL, NULL, NULL, &age_ms);
 		bool sts_live = ccc_shim_active();
 
-		printk(RX_DIM "  ⟐ " RX_RST RX_CYN "rx" RX_RST " "
-		       RX_GRN "✓%u" RX_RST " %s✗%u" RX_RST " " RX_YEL "⧗%u" RX_RST
-		       RX_DIM " tx%u" RX_RST,
+		printk(RX_DIM "  ⟐ " RX_RST RX_CYN "rx" RX_RST " " RX_GRN "✓%u" RX_RST
+			      " %s✗%u" RX_RST " " RX_YEL "⧗%u" RX_RST RX_DIM " tx%u" RX_RST,
 		       g_rxok, g_rxerr ? RX_RED : RX_DIM, g_rxerr, g_rxto, g_txdone);
 		if (have_range) {
 			/* Fresh range is live cyan; a stale one is dimmed with its age. */
 			if (age_ms > RXDIAG_STALE_MS) {
-				printk(RX_DIM " · %dcm stale %llds" RX_RST,
-				       cm, (long long)(age_ms / 1000));
+				printk(RX_DIM " · %dcm stale %llds" RX_RST, cm,
+				       (long long)(age_ms / 1000));
 			} else {
 				printk(RX_DIM " · " RX_RST RX_CYN "%dcm" RX_RST, cm);
 			}
 		}
-		printk(RX_DIM " · " RX_RST "sts%s" RX_RST "\n",
-		       sts_live ? RX_GRN "●" : RX_DIM "○");
-		/* Cadence: peak bin vs mean reveals a 192 ms-grid cluster (phone) vs uniform (noise). */
+		printk(RX_DIM " · " RX_RST "sts%s" RX_RST "\n", sts_live ? RX_GRN "●" : RX_DIM "○");
+		/* Cadence: peak bin vs mean reveals a 192 ms-grid cluster (phone) vs uniform
+		 * (noise). */
 		if (g_cad_n > 0u) {
 			uint32_t pk = 0u, pki = 0u, pk2 = 0u, pk2i = 0u;
 			for (uint32_t i = 0u; i < CAD_BINS; i++) {
@@ -260,8 +261,8 @@ static void rxdiag_log(struct k_work *work)
 			}
 			uint32_t ratio_x10 = (pk * CAD_BINS * 10u) / g_cad_n; /* (peak/mean) x10 */
 			DIAGK("CAD n=%u peak=b%u:%u(%ums) 2nd=b%u:%u(%ums) mean=%u pk/mean=%u.%u\n",
-			       g_cad_n, pki, pk, pki * 2u, pk2i, pk2, pk2i * 2u,
-			       g_cad_n / CAD_BINS, ratio_x10 / 10u, ratio_x10 % 10u);
+			      g_cad_n, pki, pk, pki * 2u, pk2i, pk2, pk2i * 2u, g_cad_n / CAD_BINS,
+			      ratio_x10 / 10u, ratio_x10 % 10u);
 		}
 	}
 	if (g_stream) {
@@ -269,9 +270,8 @@ static void rxdiag_log(struct k_work *work)
 	}
 }
 
-void uwb_rxdiag_get_counts(uint32_t *rxok, uint32_t *rxerr, uint32_t *rxto,
-			   uint32_t *txdone, uint32_t *last_err,
-			   uint32_t *last_ok)
+void uwb_rxdiag_get_counts(uint32_t *rxok, uint32_t *rxerr, uint32_t *rxto, uint32_t *txdone,
+			   uint32_t *last_err, uint32_t *last_ok)
 {
 	if (rxok) {
 		*rxok = g_rxok;

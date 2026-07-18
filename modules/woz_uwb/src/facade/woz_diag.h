@@ -6,11 +6,11 @@
 #include <zephyr/sys/printk.h>
 
 #if defined(CONFIG_WOZ_PRETTY_SHELL)
-#define DIAGK(...)                                                            \
-	do {                                                                  \
-		if (0) {                                                      \
-			printk(__VA_ARGS__);                                  \
-		}                                                             \
+#define DIAGK(...)                                                                                 \
+	do {                                                                                       \
+		if (0) {                                                                           \
+			printk(__VA_ARGS__);                                                       \
+		}                                                                                  \
 	} while (0)
 #else
 #define DIAGK(...) printk(__VA_ARGS__)
