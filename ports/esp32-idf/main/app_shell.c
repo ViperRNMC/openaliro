@@ -8,14 +8,38 @@
 #include "freertos/semphr.h"
 #include "esp_console.h"
 #include "linenoise/linenoise.h"
-#include "esp_log.h"
 #include "esp_err.h"
+#include "esp_app_desc.h"
+#include "esp_idf_version.h"
 
 #include "woz_uwb_facade.h"
 #include "aliro_reader.h"
 #include "app_shell.h"
 
-static const char *TAG = "shell";
+/* ---- look & feel -------------------------------------------------------- *
+ * All color goes through col(): a terminal that failed the escape-sequence
+ * probe (linenoise dumb mode) gets plain text instead of escape garbage. */
+#define C_TITLE "\x1b[1;36m" /* bold cyan */
+#define C_DIM   "\x1b[90m"   /* grey */
+#define C_OK    "\x1b[32m"   /* green */
+#define C_BAD   "\x1b[31m"   /* red */
+#define C_RST   "\x1b[0m"
+
+static const char *col(const char *c)
+{
+	return linenoiseIsDumbMode() ? "" : c;
+}
+
+static void print_banner(void)
+{
+	const esp_app_desc_t *app = esp_app_get_description();
+
+	printf("\n%s%s%s %s%s · esp-idf %s%s\n", col(C_TITLE), app->project_name, col(C_RST),
+	       col(C_DIM), app->version, esp_get_idf_version(), col(C_RST));
+	printf("%sAliro reader bench · 'help' lists commands · ctrl-] leaves the "
+	       "monitor%s\n\n",
+	       col(C_DIM), col(C_RST));
+}
 
 /* Dummy 32-byte URSK for a peerless bring-up smoke test (mirrors uwb_selftest.c).
  * Moved here from main.c so both the boot-time start and the `aliro-start`
@@ -93,7 +117,8 @@ static int cmd_status(int argc, char **argv)
 	(void)argc;
 	(void)argv;
 	int32_t cm;
-	printf("responder : %s\n", app_responder_up() ? "up" : "down");
+	bool up = app_responder_up();
+	printf("responder : %s%s%s\n", col(up ? C_OK : C_BAD), up ? "up" : "down", col(C_RST));
 	if (woz_uwb_last_range_cm(&cm)) {
 		printf("last range: %d cm\n", (int)cm);
 	} else {
@@ -222,6 +247,8 @@ void app_shell_start(void)
 	}
 	ESP_ERROR_CHECK(esp_console_register_help_command());
 
+	/* Probe ran inside esp_console_new_repl_uart, so dumb-mode is settled and
+	 * the banner lands right above the first prompt. */
+	print_banner();
 	ESP_ERROR_CHECK(esp_console_start_repl(repl));
-	ESP_LOGI(TAG, "console up on the UART (type 'help')");
 }
