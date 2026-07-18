@@ -6,17 +6,28 @@
 </p>
 
 <p align="center">
-  <a href="https://github.com/asxeem/openaliro/actions/workflows/host-tests.yml"><img src="https://github.com/asxeem/openaliro/actions/workflows/host-tests.yml/badge.svg?branch=main" alt="host tests" /></a>
-  <a href="https://github.com/asxeem/openaliro/actions/workflows/sanitizers.yml"><img src="https://github.com/asxeem/openaliro/actions/workflows/sanitizers.yml/badge.svg?branch=main" alt="sanitizers" /></a>
-  <a href="https://github.com/asxeem/openaliro/actions/workflows/patch-drift.yml"><img src="https://github.com/asxeem/openaliro/actions/workflows/patch-drift.yml/badge.svg?branch=main" alt="patch drift" /></a>
-  <a href="https://github.com/asxeem/openaliro/actions/workflows/tooling.yml"><img src="https://github.com/asxeem/openaliro/actions/workflows/tooling.yml/badge.svg?branch=main" alt="tooling" /></a>
+  <a href="#quick-start">Quick start</a> ·
+  <a href="#hardware">Hardware</a> ·
+  <a href="#how-it-works">How it works</a> ·
+  <a href="#status">Status</a> ·
+  <a href="#documentation">Documentation</a> ·
+  <a href="#license">License</a>
 </p>
 
 <p align="center">
-  <img src="https://img.shields.io/badge/board-nRF5340%20DK-00a9ce" alt="board: nRF5340 DK" />
-  <img src="https://img.shields.io/badge/UWB-Qorvo%20DW3110-1e88e5" alt="UWB: Qorvo DW3110" />
-  <img src="https://img.shields.io/badge/NCS-v3.3.0-0f62fe" alt="NCS v3.3.0" />
-  <img src="https://img.shields.io/badge/license-source--available-lightgrey" alt="license: source-available" />
+  <a href="https://github.com/asxeem/openaliro/actions/workflows/host-tests.yml"><img src="https://img.shields.io/github/actions/workflow/status/asxeem/openaliro/host-tests.yml?branch=main&style=flat-square&label=host%20tests" alt="host tests" /></a>
+  <a href="https://github.com/asxeem/openaliro/actions/workflows/sanitizers.yml"><img src="https://img.shields.io/github/actions/workflow/status/asxeem/openaliro/sanitizers.yml?branch=main&style=flat-square&label=sanitizers" alt="sanitizers" /></a>
+  <a href="https://github.com/asxeem/openaliro/actions/workflows/patch-drift.yml"><img src="https://img.shields.io/github/actions/workflow/status/asxeem/openaliro/patch-drift.yml?branch=main&style=flat-square&label=patch%20drift" alt="patch drift" /></a>
+  <a href="https://github.com/asxeem/openaliro/actions/workflows/tooling.yml"><img src="https://img.shields.io/github/actions/workflow/status/asxeem/openaliro/tooling.yml?branch=main&style=flat-square&label=tooling" alt="tooling" /></a>
+  <a href="https://github.com/asxeem/openaliro/actions/workflows/format.yml"><img src="https://img.shields.io/github/actions/workflow/status/asxeem/openaliro/format.yml?branch=main&style=flat-square&label=format" alt="format" /></a>
+</p>
+
+<p align="center">
+  <img src="https://img.shields.io/github/languages/top/asxeem/openaliro?style=flat-square" alt="top language" />
+  <img src="https://img.shields.io/badge/board-nRF5340%20DK-00a9ce?style=flat-square" alt="board: nRF5340 DK" />
+  <img src="https://img.shields.io/badge/UWB-Qorvo%20DW3110-1e88e5?style=flat-square" alt="UWB: Qorvo DW3110" />
+  <img src="https://img.shields.io/badge/NCS-v3.3.0-0f62fe?style=flat-square" alt="NCS v3.3.0" />
+  <img src="https://img.shields.io/badge/license-source--available-lightgrey?style=flat-square" alt="license: source-available" />
 </p>
 
 <p align="center">
@@ -41,7 +52,7 @@ NFC tap unlocks it as well. No app, no button.
 - **No UWB coprocessor**: the entire secure ranging stack runs in firmware on a bare
   Qorvo DW3110.
 
-## Getting started
+## Quick start
 
 ```bash
 nrfutil sdk-manager toolchain install --ncs-version v3.3.0   # once per machine
@@ -101,7 +112,9 @@ flowchart LR
 | Distance-gated unlock / relock | Working |
 
 The full image builds, links, and fits, and approach unlock has been driven end to end on
-an nRF5340 DK with a live iPhone.
+an nRF5340 DK with a live iPhone. Releases are gated on the manual
+[hardware validation checklist](docs/hardware-validation.md). An experimental ESP32-S3
+port of the UWB engine lives in [`ports/`](ports/).
 
 ## Documentation
 
@@ -114,6 +127,10 @@ an nRF5340 DK with a live iPhone.
   the BLE + UWB proximity-unlock protocol.
 - [`docs/troubleshooting.md`](docs/troubleshooting.md): common build, flash, unlock, and
   wiring issues.
+
+Project practices: [`CONTRIBUTING.md`](CONTRIBUTING.md) ·
+[`SECURITY.md`](SECURITY.md) · [`CHANGELOG.md`](CHANGELOG.md) ·
+[`docs/RELEASING.md`](docs/RELEASING.md)
 
 <details>
 <summary><b>Under the hood</b> (why this is hard, and how it is built)</summary>
