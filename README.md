@@ -112,6 +112,8 @@ an nRF5340 DK with a live iPhone.
   credential-validity behavior observed on real hardware.
 - [`docs/protocol-research.md`](docs/protocol-research.md): reverse-engineering report on
   the BLE + UWB proximity-unlock protocol.
+- [`docs/troubleshooting.md`](docs/troubleshooting.md): common build, flash, unlock, and
+  wiring issues.
 
 <details>
 <summary><b>Under the hood</b> (why this is hard, and how it is built)</summary>
