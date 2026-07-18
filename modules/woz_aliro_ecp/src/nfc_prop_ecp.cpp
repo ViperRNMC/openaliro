@@ -1,4 +1,5 @@
-// NFC Type A proprietary callback implementation for Aliro Express unlock (tap-to-unlock without Face ID). Emits a CRC_A–checksummed ECP frame carrying the reader identifier.
+// NFC Type A proprietary callback implementation for Aliro Express unlock (tap-to-unlock without
+// Face ID). Emits a CRC_A–checksummed ECP frame carrying the reader identifier.
 /*
  * Copyright (c) 2026 Nordic Semiconductor ASA
  *
@@ -25,13 +26,14 @@
 
 LOG_MODULE_REGISTER(nfc_prop_ecp, CONFIG_DOOR_LOCK_RFAL_LOG_LEVEL);
 
-namespace {
+namespace
+{
 
 constexpr std::size_t kEcpFrameLen = 18;
 constexpr std::size_t kReaderIdLen = 8;
 
 /* ECP v2 header for the Aliro (Unified Access) profile. */
-constexpr std::array<uint8_t, 8> kAliroEcpHeader = { 0x6A, 0x02, 0xCB, 0x02, 0x06, 0x20, 0x42, 0x20 };
+constexpr std::array<uint8_t, 8> kAliroEcpHeader = {0x6A, 0x02, 0xCB, 0x02, 0x06, 0x20, 0x42, 0x20};
 
 uint8_t sEcpFrame[kEcpFrameLen];
 bool sArmed;
@@ -50,7 +52,8 @@ void Crc16A(const uint8_t *data, unsigned int size, uint8_t *result)
 		unsigned char b = static_cast<unsigned char>(data[i] ^ (wCrc & 0x00FF));
 
 		b = static_cast<unsigned char>((b ^ (b << 4)) & 0xFF);
-		wCrc = static_cast<unsigned short>(((wCrc >> 8) ^ (b << 8) ^ (b << 3) ^ (b >> 4)) & 0xFFFF);
+		wCrc = static_cast<unsigned short>(((wCrc >> 8) ^ (b << 8) ^ (b << 3) ^ (b >> 4)) &
+						   0xFFFF);
 	}
 	result[0] = static_cast<uint8_t>(wCrc & 0xFF);
 	result[1] = static_cast<uint8_t>((wCrc >> 8) & 0xFF);
@@ -66,8 +69,10 @@ ReturnCode PropInit(void)
 }
 
 /**
- * @brief Transmits the armed ECP frame as a fire-and-forget beacon and reports no proprietary device detected so RFAL polling can proceed.
- * @return RFAL_ERR_TIMEOUT if the frame is not armed, or RFAL_ERR_TIMEOUT after transmission to signal no proprietary device found.
+ * @brief Transmits the armed ECP frame as a fire-and-forget beacon and reports no proprietary
+ * device detected so RFAL polling can proceed.
+ * @return RFAL_ERR_TIMEOUT if the frame is not armed, or RFAL_ERR_TIMEOUT after transmission to
+ * signal no proprietary device found.
  */
 ReturnCode PropTechDetect(void)
 {
@@ -80,7 +85,8 @@ ReturnCode PropTechDetect(void)
 	const uint32_t flags = static_cast<uint32_t>(RFAL_TXRX_FLAGS_CRC_TX_MANUAL) |
 			       static_cast<uint32_t>(RFAL_TXRX_FLAGS_CRC_RX_KEEP);
 
-	(void)rfalTransceiveBlockingTxRx(sEcpFrame, kEcpFrameLen, rx, sizeof rx, &rxLen, flags, RFAL_NFCA_FDTMIN);
+	(void)rfalTransceiveBlockingTxRx(sEcpFrame, kEcpFrameLen, rx, sizeof rx, &rxLen, flags,
+					 RFAL_NFCA_FDTMIN);
 
 	/* Fire-and-forget beacon: report "no proprietary device" so RFAL proceeds. */
 	return RFAL_ERR_TIMEOUT;
@@ -98,7 +104,8 @@ const rfalNfcPropCallbacks kCallbacks = {
 } // namespace
 
 /**
- * @brief Builds and arms the ECP frame with the Aliro header, provisioned reader identifier, and CRC_A checksum for emission.
+ * @brief Builds and arms the ECP frame with the Aliro header, provisioned reader identifier, and
+ * CRC_A checksum for emission.
  */
 void NfcPropInit(void)
 {

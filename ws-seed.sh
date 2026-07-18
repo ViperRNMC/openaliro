@@ -41,6 +41,10 @@ fi
 # half-copied dir with no .west. cleanup preserves the real exit code — a bare
 # short-circuit as the trap's last command would otherwise mask success as 1.
 created="" done=""
+# Cleanup handler for the workspace-seeding script's exit trap.
+# Captures the last command's exit status, and if a workspace was created but the run did not
+# reach completion (created set, done unset), removes WS recursively before re-exiting with the
+# captured status.
 cleanup() { local rc=$?; [ -n "$created" ] && [ -z "$done" ] && rm -rf "$WS"; exit "$rc"; }
 trap cleanup EXIT
 

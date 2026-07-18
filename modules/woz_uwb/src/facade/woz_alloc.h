@@ -1,4 +1,5 @@
-// Memory allocation and timing facade: qmalloc, qcalloc, qfree wrap Zephyr k_* heap routines; qrtc_get_us returns monotonic microseconds since boot.
+// Memory allocation and timing facade: qmalloc, qcalloc, qfree wrap Zephyr k_* heap routines;
+// qrtc_get_us returns monotonic microseconds since boot.
 /*
  * Copyright (c) 2026 asxeem
  * SPDX-License-Identifier: ISC

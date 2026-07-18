@@ -8,9 +8,15 @@ DW3000 + CCC init path comes up on ESP32-S3; a live range needs a peer that
 drives the DS-TWR exchange (an Aliro Wallet, or a second board as initiator).
 Reference scaffold (see ports/esp32s3/README.md) — not yet built on silicon.
 
-<details><summary>Undocumented (2)</summary>
+## API
 
-- `main`
-- `woz_uwb_aliro_cfg`
+### `int main(void)`
+`ports/esp32s3/sample/src/main.c:27`
 
-</details>
+Sample entry point: starts an Aliro UWB responder session with fixed demo parameters and polls for range results.
+Calls woz_uwb_start_aliro() with a hardcoded session config (channel, slot timing, STS index, and demo_ursk) and logs whether the DW3000 responder came up. Then loops forever, polling woz_uwb_last_range_cm() every 500 ms and logging any new range measurement. Never returns in practice.
+
+### `const struct woz_uwb_aliro_cfg cfg =`
+`ports/esp32s3/sample/src/main.c:30`
+
+Aliro UWB session configuration for the sample: session ID, channel, sync code, slot/block timing, STS index, initial UWB time, and URSK used to start the responder via woz_uwb_start_aliro().

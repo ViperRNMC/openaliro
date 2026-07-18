@@ -13,7 +13,8 @@
 LOG_MODULE_REGISTER(woz_aliro_uwb, LOG_LEVEL_INF);
 
 /**
- * @brief Map a CCC error code to its Aliro UWB equivalent, treating unknown errors as internal failures.
+ * @brief Map a CCC error code to its Aliro UWB equivalent, treating unknown errors as internal
+ * failures.
  * @param err CCC error code to translate.
  * @return Corresponding `enum aliro_uwb_err` value, or `ALIRO_UWB_ERR_INTERNAL` if unrecognized.
  */
@@ -53,7 +54,8 @@ copy_capabilities(struct aliro_uwb_adapter *adapter,
 {
 	struct cherry_ccc_capabilities *src = caps->ccc_capabilities;
 	/**
-	 * @brief CCC device capabilities reported by the reader, including protocol versions, UWB configs, and pulse shape combinations.
+	 * @brief CCC device capabilities reported by the reader, including protocol versions, UWB
+	 * configs, and pulse shape combinations.
 	 */
 	struct cherry_ccc_capabilities *dst = &adapter->ccc_caps;
 
@@ -67,12 +69,9 @@ copy_capabilities(struct aliro_uwb_adapter *adapter,
 	dst->uwb_configs.items = NULL;
 	dst->pulse_shape_combos.items = NULL;
 
-	dst->protocol_versions.items =
-		qmalloc(sizeof(uint16_t) * src->protocol_versions.len);
-	dst->uwb_configs.items =
-		qmalloc(sizeof(uint16_t) * src->uwb_configs.len);
-	dst->pulse_shape_combos.items =
-		qmalloc(sizeof(uint8_t) * src->pulse_shape_combos.len);
+	dst->protocol_versions.items = qmalloc(sizeof(uint16_t) * src->protocol_versions.len);
+	dst->uwb_configs.items = qmalloc(sizeof(uint16_t) * src->uwb_configs.len);
+	dst->pulse_shape_combos.items = qmalloc(sizeof(uint8_t) * src->pulse_shape_combos.len);
 	if (!dst->protocol_versions.items || !dst->uwb_configs.items ||
 	    !dst->pulse_shape_combos.items) {
 		qfree(dst->protocol_versions.items);
@@ -91,21 +90,21 @@ copy_capabilities(struct aliro_uwb_adapter *adapter,
 }
 
 /**
- * @brief Validate that a reader configuration offers at least one valid hopping sequence and respects configured bounds, returning false if invalid.
+ * @brief Validate that a reader configuration offers at least one valid hopping sequence and
+ * respects configured bounds, returning false if invalid.
  * @param config Reader configuration to validate.
- * @return true if the configuration's hopping count is within bounds and includes a default sequence, false otherwise.
+ * @return true if the configuration's hopping count is within bounds and includes a default
+ * sequence, false otherwise.
  */
 static bool reader_config_valid(const struct aliro_uwb_adapter_reader_config *config)
 {
 	/**
 	 * @brief Preferred hopping sequences offered by the reader to a ranging session.
 	 */
-	const struct aliro_uwb_preferred_hopping_configs *hops =
-		&config->preferred_hopping_configs;
+	const struct aliro_uwb_preferred_hopping_configs *hops = &config->preferred_hopping_configs;
 	size_t i;
 
-	if (hops->count == 0 ||
-	    hops->count > ALIRO_UWB_ADAPTER_PREFERRED_HOP_CONFIG_MAX) {
+	if (hops->count == 0 || hops->count > ALIRO_UWB_ADAPTER_PREFERRED_HOP_CONFIG_MAX) {
 		LOG_ERR("bad hopping config count %zu", hops->count);
 		return false;
 	}
@@ -119,19 +118,23 @@ static bool reader_config_valid(const struct aliro_uwb_adapter_reader_config *co
 	return false;
 }
 
-struct aliro_uwb_adapter *
-/**
- * @brief Opaque CCC context handle, threaded through to the CCC session API calls.
- */
-aliro_uwb_adapter_create_reader(struct cherry *cherry_ctx,
-				/**
-				 * @brief Device capabilities event from CCC, containing supported protocol versions, UWB configurations, and pulse shape combos.
-				 */
-				struct cherry_core_event_device_capabilities *caps,
-				/**
-				 * @brief Configuration for an Aliro UWB adapter reader, specifying hopping preferences, antenna assignments, and RAN multiplier bounds.
-				 */
-				struct aliro_uwb_adapter_reader_config *config)
+struct aliro_uwb_adapter
+	*
+	/**
+	 * @brief Opaque CCC context handle, threaded through to the CCC session API calls.
+	 */
+	aliro_uwb_adapter_create_reader(
+		struct cherry *cherry_ctx,
+		/**
+		 * @brief Device capabilities event from CCC, containing supported protocol
+		 * versions, UWB configurations, and pulse shape combos.
+		 */
+		struct cherry_core_event_device_capabilities *caps,
+		/**
+		 * @brief Configuration for an Aliro UWB adapter reader, specifying hopping
+		 * preferences, antenna assignments, and RAN multiplier bounds.
+		 */
+		struct aliro_uwb_adapter_reader_config *config)
 {
 	struct aliro_uwb_adapter *adapter;
 
@@ -158,9 +161,9 @@ aliro_uwb_adapter_create_reader(struct cherry *cherry_ctx,
 
 	/* Resolve the minimum RAN multiplier. */
 	adapter->min_ran_multiplier =
-		config->min_ran_multiplier > adapter->ccc_caps.minimum_ran_multiplier ?
-			config->min_ran_multiplier :
-			adapter->ccc_caps.minimum_ran_multiplier;
+		config->min_ran_multiplier > adapter->ccc_caps.minimum_ran_multiplier
+			? config->min_ran_multiplier
+			: adapter->ccc_caps.minimum_ran_multiplier;
 	adapter->diag_config = NULL;
 
 	LOG_INF("Aliro adapter created");
@@ -168,15 +171,17 @@ aliro_uwb_adapter_create_reader(struct cherry *cherry_ctx,
 }
 
 /**
- * @brief Store a diagnostics configuration in the adapter for later application to CCC sessions, allocating storage if needed.
+ * @brief Store a diagnostics configuration in the adapter for later application to CCC sessions,
+ * allocating storage if needed.
  * @param aliro_ctx Adapter that receives the diagnostics configuration.
  * @param config Common diagnostic configuration applied to a CCC session.
  */
-void aliro_uwb_adapter_set_diagnostics(struct aliro_uwb_adapter *aliro_ctx,
-				       /**
-				        * @brief Common diagnostic configuration applied to a CCC session.
-				        */
-				       struct cherry_common_diag_cfg config)
+void aliro_uwb_adapter_set_diagnostics(
+	struct aliro_uwb_adapter *aliro_ctx,
+	/**
+	 * @brief Common diagnostic configuration applied to a CCC session.
+	 */
+	struct cherry_common_diag_cfg config)
 {
 	if (!aliro_ctx) {
 		return;
@@ -191,7 +196,8 @@ void aliro_uwb_adapter_set_diagnostics(struct aliro_uwb_adapter *aliro_ctx,
 }
 
 /**
- * @brief Destroy an Aliro UWB adapter, freeing all associated CCC capabilities arrays and diagnostic configuration.
+ * @brief Destroy an Aliro UWB adapter, freeing all associated CCC capabilities arrays and
+ * diagnostic configuration.
  * @param aliro_ctx Adapter to destroy; no-op if NULL.
  */
 void aliro_uwb_adapter_destroy(struct aliro_uwb_adapter *aliro_ctx)

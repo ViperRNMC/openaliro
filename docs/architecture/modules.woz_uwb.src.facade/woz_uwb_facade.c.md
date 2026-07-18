@@ -42,6 +42,16 @@ Start the CCC DS-TWR responder bound to a live Aliro credential; returns 0 on su
 Quiesce the radio and unbind the CCC STS shim.
 
 ### `bool woz_uwb_last_range_cm(int32_t *cm_out)`
-`modules/woz_uwb/src/facade/woz_uwb_facade.c:77`
+`modules/woz_uwb/src/facade/woz_uwb_facade.c:80`
 
 Latest distance in cm; true if a valid range has been seen.
+
+### `bool woz_uwb_trusted_range_cm(int32_t *cm_out)`
+`modules/woz_uwb/src/facade/woz_uwb_facade.c:85`
+
+Latest distance in cm, gated by the range-integrity consensus (layer 4):
+true only when a valid range has been seen AND it is trusted
+(fira_session_range_trusted()). This is the accessor the unlock decision
+must use so a single unverified/spoofed block cannot drive an unlock; raw
+telemetry keeps using woz_uwb_last_range_cm(). Without CONFIG_WOZ_ALIRO
+there is no trust concept and this matches woz_uwb_last_range_cm().

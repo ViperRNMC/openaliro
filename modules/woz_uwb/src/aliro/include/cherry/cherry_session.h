@@ -28,8 +28,7 @@ enum cherry_err cherry_session_start(struct cherry_session *session);
 enum cherry_err cherry_session_stop(struct cherry_session *session);
 
 /** Select the Tx/Rx antenna sets for the first ranging round. */
-enum cherry_err cherry_session_set_antennas(struct cherry_session *session,
-					    uint8_t tx_antenna_set,
+enum cherry_err cherry_session_set_antennas(struct cherry_session *session, uint8_t tx_antenna_set,
 					    uint8_t rx_antenna_set);
 
 /** Enable/disable per-session diagnostics (config passed by value). */

@@ -98,7 +98,7 @@
 **calls** `add_attribute`
 
 ### `bool aliro_uwb_msg_builder_add_bytes(struct aliro_uwb_msg_builder *builder, uint8_t id, size_t count, const uint8_t *values)`
-`modules/woz_uwb/src/aliro/aliro_uwb_msg_builder.c:178`
+`modules/woz_uwb/src/aliro/aliro_uwb_msg_builder.c:180`
 
 @brief Append an attribute whose value is count raw bytes.
 @param builder Message builder to append the attribute to.
@@ -108,7 +108,7 @@
 @return true if the attribute was appended, false if it would overrun the builder's capacity.
 
 ### `bool aliro_uwb_msg_builder_add_bytes(struct aliro_uwb_msg_builder *builder, uint8_t id, size_t count, const uint8_t *values)`
-`modules/woz_uwb/src/aliro/aliro_uwb_msg_builder.c:178`
+`modules/woz_uwb/src/aliro/aliro_uwb_msg_builder.c:180`
 
 @brief Append an attribute whose value is count raw bytes.
 @param builder Message builder to append the attribute to.

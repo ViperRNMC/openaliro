@@ -1,9 +1,11 @@
-# Aliro protocol notes
+# Time synchronization and credential validity
 
-Working notes on the protocol behavior observed while building and debugging this
-firmware. Written incrementally: this file currently covers **time synchronization
-and time-based credential validity**. Discovery, auth, the M1-M4 ranging-setup
-exchange, the STS derivation ladder, and channel hopping are not written up yet.
+Firmware-level notes on one subsystem: how the reader obtains wall-clock time, how
+that interacts with Aliro's time-based credential checks, and the fixes this repo
+carries. This is the implementation-and-debugging companion to
+[`protocol-research.md`](protocol-research.md), which documents the on-air protocol
+itself (discovery, authentication, the M1-M4 ranging setup, the STS ladder, and
+hopping).
 
 File references use paths inside the fetched workspace (`workspace/`); upstream
 line numbers are as of the pins in `west.yml` / `bootstrap.sh`.

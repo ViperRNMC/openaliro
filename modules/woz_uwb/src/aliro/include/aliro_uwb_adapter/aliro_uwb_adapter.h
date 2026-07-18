@@ -36,10 +36,8 @@ enum aliro_uwb_err {
 /** Reader-preferred hopping configuration. */
 enum aliro_hopping_config {
 	ALIRO_HOPPING_CONFIG_DISABLED = CHERRY_CCC_HOPPING_MODE_DISABLE,
-	ALIRO_HOPPING_CONFIG_CONTINUOUS_DEFAULT =
-		CHERRY_CCC_HOPPING_MODE_CONTINUOUS_DEFAULT,
-	ALIRO_HOPPING_CONFIG_ADAPTIVE_DEFAULT =
-		CHERRY_CCC_HOPPING_MODE_ADAPTATIVE_DEFAULT,
+	ALIRO_HOPPING_CONFIG_CONTINUOUS_DEFAULT = CHERRY_CCC_HOPPING_MODE_CONTINUOUS_DEFAULT,
+	ALIRO_HOPPING_CONFIG_ADAPTIVE_DEFAULT = CHERRY_CCC_HOPPING_MODE_ADAPTATIVE_DEFAULT,
 };
 
 /**
@@ -67,30 +65,35 @@ struct aliro_uwb_adapter_reader_config {
 };
 
 /** Create a reader-mode adapter (NULL on bad params / allocation failure). */
-struct aliro_uwb_adapter *
-/**
- * @brief Cherry library context managing CCC and radar subsystems and event dispatch.
- * @param cherry_ctx Cherry library context to bind the new reader adapter to.
- */
-aliro_uwb_adapter_create_reader(struct cherry *cherry_ctx,
-				/**
-				 * @brief Device capabilities (channels, PRF, supported algorithms) advertised by the reader during CCC discovery.
-				 * @param caps Device capabilities to advertise during CCC discovery.
-				 */
-				struct cherry_core_event_device_capabilities *caps,
-				/**
-				 * @brief Reader-side selection preferences (borrowed for the adapter's lifetime).
-				 * @param config Reader adapter configuration borrowed for the adapter's lifetime.
-				 */
-				struct aliro_uwb_adapter_reader_config *config);
+struct aliro_uwb_adapter
+	*
+	/**
+	 * @brief Cherry library context managing CCC and radar subsystems and event dispatch.
+	 * @param cherry_ctx Cherry library context to bind the new reader adapter to.
+	 */
+	aliro_uwb_adapter_create_reader(
+		struct cherry *cherry_ctx,
+		/**
+		 * @brief Device capabilities (channels, PRF, supported algorithms) advertised by
+		 * the reader during CCC discovery.
+		 * @param caps Device capabilities to advertise during CCC discovery.
+		 */
+		struct cherry_core_event_device_capabilities *caps,
+		/**
+		 * @brief Reader-side selection preferences (borrowed for the adapter's lifetime).
+		 * @param config Reader adapter configuration borrowed for the adapter's lifetime.
+		 */
+		struct aliro_uwb_adapter_reader_config *config);
 
 /** Set diagnostics applied to new sessions. */
-void aliro_uwb_adapter_set_diagnostics(struct aliro_uwb_adapter *aliro_ctx,
-				       /**
-				        * @brief Diagnostic configuration for CCC reporting (ranging, signal metrics, session status).
-				        * @param config Diagnostic configuration to apply for CCC reporting.
-				        */
-				       struct cherry_common_diag_cfg config);
+void aliro_uwb_adapter_set_diagnostics(
+	struct aliro_uwb_adapter *aliro_ctx,
+	/**
+	 * @brief Diagnostic configuration for CCC reporting (ranging, signal metrics, session
+	 * status).
+	 * @param config Diagnostic configuration to apply for CCC reporting.
+	 */
+	struct cherry_common_diag_cfg config);
 
 /**
  * @brief Release an adapter context.

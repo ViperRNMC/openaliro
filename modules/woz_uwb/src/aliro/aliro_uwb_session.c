@@ -19,7 +19,8 @@ LOG_MODULE_DECLARE(woz_aliro_uwb, LOG_LEVEL_INF);
 /**
  * @brief Send a general-error notification to the peer.
  * @param session Session on which to build and transmit the error message.
- * @return `ALIRO_UWB_ERR_NONE` on success, `ALIRO_UWB_ERR_INVALID_PARAMETER` if session is NULL, or `ALIRO_UWB_ERR_INTERNAL` if the message could not be built.
+ * @return `ALIRO_UWB_ERR_NONE` on success, `ALIRO_UWB_ERR_INVALID_PARAMETER` if session is NULL, or
+ * `ALIRO_UWB_ERR_INTERNAL` if the message could not be built.
  */
 static enum aliro_uwb_err notify_error(struct aliro_uwb_session *session)
 {
@@ -28,8 +29,8 @@ static enum aliro_uwb_err notify_error(struct aliro_uwb_session *session)
 	if (!session) {
 		return ALIRO_UWB_ERR_INVALID_PARAMETER;
 	}
-	message = aliro_uwb_msg_build_general_error(
-		session, ALIRO_UWB_NOTIFICATION_GENERAL_ERROR_UNKNOWN);
+	message = aliro_uwb_msg_build_general_error(session,
+						    ALIRO_UWB_NOTIFICATION_GENERAL_ERROR_UNKNOWN);
 	if (!message) {
 		return ALIRO_UWB_ERR_INTERNAL;
 	}
@@ -66,18 +67,15 @@ static void aliro_ccc_cb(struct cherry_ccc_event *event, void *user_data)
 		wrapped->data.error = event->data.error;
 		break;
 	case CHERRY_CCC_EVENT_TYPE_SESSION_CONTROLLER_REPORT:
-		wrapped->type =
-			ALIRO_UWB_SESSION_EVENT_TYPE_SESSION_CONTROLLER_REPORT;
+		wrapped->type = ALIRO_UWB_SESSION_EVENT_TYPE_SESSION_CONTROLLER_REPORT;
 		wrapped->data.controller_report = event->data.controller_report;
 		break;
 	case CHERRY_CCC_EVENT_TYPE_SESSION_CONTROLEE_REPORT:
-		wrapped->type =
-			ALIRO_UWB_SESSION_EVENT_TYPE_SESSION_CONTROLEE_REPORT;
+		wrapped->type = ALIRO_UWB_SESSION_EVENT_TYPE_SESSION_CONTROLEE_REPORT;
 		wrapped->data.controlee_report = event->data.controlee_report;
 		break;
 	case CHERRY_CCC_EVENT_TYPE_SESSION_DIAGNOSTIC_REPORT:
-		wrapped->type =
-			ALIRO_UWB_SESSION_EVENT_TYPE_SESSION_DIAGNOSTIC_REPORT;
+		wrapped->type = ALIRO_UWB_SESSION_EVENT_TYPE_SESSION_DIAGNOSTIC_REPORT;
 		wrapped->data.diagnostics = event->data.diagnostics;
 		break;
 	default:
@@ -92,8 +90,7 @@ static void aliro_ccc_cb(struct cherry_ccc_event *event, void *user_data)
 		notify_error(session);
 	}
 	if (event->type == CHERRY_CCC_EVENT_TYPE_SESSION_STATUS &&
-	    event->data.status->session_state ==
-		    CHERRY_CCC_SESSION_STATE_DEINIT) {
+	    event->data.status->session_state == CHERRY_CCC_SESSION_STATE_DEINIT) {
 		qfree(session);
 	}
 
@@ -114,14 +111,18 @@ static void session_close(struct aliro_uwb_session *session)
 }
 
 /**
- * @brief Initialize a session by creating and configuring a CCC Aliro responder, setting URSK, protocol version, antennas, and diagnostics, then starting the session. On any error, tears down the session and returns the mapped error code.
+ * @brief Initialize a session by creating and configuring a CCC Aliro responder, setting URSK,
+ * protocol version, antennas, and diagnostics, then starting the session. On any error, tears down
+ * the session and returns the mapped error code.
  * @param session Session to initialize.
- * @return `ALIRO_UWB_ERR_NONE` on success, `ALIRO_UWB_ERR_INVALID_PARAMETER` if session is NULL, or the mapped CCC error on failure.
+ * @return `ALIRO_UWB_ERR_NONE` on success, `ALIRO_UWB_ERR_INVALID_PARAMETER` if session is NULL, or
+ * the mapped CCC error on failure.
  */
 enum aliro_uwb_err aliro_uwb_session_init(struct aliro_uwb_session *session)
 {
 	/**
-	 * @brief Reader configuration attached to an adapter, specifying hopping preferences and antenna assignments.
+	 * @brief Reader configuration attached to an adapter, specifying hopping preferences and
+	 * antenna assignments.
 	 */
 	struct aliro_uwb_adapter_reader_config *reader;
 	enum cherry_err err;
@@ -131,24 +132,21 @@ enum aliro_uwb_err aliro_uwb_session_init(struct aliro_uwb_session *session)
 	}
 
 	session->ccc_session = cherry_ccc_session_create_aliro_responder(
-		session->aliro_ctx->cherry_ctx, aliro_ccc_cb, session,
-		&session->ccc_aliro_config);
+		session->aliro_ctx->cherry_ctx, aliro_ccc_cb, session, &session->ccc_aliro_config);
 	if (!session->ccc_session) {
 		LOG_ERR("create_aliro_responder failed");
 		return ALIRO_UWB_ERR_INTERNAL;
 	}
 
 	if (session->ursk) {
-		err = cherry_ccc_session_set_ursk(session->ccc_session,
-						  session->ursk);
+		err = cherry_ccc_session_set_ursk(session->ccc_session, session->ursk);
 		if (err) {
 			goto fail;
 		}
 	}
 	if (session->selected_protocol_version) {
-		err = cherry_ccc_session_set_protocol_version(
-			session->ccc_session,
-			session->selected_protocol_version);
+		err = cherry_ccc_session_set_protocol_version(session->ccc_session,
+							      session->selected_protocol_version);
 		if (err) {
 			goto fail;
 		}
@@ -156,8 +154,7 @@ enum aliro_uwb_err aliro_uwb_session_init(struct aliro_uwb_session *session)
 
 	reader = session->aliro_ctx->config;
 	if (reader->r1_antennas[0] || reader->r1_antennas[1]) {
-		err = cherry_ccc_session_set_antennas(session->ccc_session,
-						      reader->r1_antennas[0],
+		err = cherry_ccc_session_set_antennas(session->ccc_session, reader->r1_antennas[0],
 						      reader->r1_antennas[1]);
 		if (err) {
 			goto fail;
@@ -165,15 +162,14 @@ enum aliro_uwb_err aliro_uwb_session_init(struct aliro_uwb_session *session)
 	}
 	if (reader->r2_antennas[0] || reader->r2_antennas[1]) {
 		err = cherry_ccc_session_set_round2_antennas(
-			session->ccc_session, reader->r2_antennas[0],
-			reader->r2_antennas[1]);
+			session->ccc_session, reader->r2_antennas[0], reader->r2_antennas[1]);
 		if (err) {
 			goto fail;
 		}
 	}
 	if (session->aliro_ctx->diag_config) {
-		err = cherry_ccc_session_set_diagnostics(
-			session->ccc_session, *session->aliro_ctx->diag_config);
+		err = cherry_ccc_session_set_diagnostics(session->ccc_session,
+							 *session->aliro_ctx->diag_config);
 		if (err) {
 			goto fail;
 		}
@@ -192,9 +188,11 @@ fail:
 }
 
 /**
- * @brief Start an active CCC session. On error, tears down the session and returns the mapped error code.
+ * @brief Start an active CCC session. On error, tears down the session and returns the mapped error
+ * code.
  * @param session Session to start.
- * @return `ALIRO_UWB_ERR_NONE` on success, `ALIRO_UWB_ERR_INVALID_PARAMETER` if session is NULL, or the mapped CCC error on failure.
+ * @return `ALIRO_UWB_ERR_NONE` on success, `ALIRO_UWB_ERR_INVALID_PARAMETER` if session is NULL, or
+ * the mapped CCC error on failure.
  */
 enum aliro_uwb_err aliro_uwb_session_start(struct aliro_uwb_session *session)
 {
@@ -212,9 +210,11 @@ enum aliro_uwb_err aliro_uwb_session_start(struct aliro_uwb_session *session)
 }
 
 /**
- * @brief Stop an active CCC session, transitioning to SUSPENDED state. On error, tears down the session and returns the mapped error code.
+ * @brief Stop an active CCC session, transitioning to SUSPENDED state. On error, tears down the
+ * session and returns the mapped error code.
  * @param session Session to stop.
- * @return `ALIRO_UWB_ERR_NONE` on success, `ALIRO_UWB_ERR_INVALID_PARAMETER` if session is NULL, or the mapped CCC error on failure.
+ * @return `ALIRO_UWB_ERR_NONE` on success, `ALIRO_UWB_ERR_INVALID_PARAMETER` if session is NULL, or
+ * the mapped CCC error on failure.
  */
 enum aliro_uwb_err aliro_uwb_session_stop(struct aliro_uwb_session *session)
 {
@@ -232,14 +232,15 @@ enum aliro_uwb_err aliro_uwb_session_stop(struct aliro_uwb_session *session)
 	return ALIRO_UWB_ERR_NONE;
 }
 
-struct aliro_uwb_session *
-/**
- * @brief Opaque Aliro UWB adapter handle, holds CCC context and reader configuration for session setup.
- */
-aliro_uwb_session_create(struct aliro_uwb_adapter *aliro_ctx,
-			 uint32_t session_id, aliro_uwb_session_cb_t callback,
-			 aliro_uwb_adapter_transmit_message_t transmit,
-			 void *user_data)
+struct aliro_uwb_session
+	*
+	/**
+	 * @brief Opaque Aliro UWB adapter handle, holds CCC context and reader configuration for
+	 * session setup.
+	 */
+	aliro_uwb_session_create(struct aliro_uwb_adapter *aliro_ctx, uint32_t session_id,
+				 aliro_uwb_session_cb_t callback,
+				 aliro_uwb_adapter_transmit_message_t transmit, void *user_data)
 {
 	struct aliro_uwb_session *session;
 
@@ -264,7 +265,8 @@ aliro_uwb_session_create(struct aliro_uwb_adapter *aliro_ctx,
 }
 
 /**
- * @brief Destroy an Aliro UWB session, freeing the URSK and tearing down the underlying CCC session.
+ * @brief Destroy an Aliro UWB session, freeing the URSK and tearing down the underlying CCC
+ * session.
  * @param session Session to destroy; no-op if NULL.
  */
 void aliro_uwb_session_destroy(struct aliro_uwb_session *session)
@@ -301,10 +303,13 @@ void aliro_uwb_session_event_free(struct aliro_uwb_session_event *event)
 }
 
 /**
- * @brief Store a copy of the URSK (Unique Ranging Session Key) for later use during session initialization. Allocates a 16-byte buffer and returns ALIRO_UWB_ERR_INTERNAL on allocation failure.
+ * @brief Store a copy of the URSK (Unique Ranging Session Key) for later use during session
+ * initialization. Allocates a 16-byte buffer and returns ALIRO_UWB_ERR_INTERNAL on allocation
+ * failure.
  * @param session Session that receives the copied URSK.
  * @param ursk Source URSK bytes to copy.
- * @return `ALIRO_UWB_ERR_NONE` on success, `ALIRO_UWB_ERR_INVALID_PARAMETER` if session or ursk is NULL, or `ALIRO_UWB_ERR_INTERNAL` on allocation failure.
+ * @return `ALIRO_UWB_ERR_NONE` on success, `ALIRO_UWB_ERR_INVALID_PARAMETER` if session or ursk is
+ * NULL, or `ALIRO_UWB_ERR_INTERNAL` on allocation failure.
  */
 enum aliro_uwb_err aliro_uwb_session_set_ursk(struct aliro_uwb_session *session,
 					      const uint8_t *ursk)
@@ -338,9 +343,12 @@ aliro_uwb_session_set_protocol_version(struct aliro_uwb_session *session,
 }
 
 /**
- * @brief Begin session setup by building and transmitting M1, transitioning from CREATED to M1_SENT state. Returns ALIRO_UWB_ERR_INVALID_STATE if not in CREATED state.
+ * @brief Begin session setup by building and transmitting M1, transitioning from CREATED to M1_SENT
+ * state. Returns ALIRO_UWB_ERR_INVALID_STATE if not in CREATED state.
  * @param session Session to begin setup on.
- * @return `ALIRO_UWB_ERR_NONE` on success, `ALIRO_UWB_ERR_INVALID_PARAMETER` if session is NULL, `ALIRO_UWB_ERR_INVALID_STATE` if not in CREATED state, or `ALIRO_UWB_ERR_INTERNAL` if M1 could not be built.
+ * @return `ALIRO_UWB_ERR_NONE` on success, `ALIRO_UWB_ERR_INVALID_PARAMETER` if session is NULL,
+ * `ALIRO_UWB_ERR_INVALID_STATE` if not in CREATED state, or `ALIRO_UWB_ERR_INTERNAL` if M1 could
+ * not be built.
  */
 enum aliro_uwb_err aliro_uwb_session_init_setup(struct aliro_uwb_session *session)
 {
@@ -427,7 +435,9 @@ aliro_uwb_session_message_handle(struct aliro_uwb_session *session,
 /**
  * @brief Suspend an active ranging session by sending a suspend request.
  * @param session Session to suspend.
- * @return ALIRO_UWB_ERR_NONE on success, ALIRO_UWB_ERR_INVALID_PARAMETER if session is NULL, ALIRO_UWB_ERR_INVALID_STATE if there is no active CCC session or the session is not in the RANGING state, ALIRO_UWB_ERR_INTERNAL if the suspend request could not be built.
+ * @return ALIRO_UWB_ERR_NONE on success, ALIRO_UWB_ERR_INVALID_PARAMETER if session is NULL,
+ * ALIRO_UWB_ERR_INVALID_STATE if there is no active CCC session or the session is not in the
+ * RANGING state, ALIRO_UWB_ERR_INTERNAL if the suspend request could not be built.
  */
 enum aliro_uwb_err aliro_uwb_session_suspend(struct aliro_uwb_session *session)
 {
@@ -479,12 +489,15 @@ aliro_uwb_session_forced_suspend(struct aliro_uwb_session *session)
 /**
  * @brief Resume a suspended ranging session by building and transmitting a resume request.
  * @param session Session to resume.
- * @return ALIRO_UWB_ERR_NONE on success, ALIRO_UWB_ERR_INVALID_PARAMETER if session is NULL, ALIRO_UWB_ERR_INVALID_STATE if there is no active CCC session or the session is not in the SUSPENDED state, ALIRO_UWB_ERR_INTERNAL if the resume request could not be built.
+ * @return ALIRO_UWB_ERR_NONE on success, ALIRO_UWB_ERR_INVALID_PARAMETER if session is NULL,
+ * ALIRO_UWB_ERR_INVALID_STATE if there is no active CCC session or the session is not in the
+ * SUSPENDED state, ALIRO_UWB_ERR_INTERNAL if the resume request could not be built.
  */
 enum aliro_uwb_err aliro_uwb_session_resume(struct aliro_uwb_session *session)
 {
 	/**
-	 * @brief Serialized Aliro UWB message (M1-M4 or notification) built for transmission, holding protocol header and payload.
+	 * @brief Serialized Aliro UWB message (M1-M4 or notification) built for transmission,
+	 * holding protocol header and payload.
 	 */
 	struct aliro_uwb_message *request;
 

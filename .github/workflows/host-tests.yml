@@ -10,12 +10,10 @@ on:
       - tests/host/**
       - Makefile
       - .github/workflows/host-tests.yml
+  # No path filter on PRs: test/coverage are required checks, and a
+  # path-skipped workflow never reports (PR stuck at "Expected"). The old
+  # noop-twin workaround double-reported on mixed PRs; always running is cheap.
   pull_request:
-    paths:
-      - modules/woz_uwb/**
-      - tests/host/**
-      - Makefile
-      - .github/workflows/host-tests.yml
   workflow_dispatch:
 
 # Superseded runs on the same ref are wasted work — cancel them.
@@ -27,7 +25,7 @@ jobs:
   test:
     runs-on: ubuntu-latest
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@9c091bb21b7c1c1d1991bb908d89e4e9dddfe3e0 # v7.0.0
       - name: run host KAT suite
         run: make test
 
@@ -37,7 +35,7 @@ jobs:
       CC: clang # coverage.sh's instrumentation flags are clang-only
       COV_MIN: "85" # line-% floor; total was 89.2% when set
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@9c091bb21b7c1c1d1991bb908d89e4e9dddfe3e0 # v7.0.0
       - name: install llvm (llvm-profdata / llvm-cov)
         run: sudo apt-get update -q && sudo apt-get install -y -q llvm
       - name: build instrumented + run + report
@@ -51,7 +49,7 @@ jobs:
           print(f"total line coverage {pct:.2f}% (floor {floor:.0f}%)")
           sys.exit(0 if pct >= floor else 1)
           EOF
-      - uses: actions/upload-artifact@v4
+      - uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7.0.1
         with:
           name: coverage-html
           path: build/coverage/html

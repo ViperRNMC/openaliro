@@ -10,7 +10,8 @@
 #include <stdint.h>
 
 /**
- * @brief Session-independent reader state shared across all ranging sessions for an Aliro UWB adapter.
+ * @brief Session-independent reader state shared across all ranging sessions for an Aliro UWB
+ * adapter.
  */
 struct aliro_uwb_adapter {
 	/**
@@ -18,16 +19,19 @@ struct aliro_uwb_adapter {
 	 */
 	struct cherry *cherry_ctx;
 	/**
-	 * @brief Reader adapter configuration supplied by the caller (e.g., ranging parameters, capabilities).
+	 * @brief Reader adapter configuration supplied by the caller (e.g., ranging parameters,
+	 * capabilities).
 	 */
 	struct aliro_uwb_adapter_reader_config *config;
 	/**
-	 * @brief CCC device capabilities (supported channels, PRF, ranging mode) discovered during adapter initialization.
+	 * @brief CCC device capabilities (supported channels, PRF, ranging mode) discovered during
+	 * adapter initialization.
 	 */
 	struct cherry_ccc_capabilities ccc_caps;
 	uint8_t min_ran_multiplier;
 	/**
-	 * @brief Diagnostic configuration for CCC session reporting (e.g., ranging data, signal strength, diagnostics sampling).
+	 * @brief Diagnostic configuration for CCC session reporting (e.g., ranging data, signal
+	 * strength, diagnostics sampling).
 	 */
 	struct cherry_common_diag_cfg *diag_config;
 };
@@ -57,11 +61,13 @@ struct aliro_uwb_session {
 	int64_t time_offset;
 	uint16_t selected_protocol_version;
 	/**
-	 * @brief Cherry CCC session object managing DS-TWR state and M1-M4 message handling for this ranging session.
+	 * @brief Cherry CCC session object managing DS-TWR state and M1-M4 message handling for
+	 * this ranging session.
 	 */
 	struct cherry_ccc_session *ccc_session;
 	/**
-	 * @brief CCC Aliro session configuration encoding the M1-M4 setup parameters (MAC, time sync, STS seed, hopping sequence).
+	 * @brief CCC Aliro session configuration encoding the M1-M4 setup parameters (MAC, time
+	 * sync, STS seed, hopping sequence).
 	 */
 	struct cherry_ccc_aliro_session_config ccc_aliro_config;
 	enum aliro_uwb_session_state state;

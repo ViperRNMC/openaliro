@@ -36,47 +36,47 @@ Display the last valid DS-TWR distance measurement: distance (cm), peer address,
 **calls** `hdr`
 
 ### `static int cmd_selftest(const struct shell *sh, size_t argc, char **argv)`
-`modules/woz_uwb/src/shell/aliro_shell.c:111`
+`modules/woz_uwb/src/shell/aliro_shell.c:114`
 
 Run radio TX/RX self-test and display results: TX done, RX armed, RX event flags and raw TX/RX status words.
 
 **calls** `hdr`
 
 ### `struct uwb_selftest_result r =`
-`modules/woz_uwb/src/shell/aliro_shell.c:117`
+`modules/woz_uwb/src/shell/aliro_shell.c:120`
 
 Uninitialized self-test result structure, filled by uwb_min_selftest.
 
 ### `static int cmd_log(const struct shell *sh, size_t argc, char **argv)`
-`modules/woz_uwb/src/shell/aliro_shell.c:137`
+`modules/woz_uwb/src/shell/aliro_shell.c:140`
 
 Enable or disable ranging heartbeat log output; with no argument, display current state.
 
 ### `static int cmd_frames(const struct shell *sh, size_t argc, char **argv)`
-`modules/woz_uwb/src/shell/aliro_shell.c:156`
+`modules/woz_uwb/src/shell/aliro_shell.c:159`
 
 Enable or disable per-block distance stream output; with no argument, display current state.
 
 ### `static int cmd_version(const struct shell *sh, size_t argc, char **argv)`
-`modules/woz_uwb/src/shell/aliro_shell.c:175`
+`modules/woz_uwb/src/shell/aliro_shell.c:178`
 
 Display build commit SHA (WOZ_GIT_SHA).
 
 **calls** `hdr`
 
 ### `static int cmd_status(const struct shell *sh, size_t argc, char **argv)`
-`modules/woz_uwb/src/shell/aliro_shell.c:186`
+`modules/woz_uwb/src/shell/aliro_shell.c:189`
 
 Print all system status at a glance: chip ID, CCC bind state, URSK provisioning, last range (distance and age), RX tally, and stream state (log and frames).
 
 **calls** `hdr`
 
 ### `static int cmd_aliro(const struct shell *sh, size_t argc, char **argv)`
-`modules/woz_uwb/src/shell/aliro_shell.c:239`
+`modules/woz_uwb/src/shell/aliro_shell.c:244`
 
 Print aliro shell command help: lists all subcommands (status, rx, range, chip, selftest, log, frames, version) with descriptions.
 
 ### `static int cmd_aliro(const struct shell *sh, size_t argc, char **argv)`
-`modules/woz_uwb/src/shell/aliro_shell.c:239`
+`modules/woz_uwb/src/shell/aliro_shell.c:244`
 
 Print aliro shell command help: lists all subcommands (status, rx, range, chip, selftest, log, frames, version) with descriptions.

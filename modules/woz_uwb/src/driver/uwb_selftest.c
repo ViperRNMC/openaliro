@@ -9,7 +9,8 @@
 
 LOG_MODULE_REGISTER(woz_uwb_selftest, LOG_LEVEL_INF);
 
-// Delayable work item for the UWB self-test boot diagnostic; scheduled once at startup if UWB_SELFTEST=1.
+// Delayable work item for the UWB self-test boot diagnostic; scheduled once at startup if
+// UWB_SELFTEST=1.
 static struct k_work_delayable uwb_selftest_dwork;
 
 /** Canned Aliro ranging config for the peerless self-test (dummy URSK). */
@@ -22,7 +23,8 @@ static const uint8_t uwb_selftest_ursk[32] = {
 /** One-shot worker: run the Aliro UWB start path and log the outcome. */
 static void uwb_selftest_work(struct k_work *work)
 {
-	// Configuration struct for the Aliro DS-TWR responder, containing ranging parameters (channel, preamble code, session ID, and STS index).
+	// Configuration struct for the Aliro DS-TWR responder, containing ranging parameters
+	// (channel, preamble code, session ID, and STS index).
 	const struct woz_uwb_aliro_cfg cfg = {
 		.session_id = 0x02b02fd4u,
 		.channel = 9u,

@@ -1,7 +1,7 @@
 # ESP32-S3 port — Phase 3: the credential auth (deriving the ranging key)
 
 Status recorded 2026-07-18. Prerequisite reading: `docs/porting-esp32.md` (roadmap)
-and `RESEARCH.md` (the reverse-engineered protocol notes; this doc stays at that
+and `docs/protocol-research.md` (the reverse-engineered protocol notes; this doc stays at that
 same disclosure level and cites no external specifications).
 
 ## Where Phase 2 left off (hardware-validated)
@@ -16,7 +16,7 @@ scaffold, with the crypto handshake seam stubbed).
 ## The boundary finding (what is and isn't reimplemented)
 
 Phase 3 is the BLE credential-auth transaction that yields the 32-byte **URSK** (the
-ranging root; see `RESEARCH.md` §4). This is the one layer this project has **not**
+ranging root; see `docs/protocol-research.md` §4). This is the one layer this project has **not**
 reimplemented:
 
 - **Reimplemented, and already ported to ESP32** (via `modules/woz_uwb`, compiled
@@ -26,7 +26,7 @@ reimplemented:
   `ccc_derive_salted_hash` in `modules/woz_uwb/src/ccc`).
 - **Not implemented here**: Initiate Access → auth exchange → secure channel →
   **URSK derivation**. In the reference design this step is handled by a closed
-  vendor library (`RESEARCH.md` §9 calls it "a closed protocol library"); every
+  vendor library (`docs/protocol-research.md` §9 calls it "a closed protocol library"); every
   crypto function in this tree takes the URSK as an *input* rather than deriving it.
 
 **Implication for ESP32:** that closed library is an ARM binary and can't be linked
@@ -34,12 +34,12 @@ on the Xtensa S3, so for a standalone ESP32 reader the auth → URSK step must b
 reimplemented. Everything downstream of the URSK is already done. For pure UWB bench
 testing, the canned-URSK path (`main.c`) needs none of this.
 
-## What Phase 3 has to build (reverse-engineered, per RESEARCH.md §4)
+## What Phase 3 has to build (reverse-engineered, per docs/protocol-research.md §4)
 
 - **Transport / framing:** L2CAP CoC (already up), one APDU per SDU.
 - **Flow:** a standard path (ephemeral ECDH + mutual signatures) and a fast path off
   a cached long-term key, both producing the 160-byte derived block with the URSK at
-  offset 128 (`RESEARCH.md` §4).
+  offset 128 (`docs/protocol-research.md` §4).
 - **Crypto suite** (all available in ESP-IDF's mbedTLS-PSA): NIST P-256; ECDH; ECDSA
   P-256 with SHA-256; SHA-256; AES-256-GCM; and the two-stage KDF (a single-block
   X9.63-style step then HKDF-SHA-256) that expands the derived block.

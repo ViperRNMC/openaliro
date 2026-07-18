@@ -1,6 +1,6 @@
 # Verifies the 6 integration patches still apply to the pinned upstream
 # revisions (add-on, sdk-nrf, matter) via cheap sparse fetches — no workspace.
-# Runs only when a pin or a patch changes; the pins are otherwise immutable.
+# Push runs only when a pin or a patch changes; the pins are otherwise immutable.
 name: patch-drift
 
 on:
@@ -12,19 +12,16 @@ on:
       - integration/patches/**
       - tests/tooling/patch_drift_check.sh
       - .github/workflows/patch-drift.yml
+  # No path filter on PRs: drift is a required check, and a path-skipped
+  # workflow never reports (PR stuck at "Expected"). The old noop-twin
+  # workaround double-reported on mixed PRs; always running is cheap.
   pull_request:
-    paths:
-      - west.yml
-      - bootstrap.sh
-      - integration/patches/**
-      - tests/tooling/patch_drift_check.sh
-      - .github/workflows/patch-drift.yml
   workflow_dispatch:
 
 jobs:
   drift:
     runs-on: ubuntu-latest
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@9c091bb21b7c1c1d1991bb908d89e4e9dddfe3e0 # v7.0.0
       - name: apply all patches against the pinned revisions
         run: tests/tooling/patch_drift_check.sh

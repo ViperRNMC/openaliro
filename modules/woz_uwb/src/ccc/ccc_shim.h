@@ -1,4 +1,5 @@
-/** @file ccc_shim.h — map a per-frame STS index to the (dURSK, STS-V) pair the DW3000 STS engine loads. */
+/** @file ccc_shim.h — map a per-frame STS index to the (dURSK, STS-V) pair the DW3000 STS engine
+ * loads. */
 
 #ifndef CCC_SHIM_H
 #define CCC_SHIM_H
@@ -11,13 +12,12 @@
 
 /** Bind the shim to a ranging session's derived key material. */
 int ccc_shim_bind(const uint8_t mursk[CCC_MURSK_LEN],
-		  const uint8_t salted_hash[CCC_SALTED_HASH_LEN],
-		  uint32_t sts_index0, uint16_t n_slot_per_round);
+		  const uint8_t salted_hash[CCC_SALTED_HASH_LEN], uint32_t sts_index0,
+		  uint16_t n_slot_per_round);
 
 /** Bind the shim, deriving mURSK + SaltedHash from the URSK + RangingConfiguration. */
-int ccc_shim_bind_from_ursk(const uint8_t ursk[CCC_URSK_LEN],
-			    const uint8_t *ranging_config, size_t rc_len,
-			    uint32_t sts_index0, uint16_t n_slot_per_round);
+int ccc_shim_bind_from_ursk(const uint8_t ursk[CCC_URSK_LEN], const uint8_t *ranging_config,
+			    size_t rc_len, uint32_t sts_index0, uint16_t n_slot_per_round);
 
 /** @brief Unbind the shim; @ref ccc_shim_active returns false afterward. */
 void ccc_shim_unbind(void);
@@ -42,9 +42,9 @@ int ccc_shim_sts_for_slot(uint32_t slot, uint8_t dursk[CCC_DURSK_LEN],
 /** Extract the STS index the blob packed into a DW3000 STS IV (index at bytes 7..4). */
 uint32_t ccc_shim_index_from_iv(const uint8_t iv16[16]);
 
-/** Map the blob's raw provisioned STS index to a CCC-schedule STS index (origin/stride auto-calibrated from the first two indices). */
-uint32_t ccc_shim_blob_to_ccc_index(uint32_t blob_idx, uint32_t *block,
-				    uint32_t *sub);
+/** Map the blob's raw provisioned STS index to a CCC-schedule STS index (origin/stride
+ * auto-calibrated from the first two indices). */
+uint32_t ccc_shim_blob_to_ccc_index(uint32_t blob_idx, uint32_t *block, uint32_t *sub);
 
 /** Pin the substituted STS to one fixed CCC index (bench validation). */
 void ccc_shim_pin_index(uint32_t ccc_index);
@@ -73,7 +73,8 @@ bool ccc_shim_rx_awaiting_poll(void);
 /** BENCH: bring up a raw continuous SP0 receiver for the CCC Pre-POLL (target only). */
 int ccc_prepoll_listen(uint8_t channel, uint8_t preamble_code);
 
-/** Stop the Pre-POLL listener: close the self-rearm listen-gate, then force the radio off (target only). */
+/** Stop the Pre-POLL listener: close the self-rearm listen-gate, then force the radio off (target
+ * only). */
 void ccc_prepoll_stop(void);
 
 /** @brief The bound session's `STS_Index0` (for UAD/Pre-POLL derivation); 0 if unbound. */

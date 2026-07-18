@@ -7,9 +7,8 @@
 #include <stdint.h>
 
 /** @brief Snapshot the running RX/TX event tallies; out-params optional (NULL to skip). */
-void uwb_rxdiag_get_counts(uint32_t *rxok, uint32_t *rxerr, uint32_t *rxto,
-			   uint32_t *txdone, uint32_t *last_err,
-			   uint32_t *last_ok);
+void uwb_rxdiag_get_counts(uint32_t *rxok, uint32_t *rxerr, uint32_t *rxto, uint32_t *txdone,
+			   uint32_t *last_err, uint32_t *last_ok);
 
 /** @brief Arm or cancel the periodic ranging heartbeat (backs `aliro log on|off`). */
 void uwb_rxdiag_stream_set(bool on);

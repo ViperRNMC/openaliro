@@ -1,4 +1,6 @@
-// UWB facade: binds the CCC credential-based STS engine to the DW3000 radio, exposes Aliro DS-TWR responder start/stop and range query, and manages platform dependencies (HFCLK boost, SPI init, callbacks).
+// UWB facade: binds the CCC credential-based STS engine to the DW3000 radio, exposes Aliro DS-TWR
+// responder start/stop and range query, and manages platform dependencies (HFCLK boost, SPI init,
+// callbacks).
 /*
  * Copyright (c) 2026 asxeem
  * SPDX-License-Identifier: ISC
@@ -51,14 +53,13 @@ int woz_uwb_start_aliro(const struct woz_uwb_aliro_cfg *c)
 
 	/* Stash the URSK so the Pre-POLL decode can derive the CCC STS the Wallet expects. */
 	fira_session_set_provisioned_ursk(c->ursk);
-	/* Bind the shim's SaltedHash to the RangingConfiguration when supplied; else fall back to the URSK. */
+	/* Bind the shim's SaltedHash to the RangingConfiguration when supplied; else fall back to
+	 * the URSK. */
 	if (c->ranging_config != NULL && c->rc_len > 0u) {
-		ccc_shim_bind_from_ursk(c->ursk, c->ranging_config, c->rc_len,
-					c->sts_index0,
+		ccc_shim_bind_from_ursk(c->ursk, c->ranging_config, c->rc_len, c->sts_index0,
 					c->slot_per_round ? c->slot_per_round : 1u);
 	} else {
-		ccc_shim_bind_from_ursk(c->ursk, c->ursk, ALIRO_URSK_LEN,
-					c->sts_index0,
+		ccc_shim_bind_from_ursk(c->ursk, c->ursk, ALIRO_URSK_LEN, c->sts_index0,
 					c->slot_per_round ? c->slot_per_round : 1u);
 	}
 	/* Fresh per-session log budget so a live Wallet session re-logs its own RX-arms. */

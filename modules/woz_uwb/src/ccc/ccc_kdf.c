@@ -8,7 +8,7 @@
 /** @brief AES block size, bytes. */
 #define AES_BLOCK_LEN 16u
 /** @brief CMAC/CCM\* subkey constant Rb for the 128-bit block. */
-#define CMAC_RB 0x87u
+#define CMAC_RB       0x87u
 
 /* ── little byte helpers (no Zephyr on the host TU) ─────────────────────── */
 
@@ -32,8 +32,8 @@ static void put_be32(uint8_t *out, uint32_t v)
  */
 static uint32_t get_be32(const uint8_t *in)
 {
-	return ((uint32_t)in[0] << 24) | ((uint32_t)in[1] << 16) |
-	       ((uint32_t)in[2] << 8) | (uint32_t)in[3];
+	return ((uint32_t)in[0] << 24) | ((uint32_t)in[1] << 16) | ((uint32_t)in[2] << 8) |
+	       (uint32_t)in[3];
 }
 
 /**
@@ -58,8 +58,7 @@ static void xor_bytes(uint8_t *out, const uint8_t *a, const uint8_t *b, size_t n
  * @param out Output buffer receiving the shifted block.
  * @return The bit shifted out of the most significant bit position.
  */
-static uint8_t block_lshift1(const uint8_t in[AES_BLOCK_LEN],
-			     uint8_t out[AES_BLOCK_LEN])
+static uint8_t block_lshift1(const uint8_t in[AES_BLOCK_LEN], uint8_t out[AES_BLOCK_LEN])
 {
 	uint8_t carry = 0;
 	for (size_t i = AES_BLOCK_LEN; i-- > 0;) {
@@ -90,10 +89,10 @@ static void cmac_subkey(const uint8_t l[AES_BLOCK_LEN], uint8_t out[AES_BLOCK_LE
  * @param msg Message to authenticate; may be NULL only if msg_len is 0.
  * @param msg_len Length of msg in bytes.
  * @param tag Output buffer receiving the CMAC tag.
- * @return 0 on success; -EINVAL for invalid arguments; propagated error from AES encryption otherwise.
+ * @return 0 on success; -EINVAL for invalid arguments; propagated error from AES encryption
+ * otherwise.
  */
-int ccc_aes_cmac(const uint8_t *key, size_t key_bits,
-		 const uint8_t *msg, size_t msg_len,
+int ccc_aes_cmac(const uint8_t *key, size_t key_bits, const uint8_t *msg, size_t msg_len,
 		 uint8_t tag[CCC_CMAC_TAG_LEN])
 {
 	uint8_t l[AES_BLOCK_LEN];
@@ -165,12 +164,12 @@ int ccc_aes_cmac(const uint8_t *key, size_t key_bits,
  * @param ctx_len Length of context in bytes.
  * @param l_bits Requested output length in bits, encoded into the KDF input.
  * @param out Output buffer receiving the CMAC block.
- * @return 0 on success; -E2BIG if the assembled KDF input exceeds the internal buffer; propagated CMAC error otherwise.
+ * @return 0 on success; -E2BIG if the assembled KDF input exceeds the internal buffer; propagated
+ * CMAC error otherwise.
  */
-static int kdf108_block(const uint8_t *kdk, size_t kdk_bits, uint32_t counter,
-			const uint8_t *label, size_t label_len,
-			const uint8_t *context, size_t ctx_len,
-			uint32_t l_bits, uint8_t out[AES_BLOCK_LEN])
+static int kdf108_block(const uint8_t *kdk, size_t kdk_bits, uint32_t counter, const uint8_t *label,
+			size_t label_len, const uint8_t *context, size_t ctx_len, uint32_t l_bits,
+			uint8_t out[AES_BLOCK_LEN])
 {
 	uint8_t msg[KDF_INPUT_MAX];
 	size_t n = 0;
@@ -213,7 +212,7 @@ static const uint8_t LBL_UAD[3] = {0x55, 0x41, 0x44};
 static const uint8_t CTX_ZERO3[3] = {0x00, 0x00, 0x00};
 
 /** @brief `[L]_32` = 0x180 (384): the 3-block mUPSK material (mUPSK1 || mUPSK2). */
-#define L_UPSK 0x00000180u
+#define L_UPSK   0x00000180u
 /** @brief `[L]_32` = 0x100 (256): the 2-block mURSK / URSK_KT material. */
 #define L_256BIT 0x00000100u
 /** @brief `[L]_32` = 0x80 (128): the 1-block Salt / dURSK / dUDSK / UAD material. */
@@ -225,24 +224,23 @@ static const uint8_t CTX_ZERO3[3] = {0x00, 0x00, 0x00};
  * @param out Output buffer receiving mUPSK1.
  * @return 0 on success; -EINVAL if ursk or out is NULL.
  */
-int ccc_derive_mupsk1(const uint8_t ursk[CCC_URSK_LEN],
-		      uint8_t out[CCC_MUPSK1_LEN])
+int ccc_derive_mupsk1(const uint8_t ursk[CCC_URSK_LEN], uint8_t out[CCC_MUPSK1_LEN])
 {
 	if (ursk == NULL || out == NULL) {
 		return -EINVAL;
 	}
-	return kdf108_block(ursk, 256, 1, LBL_UPSK, sizeof(LBL_UPSK),
-			    CTX_ZERO3, sizeof(CTX_ZERO3), L_UPSK, out);
+	return kdf108_block(ursk, 256, 1, LBL_UPSK, sizeof(LBL_UPSK), CTX_ZERO3, sizeof(CTX_ZERO3),
+			    L_UPSK, out);
 }
 
 /**
  * @brief Derive mUPSK2, the seed for the UWB-address KDF.
  * @param ursk 256-bit URSK input key.
  * @param out Output buffer receiving mUPSK2.
- * @return 0 on success; -EINVAL if ursk or out is NULL; propagated error from the underlying KDF block otherwise.
+ * @return 0 on success; -EINVAL if ursk or out is NULL; propagated error from the underlying KDF
+ * block otherwise.
  */
-int ccc_derive_mupsk2(const uint8_t ursk[CCC_URSK_LEN],
-		      uint8_t out[CCC_MUPSK2_LEN])
+int ccc_derive_mupsk2(const uint8_t ursk[CCC_URSK_LEN], uint8_t out[CCC_MUPSK2_LEN])
 {
 	int rc;
 
@@ -250,36 +248,36 @@ int ccc_derive_mupsk2(const uint8_t ursk[CCC_URSK_LEN],
 		return -EINVAL;
 	}
 	/* mUPSK: one KDF (L=384) over counters 1..3; mUPSK1=ctr1, mUPSK2=ctr2||ctr3. */
-	rc = kdf108_block(ursk, 256, 2, LBL_UPSK, sizeof(LBL_UPSK),
-			  CTX_ZERO3, sizeof(CTX_ZERO3), L_UPSK, &out[0]);
+	rc = kdf108_block(ursk, 256, 2, LBL_UPSK, sizeof(LBL_UPSK), CTX_ZERO3, sizeof(CTX_ZERO3),
+			  L_UPSK, &out[0]);
 	if (rc != 0) {
 		return rc;
 	}
-	return kdf108_block(ursk, 256, 3, LBL_UPSK, sizeof(LBL_UPSK),
-			    CTX_ZERO3, sizeof(CTX_ZERO3), L_UPSK, &out[16]);
+	return kdf108_block(ursk, 256, 3, LBL_UPSK, sizeof(LBL_UPSK), CTX_ZERO3, sizeof(CTX_ZERO3),
+			    L_UPSK, &out[16]);
 }
 
 /**
  * @brief Derive mURSK, the ranging-key seed feeding URSK_KT.
  * @param ursk 256-bit URSK input key.
  * @param out Output buffer receiving mURSK.
- * @return 0 on success; -EINVAL if ursk or out is NULL; propagated error from the underlying KDF block otherwise.
+ * @return 0 on success; -EINVAL if ursk or out is NULL; propagated error from the underlying KDF
+ * block otherwise.
  */
-int ccc_derive_mursk(const uint8_t ursk[CCC_URSK_LEN],
-		     uint8_t out[CCC_MURSK_LEN])
+int ccc_derive_mursk(const uint8_t ursk[CCC_URSK_LEN], uint8_t out[CCC_MURSK_LEN])
 {
 	int rc;
 
 	if (ursk == NULL || out == NULL) {
 		return -EINVAL;
 	}
-	rc = kdf108_block(ursk, 256, 1, LBL_URSK, sizeof(LBL_URSK),
-			  CTX_ZERO3, sizeof(CTX_ZERO3), L_256BIT, &out[0]);
+	rc = kdf108_block(ursk, 256, 1, LBL_URSK, sizeof(LBL_URSK), CTX_ZERO3, sizeof(CTX_ZERO3),
+			  L_256BIT, &out[0]);
 	if (rc != 0) {
 		return rc;
 	}
-	return kdf108_block(ursk, 256, 2, LBL_URSK, sizeof(LBL_URSK),
-			    CTX_ZERO3, sizeof(CTX_ZERO3), L_256BIT, &out[16]);
+	return kdf108_block(ursk, 256, 2, LBL_URSK, sizeof(LBL_URSK), CTX_ZERO3, sizeof(CTX_ZERO3),
+			    L_256BIT, &out[16]);
 }
 
 /**
@@ -288,11 +286,11 @@ int ccc_derive_mursk(const uint8_t ursk[CCC_URSK_LEN],
  * @param ranging_config Serialized ranging configuration bytes (may be omitted if rc_len is 0).
  * @param rc_len Length of ranging_config in bytes.
  * @param out Output buffer receiving SaltedHash.
- * @return 0 on success; -EINVAL for invalid arguments; propagated error from the underlying KDF or CMAC otherwise.
+ * @return 0 on success; -EINVAL for invalid arguments; propagated error from the underlying KDF or
+ * CMAC otherwise.
  */
-int ccc_derive_salted_hash(const uint8_t ursk[CCC_URSK_LEN],
-			   const uint8_t *ranging_config, size_t rc_len,
-			   uint8_t out[CCC_SALTED_HASH_LEN])
+int ccc_derive_salted_hash(const uint8_t ursk[CCC_URSK_LEN], const uint8_t *ranging_config,
+			   size_t rc_len, uint8_t out[CCC_SALTED_HASH_LEN])
 {
 	uint8_t salt[CCC_CMAC_TAG_LEN];
 	uint8_t padded_salt[32];
@@ -302,8 +300,8 @@ int ccc_derive_salted_hash(const uint8_t ursk[CCC_URSK_LEN],
 		return -EINVAL;
 	}
 
-	rc = kdf108_block(ursk, 256, 1, LBL_SALT, sizeof(LBL_SALT),
-			  CTX_ZERO3, sizeof(CTX_ZERO3), L_128BIT, salt);
+	rc = kdf108_block(ursk, 256, 1, LBL_SALT, sizeof(LBL_SALT), CTX_ZERO3, sizeof(CTX_ZERO3),
+			  L_128BIT, salt);
 	if (rc != 0) {
 		return rc;
 	}
@@ -319,10 +317,10 @@ int ccc_derive_salted_hash(const uint8_t ursk[CCC_URSK_LEN],
  * @param mursk mURSK input key.
  * @param sts_index STS index for the current ranging cycle, expanded bitwise into the KDF context.
  * @param out Output buffer receiving URSK_KT.
- * @return 0 on success; -EINVAL if mursk or out is NULL; propagated error from the underlying KDF block otherwise.
+ * @return 0 on success; -EINVAL if mursk or out is NULL; propagated error from the underlying KDF
+ * block otherwise.
  */
-int ccc_derive_ursk_kt(const uint8_t mursk[CCC_MURSK_LEN],
-		       uint32_t sts_index,
+int ccc_derive_ursk_kt(const uint8_t mursk[CCC_MURSK_LEN], uint32_t sts_index,
 		       uint8_t out[CCC_URSK_KT_LEN])
 {
 	uint8_t ctx[32];
@@ -336,35 +334,33 @@ int ccc_derive_ursk_kt(const uint8_t mursk[CCC_MURSK_LEN],
 		ctx[b] = (uint8_t)((sts_index >> (31 - b)) & 1u);
 	}
 
-	rc = kdf108_block(mursk, 256, 1, LBL_URSK_KT, sizeof(LBL_URSK_KT),
-			  ctx, sizeof(ctx), L_256BIT, &out[0]);
+	rc = kdf108_block(mursk, 256, 1, LBL_URSK_KT, sizeof(LBL_URSK_KT), ctx, sizeof(ctx),
+			  L_256BIT, &out[0]);
 	if (rc != 0) {
 		return rc;
 	}
-	return kdf108_block(mursk, 256, 2, LBL_URSK_KT, sizeof(LBL_URSK_KT),
-			    ctx, sizeof(ctx), L_256BIT, &out[16]);
+	return kdf108_block(mursk, 256, 2, LBL_URSK_KT, sizeof(LBL_URSK_KT), ctx, sizeof(ctx),
+			    L_256BIT, &out[16]);
 }
 
 /**
- * @brief Shared dURSK/dUDSK derivation body: CMAC(URSK_KT, ctr1 || label || 0x00 || SaltedHash || 0x000000 || 0x80).
+ * @brief Shared dURSK/dUDSK derivation body: CMAC(URSK_KT, ctr1 || label || 0x00 || SaltedHash ||
+ * 0x000000 || 0x80).
  * @param ursk_kt URSK_KT input key for the current ranging cycle.
  * @param label 4-byte KDF label distinguishing dURSK from dUDSK.
  * @param salted_hash SaltedHash of the ranging configuration.
  * @param out Output buffer receiving the derived key.
  * @return Result of the underlying KDF block derivation.
  */
-static int derive_dkey(const uint8_t ursk_kt[CCC_URSK_KT_LEN],
-		       const uint8_t label[4],
-		       const uint8_t salted_hash[CCC_SALTED_HASH_LEN],
-		       uint8_t out[CCC_DURSK_LEN])
+static int derive_dkey(const uint8_t ursk_kt[CCC_URSK_KT_LEN], const uint8_t label[4],
+		       const uint8_t salted_hash[CCC_SALTED_HASH_LEN], uint8_t out[CCC_DURSK_LEN])
 {
 	uint8_t ctx[CCC_SALTED_HASH_LEN + 3];
 
 	memcpy(ctx, salted_hash, CCC_SALTED_HASH_LEN);
 	memcpy(&ctx[CCC_SALTED_HASH_LEN], CTX_ZERO3, sizeof(CTX_ZERO3));
 
-	return kdf108_block(ursk_kt, 256, 1, label, 4, ctx, sizeof(ctx),
-			    L_128BIT, out);
+	return kdf108_block(ursk_kt, 256, 1, label, 4, ctx, sizeof(ctx), L_128BIT, out);
 }
 
 /**
@@ -372,11 +368,11 @@ static int derive_dkey(const uint8_t ursk_kt[CCC_URSK_KT_LEN],
  * @param ursk_kt URSK_KT input key for the current ranging cycle.
  * @param salted_hash SaltedHash of the ranging configuration.
  * @param out Output buffer receiving dURSK.
- * @return 0 on success; -EINVAL if any argument is NULL; propagated error from the underlying derivation otherwise.
+ * @return 0 on success; -EINVAL if any argument is NULL; propagated error from the underlying
+ * derivation otherwise.
  */
 int ccc_derive_dursk(const uint8_t ursk_kt[CCC_URSK_KT_LEN],
-		     const uint8_t salted_hash[CCC_SALTED_HASH_LEN],
-		     uint8_t out[CCC_DURSK_LEN])
+		     const uint8_t salted_hash[CCC_SALTED_HASH_LEN], uint8_t out[CCC_DURSK_LEN])
 {
 	if (ursk_kt == NULL || salted_hash == NULL || out == NULL) {
 		return -EINVAL;
@@ -389,11 +385,11 @@ int ccc_derive_dursk(const uint8_t ursk_kt[CCC_URSK_KT_LEN],
  * @param ursk_kt URSK_KT input key for the current ranging cycle.
  * @param salted_hash SaltedHash of the ranging configuration.
  * @param out Output buffer receiving dUDSK.
- * @return 0 on success; -EINVAL if any argument is NULL; propagated error from the underlying derivation otherwise.
+ * @return 0 on success; -EINVAL if any argument is NULL; propagated error from the underlying
+ * derivation otherwise.
  */
 int ccc_derive_dudsk(const uint8_t ursk_kt[CCC_URSK_KT_LEN],
-		     const uint8_t salted_hash[CCC_SALTED_HASH_LEN],
-		     uint8_t out[CCC_DUDSK_LEN])
+		     const uint8_t salted_hash[CCC_SALTED_HASH_LEN], uint8_t out[CCC_DUDSK_LEN])
 {
 	if (ursk_kt == NULL || salted_hash == NULL || out == NULL) {
 		return -EINVAL;
@@ -408,14 +404,14 @@ int ccc_derive_dudsk(const uint8_t ursk_kt[CCC_URSK_KT_LEN],
  * @param out Output buffer receiving STS-V.
  * @return 0 on success; -EINVAL if salted_hash or out is NULL.
  */
-int ccc_derive_sts_v(const uint8_t salted_hash[CCC_SALTED_HASH_LEN],
-		     uint32_t sts_index,
+int ccc_derive_sts_v(const uint8_t salted_hash[CCC_SALTED_HASH_LEN], uint32_t sts_index,
 		     uint8_t out[CCC_STS_V_LEN])
 {
 	if (salted_hash == NULL || out == NULL) {
 		return -EINVAL;
 	}
-	/* STS-V = SaltedHash with big-endian word[2] (bytes 8..11) advanced by STS_Index mod 2^32; other words pass through. */
+	/* STS-V = SaltedHash with big-endian word[2] (bytes 8..11) advanced by STS_Index mod 2^32;
+	 * other words pass through. */
 	memcpy(out, salted_hash, CCC_STS_V_LEN);
 	put_be32(&out[8], get_be32(&out[8]) + sts_index);
 	return 0;
@@ -426,10 +422,10 @@ int ccc_derive_sts_v(const uint8_t salted_hash[CCC_SALTED_HASH_LEN],
  * @param mupsk2 mUPSK2 input key.
  * @param sts_index0 Initial STS index, encoded big-endian into the KDF context.
  * @param out Output buffer receiving UAD.
- * @return 0 on success; -EINVAL if mupsk2 or out is NULL; propagated error from the underlying KDF block otherwise.
+ * @return 0 on success; -EINVAL if mupsk2 or out is NULL; propagated error from the underlying KDF
+ * block otherwise.
  */
-int ccc_derive_uad(const uint8_t mupsk2[CCC_MUPSK2_LEN],
-		   uint32_t sts_index0,
+int ccc_derive_uad(const uint8_t mupsk2[CCC_MUPSK2_LEN], uint32_t sts_index0,
 		   uint8_t out[CCC_UAD_LEN])
 {
 	uint8_t ctx[4];
@@ -438,12 +434,13 @@ int ccc_derive_uad(const uint8_t mupsk2[CCC_MUPSK2_LEN],
 		return -EINVAL;
 	}
 	put_be32(ctx, sts_index0); /* STSIndex0[0:32], big-endian */
-	return kdf108_block(mupsk2, 256, 1, LBL_UAD, sizeof(LBL_UAD),
-			    ctx, sizeof(ctx), L_128BIT, out);
+	return kdf108_block(mupsk2, 256, 1, LBL_UAD, sizeof(LBL_UAD), ctx, sizeof(ctx), L_128BIT,
+			    out);
 }
 
 /**
- * @brief If addr is a reserved all-ones value (0xFFFF/0xFFFE for 2 bytes, 0xFF..FF for other lengths), clear its top bit.
+ * @brief If addr is a reserved all-ones value (0xFFFF/0xFFFE for 2 bytes, 0xFF..FF for other
+ * lengths), clear its top bit.
  * @param addr Address buffer checked and modified in place.
  * @param len Length of addr in bytes.
  */
@@ -468,27 +465,27 @@ static void remap_if_reserved(uint8_t *addr, size_t len)
 }
 
 /**
- * @brief Split UAD into the UWB addresses (KeySource, destination short address, source long address).
+ * @brief Split UAD into the UWB addresses (KeySource, destination short address, source long
+ * address).
  * @param uad UAD bytes to split.
  * @param keysource Output buffer receiving the KeySource address.
  * @param dest_short_addr Output buffer receiving the destination short address.
  * @param src_long_addr Output buffer receiving the source long address.
  * @return 0 on success; -EINVAL if uad or any output pointer is NULL.
  */
-int ccc_uad_addresses(const uint8_t uad[CCC_UAD_LEN],
-		      uint8_t keysource[CCC_KEYSOURCE_LEN],
+int ccc_uad_addresses(const uint8_t uad[CCC_UAD_LEN], uint8_t keysource[CCC_KEYSOURCE_LEN],
 		      uint8_t dest_short_addr[CCC_DEST_SHORT_ADDR_LEN],
 		      uint8_t src_long_addr[CCC_SRC_LONG_ADDR_LEN])
 {
 	uint8_t ks_low[2];
 	uint8_t ks_high[2];
 
-	if (uad == NULL || keysource == NULL || dest_short_addr == NULL ||
-	    src_long_addr == NULL) {
+	if (uad == NULL || keysource == NULL || dest_short_addr == NULL || src_long_addr == NULL) {
 		return -EINVAL;
 	}
 
-	/* UAD splits sequentially: KeySourceLow, KeySourceHigh, DestShort, SourceLong (trailing 2 bytes unused). */
+	/* UAD splits sequentially: KeySourceLow, KeySourceHigh, DestShort, SourceLong (trailing 2
+	 * bytes unused). */
 	memcpy(ks_low, &uad[0], 2);
 	memcpy(ks_high, &uad[2], 2);
 	memcpy(dest_short_addr, &uad[4], CCC_DEST_SHORT_ADDR_LEN);
@@ -508,9 +505,9 @@ int ccc_uad_addresses(const uint8_t uad[CCC_UAD_LEN],
 /* ── AES-CCM*, SP0 Security Level 6 ─────────────────────────────────────── */
 
 /** @brief SP0 nonce Security Level field (6 = ENC-MIC-64). */
-#define SP0_SEC_LEVEL 0x06u
+#define SP0_SEC_LEVEL   0x06u
 /** @brief CCM length-field size L (2 → 16-bit frame lengths). */
-#define CCM_L 2u
+#define CCM_L           2u
 /** @brief Largest AAD/payload we buffer for the SP0 CBC-MAC. */
 #define CCM_SCRATCH_MAX 128u
 
@@ -521,8 +518,7 @@ int ccc_uad_addresses(const uint8_t uad[CCC_UAD_LEN],
  * @param frame_counter Frame counter encoded big-endian into the nonce.
  */
 static void sp0_nonce(uint8_t nonce[CCC_SP0_NONCE_LEN],
-		      const uint8_t src_long_addr[CCC_SRC_LONG_ADDR_LEN],
-		      uint32_t frame_counter)
+		      const uint8_t src_long_addr[CCC_SRC_LONG_ADDR_LEN], uint32_t frame_counter)
 {
 	memcpy(&nonce[0], src_long_addr, CCC_SRC_LONG_ADDR_LEN);
 	put_be32(&nonce[8], frame_counter);
@@ -533,18 +529,17 @@ static void sp0_nonce(uint8_t nonce[CCC_SP0_NONCE_LEN],
  * @brief Compute the CCM* CBC-MAC over B0 || l(a)||MHR || payload, zero-padded per block.
  * @param key AES-128 key used for the CBC-MAC.
  * @param nonce SP0 CCM* nonce for this frame.
- * @param mhr MAC header bytes forming the additional authenticated data (may be omitted if mhr_len is 0).
+ * @param mhr MAC header bytes forming the additional authenticated data (may be omitted if mhr_len
+ * is 0).
  * @param mhr_len Length of mhr in bytes.
  * @param payload Payload bytes to authenticate.
  * @param payload_len Length of payload in bytes.
  * @param tag Output buffer receiving the computed CBC-MAC tag.
  * @return 0 on success; propagated error from AES encryption otherwise.
  */
-static int sp0_cbc_mac(const uint8_t key[CCC_MUPSK1_LEN],
-		       const uint8_t nonce[CCC_SP0_NONCE_LEN],
-		       const uint8_t *mhr, size_t mhr_len,
-		       const uint8_t *payload, size_t payload_len,
-		       uint8_t tag[AES_BLOCK_LEN])
+static int sp0_cbc_mac(const uint8_t key[CCC_MUPSK1_LEN], const uint8_t nonce[CCC_SP0_NONCE_LEN],
+		       const uint8_t *mhr, size_t mhr_len, const uint8_t *payload,
+		       size_t payload_len, uint8_t tag[AES_BLOCK_LEN])
 {
 	uint8_t blk[AES_BLOCK_LEN];
 	int rc;
@@ -602,7 +597,8 @@ static int sp0_cbc_mac(const uint8_t key[CCC_MUPSK1_LEN],
 }
 
 /**
- * @brief Apply CCM* CTR mode: emit the S0 keystream block, then XOR keystream S1.. over in to out (symmetric encrypt/decrypt).
+ * @brief Apply CCM* CTR mode: emit the S0 keystream block, then XOR keystream S1.. over in to out
+ * (symmetric encrypt/decrypt).
  * @param key AES-128 key used for the CTR keystream.
  * @param nonce SP0 CCM* nonce for this frame.
  * @param in Input bytes to transform.
@@ -611,10 +607,8 @@ static int sp0_cbc_mac(const uint8_t key[CCC_MUPSK1_LEN],
  * @param s0 Output buffer receiving the S0 keystream block (used for MIC encryption).
  * @return 0 on success; propagated error from AES encryption otherwise.
  */
-static int sp0_ctr(const uint8_t key[CCC_MUPSK1_LEN],
-		   const uint8_t nonce[CCC_SP0_NONCE_LEN],
-		   const uint8_t *in, size_t len, uint8_t *out,
-		   uint8_t s0[AES_BLOCK_LEN])
+static int sp0_ctr(const uint8_t key[CCC_MUPSK1_LEN], const uint8_t nonce[CCC_SP0_NONCE_LEN],
+		   const uint8_t *in, size_t len, uint8_t *out, uint8_t s0[AES_BLOCK_LEN])
 {
 	uint8_t ctr_blk[AES_BLOCK_LEN];
 	int rc;
@@ -657,12 +651,9 @@ static int sp0_ct_diff(const uint8_t *a, const uint8_t *b, size_t n)
 }
 
 int ccc_sp0_encrypt(const uint8_t key[CCC_MUPSK1_LEN],
-		    const uint8_t src_long_addr[CCC_SRC_LONG_ADDR_LEN],
-		    uint32_t frame_counter,
-		    const uint8_t *mhr, size_t mhr_len,
-		    const uint8_t *payload, size_t payload_len,
-		    uint8_t *ciphertext_out,
-		    uint8_t mic_out[CCC_SP0_MIC_LEN])
+		    const uint8_t src_long_addr[CCC_SRC_LONG_ADDR_LEN], uint32_t frame_counter,
+		    const uint8_t *mhr, size_t mhr_len, const uint8_t *payload, size_t payload_len,
+		    uint8_t *ciphertext_out, uint8_t mic_out[CCC_SP0_MIC_LEN])
 {
 	uint8_t nonce[CCC_SP0_NONCE_LEN];
 	uint8_t x[AES_BLOCK_LEN];
@@ -670,13 +661,11 @@ int ccc_sp0_encrypt(const uint8_t key[CCC_MUPSK1_LEN],
 	int rc;
 
 	if (key == NULL || src_long_addr == NULL || mic_out == NULL ||
-	    (mhr == NULL && mhr_len > 0) ||
-	    (payload == NULL && payload_len > 0) ||
+	    (mhr == NULL && mhr_len > 0) || (payload == NULL && payload_len > 0) ||
 	    (ciphertext_out == NULL && payload_len > 0)) {
 		return -EINVAL;
 	}
-	if (mhr_len >= 0xFF00u || mhr_len > CCM_SCRATCH_MAX ||
-	    payload_len > CCM_SCRATCH_MAX) {
+	if (mhr_len >= 0xFF00u || mhr_len > CCM_SCRATCH_MAX || payload_len > CCM_SCRATCH_MAX) {
 		return -E2BIG;
 	}
 
@@ -694,12 +683,9 @@ int ccc_sp0_encrypt(const uint8_t key[CCC_MUPSK1_LEN],
 }
 
 int ccc_sp0_decrypt(const uint8_t key[CCC_MUPSK1_LEN],
-		    const uint8_t src_long_addr[CCC_SRC_LONG_ADDR_LEN],
-		    uint32_t frame_counter,
-		    const uint8_t *mhr, size_t mhr_len,
-		    const uint8_t *ciphertext, size_t ciphertext_len,
-		    const uint8_t mic[CCC_SP0_MIC_LEN],
-		    uint8_t *payload_out)
+		    const uint8_t src_long_addr[CCC_SRC_LONG_ADDR_LEN], uint32_t frame_counter,
+		    const uint8_t *mhr, size_t mhr_len, const uint8_t *ciphertext,
+		    size_t ciphertext_len, const uint8_t mic[CCC_SP0_MIC_LEN], uint8_t *payload_out)
 {
 	uint8_t nonce[CCC_SP0_NONCE_LEN];
 	uint8_t x[AES_BLOCK_LEN];
@@ -707,14 +693,12 @@ int ccc_sp0_decrypt(const uint8_t key[CCC_MUPSK1_LEN],
 	uint8_t mic_calc[CCC_SP0_MIC_LEN];
 	int rc;
 
-	if (key == NULL || src_long_addr == NULL || mic == NULL ||
-	    (mhr == NULL && mhr_len > 0) ||
+	if (key == NULL || src_long_addr == NULL || mic == NULL || (mhr == NULL && mhr_len > 0) ||
 	    (ciphertext == NULL && ciphertext_len > 0) ||
 	    (payload_out == NULL && ciphertext_len > 0)) {
 		return -EINVAL;
 	}
-	if (mhr_len >= 0xFF00u || mhr_len > CCM_SCRATCH_MAX ||
-	    ciphertext_len > CCM_SCRATCH_MAX) {
+	if (mhr_len >= 0xFF00u || mhr_len > CCM_SCRATCH_MAX || ciphertext_len > CCM_SCRATCH_MAX) {
 		return -E2BIG;
 	}
 

@@ -3,7 +3,6 @@
 # ignore both the directory and the symlink form.
 workspace/
 /workspace
-.claude/
 
 # Build output
 /build/
@@ -24,3 +23,10 @@ bench.env
 CLAUDE.md
 .claude/
 
+<<<<<<< HEAD
+# internal working notes / plans (not part of the project)
+||||||| parent of b1afa7f (gitignore(add): added internal directory)
+=======
+# internal
+>>>>>>> b1afa7f (gitignore(add): added internal directory)
+internal/

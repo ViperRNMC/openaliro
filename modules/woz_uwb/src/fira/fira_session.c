@@ -12,7 +12,7 @@
 #include "aliro_kdf.h"
 
 /* Aliro URSK stash: the Pre-POLL decode reads it to derive the CCC STS. */
-static bool    g_have_ursk;
+static bool g_have_ursk;
 static uint8_t g_ursk[ALIRO_URSK_LEN];
 
 void fira_session_set_provisioned_ursk(const uint8_t *ursk)
@@ -39,19 +39,18 @@ uint32_t fira_session_current_slot(void)
 #endif /* CONFIG_WOZ_ALIRO */
 
 /* Last valid DS-TWR range, latched for the Aliro mRangingData seam and the shell. */
-static bool     g_have_range;
-static int32_t  g_last_range_cm;
+static bool g_have_range;
+static int32_t g_last_range_cm;
 static uint16_t g_last_range_addr;
-static uint8_t  g_last_range_nlos;
+static uint8_t g_last_range_nlos;
 static uint32_t g_last_range_block;
-static int64_t  g_last_range_ms;
+static int64_t g_last_range_ms;
 /* Layer 4: run length of consecutive plausible, mutually consistent blocks. */
-static uint8_t  g_range_trust;
+static uint8_t g_range_trust;
 
 /** @brief Fetch the most recent valid DS-TWR range; out-params optional (NULL to skip). */
-bool fira_session_last_range(int32_t *cm_out, uint16_t *addr_out,
-			     uint8_t *nlos_out, uint32_t *block_out,
-			     int64_t *age_ms_out)
+bool fira_session_last_range(int32_t *cm_out, uint16_t *addr_out, uint8_t *nlos_out,
+			     uint32_t *block_out, int64_t *age_ms_out)
 {
 	if (!g_have_range) {
 		return false;
@@ -108,8 +107,7 @@ void fira_session_set_ccc_range_cm(int32_t cm, uint32_t block)
 
 	/* Layer 4: consecutive plausible blocks that agree build trust; a jump
 	 * restarts the run. The block still latches, so telemetry stays live. */
-	delta = (cm >= g_last_range_cm) ? (cm - g_last_range_cm)
-				       : (g_last_range_cm - cm);
+	delta = (cm >= g_last_range_cm) ? (cm - g_last_range_cm) : (g_last_range_cm - cm);
 	if (g_have_range && delta <= FIRA_RANGE_SPREAD_CM) {
 		if (g_range_trust < FIRA_RANGE_TRUST_K) {
 			g_range_trust++;

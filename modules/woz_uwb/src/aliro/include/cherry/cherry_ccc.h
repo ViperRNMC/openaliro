@@ -78,7 +78,8 @@ enum cherry_ccc_state_change_reason {
 };
 
 /**
- * @brief Payload of a SESSION_STATUS event, giving the new session state and the reason for the change.
+ * @brief Payload of a SESSION_STATUS event, giving the new session state and the reason for the
+ * change.
  */
 struct cherry_ccc_session_event_session_status {
 	enum cherry_ccc_session_state session_state;
@@ -93,11 +94,13 @@ struct cherry_ccc_session_event_error {
 };
 
 /**
- * @brief Opaque controller-side CCC session report; instances cross the API boundary only by pointer.
+ * @brief Opaque controller-side CCC session report; instances cross the API boundary only by
+ * pointer.
  */
 struct cherry_ccc_controller_session_report;
 /**
- * @brief Opaque CCC controlee (lock) session report structure, not defined outside the cherry library.
+ * @brief Opaque CCC controlee (lock) session report structure, not defined outside the cherry
+ * library.
  */
 struct cherry_ccc_controlee_session_report;
 
@@ -118,23 +121,25 @@ struct cherry_ccc_event {
 		 */
 		struct cherry_ccc_session_event_error *error;
 		/**
-		 * @brief Pointer to the controller-side session report payload; report payloads cross the seam only by pointer on this lock.
+		 * @brief Pointer to the controller-side session report payload; report payloads
+		 * cross the seam only by pointer on this lock.
 		 */
 		struct cherry_ccc_controller_session_report *controller_report;
 		/**
-		 * @brief Pointer to the controlee session report payload, carrying a distance and timestamp snapshot.
+		 * @brief Pointer to the controlee session report payload, carrying a distance and
+		 * timestamp snapshot.
 		 */
 		struct cherry_ccc_controlee_session_report *controlee_report;
 		/**
-		 * @brief Pointer to the diagnostic report snapshot (ranging samples, signal metrics) for this CCC event.
+		 * @brief Pointer to the diagnostic report snapshot (ranging samples, signal
+		 * metrics) for this CCC event.
 		 */
 		struct cherry_common_diag_report *diagnostics;
 	} data;
 };
 
 /** CCC notification callback type. */
-typedef void (*cherry_ccc_cb_t)(struct cherry_ccc_event *event,
-				void *user_data);
+typedef void (*cherry_ccc_cb_t)(struct cherry_ccc_event *event, void *user_data);
 
 /** Selected hopping mode. */
 enum cherry_ccc_hopping_mode {
@@ -178,20 +183,19 @@ struct cherry_ccc_session *cherry_ccc_session_create_aliro_responder(
 /**
  * @brief Return the base session for a CCC session (the base is the first member).
  */
-struct cherry_session *
-cherry_ccc_session_to_base(struct cherry_ccc_session *session);
+struct cherry_session *cherry_ccc_session_to_base(struct cherry_ccc_session *session);
 
 /** Convenience: fetch the CCC session's user_data via its base. */
-static inline void *
-/**
- * @brief Fetch the CCC session's user_data via its base session.
- * @param session CCC session to query.
- * @return The user_data pointer associated with the session's base.
- */
-cherry_ccc_session_get_user_data(struct cherry_ccc_session *session)
+static inline void
+	*
+	/**
+	 * @brief Fetch the CCC session's user_data via its base session.
+	 * @param session CCC session to query.
+	 * @return The user_data pointer associated with the session's base.
+	 */
+	cherry_ccc_session_get_user_data(struct cherry_ccc_session *session)
 {
-	return cherry_session_get_user_data(
-		cherry_ccc_session_to_base(session));
+	return cherry_session_get_user_data(cherry_ccc_session_to_base(session));
 }
 
 /**
@@ -247,8 +251,8 @@ static inline enum cherry_err
 cherry_ccc_session_set_antennas(struct cherry_ccc_session *session,
 				uint8_t tx_antenna_set, uint8_t rx_antenna_set)
 {
-	return cherry_session_set_antennas(cherry_ccc_session_to_base(session),
-					   tx_antenna_set, rx_antenna_set);
+	return cherry_session_set_antennas(cherry_ccc_session_to_base(session), tx_antenna_set,
+					   rx_antenna_set);
 }
 
 /** Provide the 32-byte URSK (host-provided STS root key). */
@@ -256,25 +260,21 @@ enum cherry_err cherry_ccc_session_set_ursk(struct cherry_ccc_session *session,
 					    const uint8_t *ursk);
 
 /** Record the selected BLE/UWB protocol version. */
-enum cherry_err
-cherry_ccc_session_set_protocol_version(struct cherry_ccc_session *session,
-					uint16_t selected_protocol_version);
+enum cherry_err cherry_ccc_session_set_protocol_version(struct cherry_ccc_session *session,
+							uint16_t selected_protocol_version);
 
 /** Select antennas for the Aliro second ranging round. */
-enum cherry_err
-cherry_ccc_session_set_round2_antennas(struct cherry_ccc_session *session,
-				       uint8_t tx_antenna_set,
-				       uint8_t rx_antenna_set);
+enum cherry_err cherry_ccc_session_set_round2_antennas(struct cherry_ccc_session *session,
+						       uint8_t tx_antenna_set,
+						       uint8_t rx_antenna_set);
 
 /** Set the starting STS index (resume path). */
-enum cherry_err
-cherry_ccc_session_set_sts_index(struct cherry_ccc_session *session,
-				 uint32_t sts_index);
+enum cherry_err cherry_ccc_session_set_sts_index(struct cherry_ccc_session *session,
+						 uint32_t sts_index);
 
 /** Set the ranging initiation time on the UWBS time base (resume path). */
-enum cherry_err
-cherry_ccc_session_set_initiation_time(struct cherry_ccc_session *session,
-				       uint64_t initiation_time_us);
+enum cherry_err cherry_ccc_session_set_initiation_time(struct cherry_ccc_session *session,
+						       uint64_t initiation_time_us);
 
 /** Enable/disable diagnostics for a CCC session (delegates to the base). */
 static inline enum cherry_err
@@ -287,8 +287,7 @@ cherry_ccc_session_set_diagnostics(struct cherry_ccc_session *session,
 				    */
 				   struct cherry_common_diag_cfg config)
 {
-	return cherry_session_set_diagnostics(
-		cherry_ccc_session_to_base(session), config, false);
+	return cherry_session_set_diagnostics(cherry_ccc_session_to_base(session), config, false);
 }
 
 #ifdef __cplusplus

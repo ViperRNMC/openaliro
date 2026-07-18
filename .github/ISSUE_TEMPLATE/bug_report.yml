@@ -1,0 +1,46 @@
+name: Bug report
+description: Something builds wrong, boots wrong, or behaves wrong
+labels: [bug]
+body:
+  - type: markdown
+    attributes:
+      value: |
+        For security vulnerabilities, do not open an issue: use
+        **Security → Report a vulnerability** instead (see SECURITY.md).
+  - type: input
+    id: commit
+    attributes:
+      label: Firmware commit
+      description: Output of `git rev-parse --short HEAD`
+      placeholder: e.g. 3ebccf1
+    validations:
+      required: true
+  - type: dropdown
+    id: target
+    attributes:
+      label: Target
+      options:
+        - nRF5340 DK (primary)
+        - ESP32-S3 port (ports/esp32-idf)
+        - Host tests only (no hardware)
+    validations:
+      required: true
+  - type: textarea
+    id: what-happened
+    attributes:
+      label: What happened
+      description: What you did, what you expected, what happened instead.
+    validations:
+      required: true
+  - type: textarea
+    id: console
+    attributes:
+      label: Console log
+      description: Relevant serial console output (`make term`), or CI/build output.
+      render: text
+  - type: input
+    id: environment
+    attributes:
+      label: Environment
+      description: NCS version, host OS, phone model + iOS version if relevant
+      placeholder: e.g. NCS v3.3.0, macOS 15, iPhone 15 Pro / iOS 18.2
