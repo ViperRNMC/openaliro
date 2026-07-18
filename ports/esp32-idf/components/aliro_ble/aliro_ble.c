@@ -58,6 +58,11 @@ static uint16_t s_read_payload_len;
 
 static uint8_t s_own_addr_type;
 
+/* start_attached() has brought the advertiser up on the shared host. Guards
+ * aliro_ble_readvertise() so a params update before start is a no-op (start_attached
+ * advertises with the current params itself). */
+static bool s_attached;
+
 /* Provisioned Aliro advertising params (set via aliro_ble_set_adv_params). With
  * s_adv_aliro set, aliro_advertise emits the full 0xFFF2 service data + a
  * GroupResolvingKey-derived dynamic tag; else the bare service UUID (Phase-2). */
@@ -551,8 +556,22 @@ int aliro_ble_start_attached(void)
 	}
 	ESP_LOGI(TAG, "Aliro reader attached to shared host; advertising (SPSM 0x%04x)",
 		 (unsigned)ALIRO_L2CAP_SPSM);
+	s_attached = true;
 	aliro_advertise();
 	return 0;
+}
+
+void aliro_ble_readvertise(void)
+{
+	/* Re-emit the advertisement with the current params. Used when provisioning
+	 * (the GRK) lands after the advertiser is already up: Apple sends
+	 * SetAliroReaderConfig post-commissioning, so the reader initially advertised
+	 * the bare UUID. Stop + restart so the new full 0xFFF2 service data takes. */
+	if (!s_attached) {
+		return; /* not up yet; start_attached() advertises with current params */
+	}
+	(void)ble_gap_adv_stop(); /* ignore rc; may already be stopped */
+	aliro_advertise();
 }
 
 void aliro_ble_set_adv_params(const uint8_t group_id8[8], const uint8_t sub_id2[2],

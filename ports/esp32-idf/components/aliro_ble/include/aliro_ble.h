@@ -81,6 +81,11 @@ int aliro_ble_start_attached(void);
 void aliro_ble_set_adv_params(const uint8_t group_id8[8], const uint8_t sub_id2[2],
 			      const uint8_t grk[16], int8_t tx_power);
 
+/** Re-emit the advertisement with the current adv params (call after
+ *  aliro_ble_set_adv_params updates the GRK post-provisioning). No-op until
+ *  start_attached() has brought the advertiser up. */
+void aliro_ble_readvertise(void);
+
 #ifdef __cplusplus
 }
 #endif

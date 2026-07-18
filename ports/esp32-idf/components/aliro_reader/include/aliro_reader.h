@@ -36,6 +36,13 @@ const void *aliro_reader_ble_prepare(void);
  *  Returns 0 on success, negative on failure. */
 int aliro_reader_start_attached(void);
 
+/** Re-emit the BLE advertisement using the currently-provisioned GRK. Call after
+ *  Matter provisioning (SetAliroReaderConfig) if the reader may already be
+ *  advertising: it starts on kCommissioningComplete, before Apple sends the Aliro
+ *  config, so its first advertisement has no GRK and the phone cannot resolve it.
+ *  No-op if the reader has no GRK or is not yet advertising. */
+void aliro_reader_refresh_adv(void);
+
 /* ---- Bench provisioning helpers (Phase 3.4) ---------------------------- *
  * Back the `aliro-prov` / `aliro-trust` console commands. Kept as plain calls
  * so the shell does not need the internal aliro_prov types. */

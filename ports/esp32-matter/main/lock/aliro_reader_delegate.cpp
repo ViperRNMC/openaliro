@@ -191,6 +191,11 @@ CHIP_ERROR AliroReaderDelegate::SetAliroReaderConfig(const ByteSpan &signingKey,
 	       sizeof(mGroupSubIdentifier));
 	int rc = aliro_reader_provision_identity(readerId, mSigningKey, mGroupResolvingKey);
 
+	// Apple sends this command AFTER commissioning completes, but the reader starts
+	// (and begins advertising) on kCommissioningComplete — so its first advertisement
+	// predates the GRK and is not approach-resolvable. Refresh it with the GRK now.
+	aliro_reader_refresh_adv();
+
 	ChipLogProgress(Zcl,
 			"Aliro reader configured — identity provisioned (groupResolvingKey=%d, "
 			"aliro_prov rc=%d)",

@@ -504,6 +504,31 @@ int aliro_reader_start_attached(void)
 	return rc;
 }
 
+void aliro_reader_refresh_adv(void)
+{
+	/* Matter provisioning (SetAliroReaderConfig) can land after the reader has
+	 * already started advertising: Apple sends it as post-commissioning operational
+	 * commands, whereas the reader starts on kCommissioningComplete. At start the
+	 * identity was still the dev default (no GRK), so the reader advertised only the
+	 * bare 0xFFF2 UUID and the phone cannot resolve it. Once the real GRK is in
+	 * s_id (provision_identity ran just before), pull it into the advertisement. */
+	bool have_grk = false;
+	for (size_t i = 0; i < ALIRO_GRK_LEN; i++) {
+		if (s_id.grk[i] != 0u) {
+			have_grk = true;
+			break;
+		}
+	}
+	if (!have_grk) {
+		return;
+	}
+	const uint8_t sub2[2] = { s_id.reader_id[16], s_id.reader_id[17] };
+
+	aliro_ble_set_adv_params(&s_id.reader_id[0], sub2, s_id.grk, 0 /* tx power */);
+	aliro_ble_readvertise();
+	ESP_LOGI(TAG, "advertisement refreshed with provisioned GRK (approach-resolvable)");
+}
+
 /* ---- bench provisioning helpers (aliro-prov / aliro-trust) ------------- */
 
 void aliro_reader_prov_print(void)
