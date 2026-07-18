@@ -65,3 +65,6 @@ CONFIG_ESP32_COREDUMP_DATA_FORMAT_ELF=y
 
 # disable groupcast cluster until verified
 CONFIG_SUPPORT_GROUPCAST_CLUSTER=n
+
+# Advertise Aliro (Apple Home Key) Provisioning + BLE-UWB and register the reader delegate
+CONFIG_ENABLE_ALIRO_BLE_UWB=y

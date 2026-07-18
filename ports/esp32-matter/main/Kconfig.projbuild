@@ -1,9 +1,11 @@
 menu "Example Configuration"
 
-    config ENABLE_ALIRO_OVER_NFC
-        bool "Enable Aliro-over-NFC feature"
-        default n
+    config ENABLE_ALIRO_BLE_UWB
+        bool "Enable Aliro (Apple Home Key) over BLE + UWB"
+        default y
         help
-            Enable this option to enable Aliro-over-NFC feature for DoorLock cluster.
+            Advertise the Door Lock cluster's Aliro Provisioning + BLE-UWB
+            features and register the Aliro reader delegate, so Apple Home can
+            provision an Express (BLE + UWB) Home Key into Wallet for this reader.
 
 endmenu
