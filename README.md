@@ -108,8 +108,8 @@ an nRF5340 DK with a live iPhone.
 - [`docs/README.md`](docs/README.md): generated code map of the repository, with
   per-module API references in [`docs/architecture/`](docs/architecture/).
 - [`docs/ARCHITECTURE.md`](docs/ARCHITECTURE.md): how the pieces fit together.
-- [`docs/protocol-notes.md`](docs/protocol-notes.md): protocol behavior observed on real
-  hardware.
+- [`docs/protocol-notes.md`](docs/protocol-notes.md): firmware time-sync and
+  credential-validity behavior observed on real hardware.
 - [`docs/protocol-research.md`](docs/protocol-research.md): reverse-engineering report on
   the BLE + UWB proximity-unlock protocol.
 
