@@ -7,6 +7,7 @@
 #include "freertos/FreeRTOS.h"
 #include "freertos/semphr.h"
 #include "esp_console.h"
+#include "linenoise/linenoise.h"
 #include "esp_log.h"
 #include "esp_err.h"
 
@@ -89,7 +90,8 @@ bool app_responder_up(void)
 
 static int cmd_status(int argc, char **argv)
 {
-	(void)argc; (void)argv;
+	(void)argc;
+	(void)argv;
 	int32_t cm;
 	printf("responder : %s\n", app_responder_up() ? "up" : "down");
 	if (woz_uwb_last_range_cm(&cm)) {
@@ -107,7 +109,8 @@ static int cmd_status(int argc, char **argv)
 
 static int cmd_range(int argc, char **argv)
 {
-	(void)argc; (void)argv;
+	(void)argc;
+	(void)argv;
 	int32_t cm;
 	if (woz_uwb_last_range_cm(&cm)) {
 		printf("range: %d cm\n", (int)cm);
@@ -119,7 +122,8 @@ static int cmd_range(int argc, char **argv)
 
 static int cmd_aliro_start(int argc, char **argv)
 {
-	(void)argc; (void)argv;
+	(void)argc;
+	(void)argv;
 	int rc = app_responder_start();
 	if (rc == 1) {
 		printf("busy: responder already running\n");
@@ -131,7 +135,8 @@ static int cmd_aliro_start(int argc, char **argv)
 
 static int cmd_aliro_stop(int argc, char **argv)
 {
-	(void)argc; (void)argv;
+	(void)argc;
+	(void)argv;
 	app_responder_stop();
 	printf("aliro-stop: ok\n");
 	return 0;
@@ -139,14 +144,24 @@ static int cmd_aliro_stop(int argc, char **argv)
 
 static int cmd_aliro_prov(int argc, char **argv)
 {
-	(void)argc; (void)argv;
+	(void)argc;
+	(void)argv;
 	aliro_reader_prov_print();
+	return 0;
+}
+
+static int cmd_clear(int argc, char **argv)
+{
+	(void)argc;
+	(void)argv;
+	linenoiseClearScreen();
 	return 0;
 }
 
 static int cmd_aliro_trust(int argc, char **argv)
 {
-	(void)argc; (void)argv;
+	(void)argc;
+	(void)argv;
 	int rc = aliro_reader_trust_last();
 
 	if (rc == 0) {
@@ -176,13 +191,31 @@ void app_shell_start(void)
 
 	ESP_ERROR_CHECK(esp_console_new_repl_uart(&dev_cfg, &repl_cfg, &repl));
 
+	/* esp_console defaults to multiline mode + a hints callback; either one
+	 * forces linenoise to redraw prompt+line on every keystroke, which visibly
+	 * flickers the cursor over the UART. With both off, typing echoes only the
+	 * typed character (tab completion still works). */
+	linenoiseSetMultiLine(0);
+	linenoiseSetHintsCallback(NULL);
+
 	const esp_console_cmd_t cmds[] = {
-		{ .command = "status",      .help = "responder state + last/trusted range", .func = cmd_status },
-		{ .command = "range",       .help = "print the latest distance",            .func = cmd_range },
-		{ .command = "aliro-start", .help = "start the demo DS-TWR responder",       .func = cmd_aliro_start },
-		{ .command = "aliro-stop",  .help = "stop the demo responder",               .func = cmd_aliro_stop },
-		{ .command = "aliro-prov",  .help = "show reader identity + credential trust store", .func = cmd_aliro_prov },
-		{ .command = "aliro-trust", .help = "trust the last-presented credential (persist to NVS)", .func = cmd_aliro_trust },
+		{.command = "status",
+		 .help = "responder state + last/trusted range",
+		 .func = cmd_status},
+		{.command = "range", .help = "print the latest distance", .func = cmd_range},
+		{.command = "aliro-start",
+		 .help = "start the demo DS-TWR responder",
+		 .func = cmd_aliro_start},
+		{.command = "aliro-stop",
+		 .help = "stop the demo responder",
+		 .func = cmd_aliro_stop},
+		{.command = "aliro-prov",
+		 .help = "show reader identity + credential trust store",
+		 .func = cmd_aliro_prov},
+		{.command = "aliro-trust",
+		 .help = "trust the last-presented credential (persist to NVS)",
+		 .func = cmd_aliro_trust},
+		{.command = "clear", .help = "clear the screen (also: ctrl-L)", .func = cmd_clear},
 	};
 	for (size_t i = 0; i < sizeof(cmds) / sizeof(cmds[0]); i++) {
 		ESP_ERROR_CHECK(esp_console_cmd_register(&cmds[i]));
