@@ -45,7 +45,10 @@ message. Override with `FORCE=1` only after confirming no other session owns the
 The crypto core (`aliro_hash.c`) compiles **host == target** so host KATs pin target
 behaviour. Run `ports/esp32-idf/test/run.sh` before believing any crypto change. A
 compact AES-256-GCM host double (`aliro_prim_host.c`) lets the KATs run without PSA.
-Build success is not proof — the wire/crypto bugs below all built cleanly.
+Build success is not proof — the wire/crypto bugs below all built cleanly. The shared
+`modules/woz_uwb` logic has a second host harness, `tests/host/run.sh` (558 tests),
+which compiles the shim **without** `ESP_PLATFORM` — that is the proof an ESP-only guard
+didn't regress the nRF path.
 
 ---
 
@@ -243,7 +246,108 @@ it — both reference and port ignore it. It is not a step we skip; don't chase 
 
 ---
 
-## 6. Reader state-machine & diagnostics
+## 6. UWB DS-TWR ranging engine — the real-time layer
+
+Once M1–M4 negotiate the session, the actual double-sided two-way ranging runs on the
+DW3000: the phone drives Pre-POLL → POLL → (our) Response → Final → Final_Data every
+~192 ms block, and the responder must arm each frame inside a ~2 ms slot. **This layer
+is shared with the nRF5340 port (`modules/woz_uwb`), where it already worked — so nothing
+here is a logic bug. Every trap below is the ESP32 being a slower, jitterier real-time
+target than the nRF, and the fixes claw back the microseconds nRF gets for free.** All
+**VERIFIED on silicon**: continuous positive DIST every round and the phone unlocks the
+door.
+
+### 6.1 The arm-latency-vs-2ms-slot budget is the whole game
+Reactive arming fights a fixed deadline: `CCC_RX_SLOT_HI32 − CCC_RX_POLL_LEAD` (= 459000
+hi32 units = **1836 µs**; the hi32/`dsys` unit is 4 ns, so `/250 = µs`). If the
+Pre-POLL→arm path exceeds it, the delayed RX never opens and the POLL is lost
+(`ARM FAIL … LATE`). On nRF this is trivial; on ESP every µs of SPI and dispatch counts,
+which is why 6.2–6.7 exist.
+
+### 6.2 DW3000 SPI: disable DMA (the biggest single win)
+**VERIFIED.** A boot micro-benchmark (32 back-to-back DEV_ID reads) measured
+**~84 µs/transaction** with `SPI_DMA_CH_AUTO`; holding the bus lock only saved ~15 µs, so
+the rest is the per-transaction DMA-descriptor + `esp_cache_msync` path. For the small
+STS/register writes on the arm critical path that setup dwarfs the bit-time. Fix: init the
+bus **`SPI_DMA_DISABLED`** so ≤64-byte transfers use the CPU data registers directly, and
+chunk anything larger into ≤64-byte bursts under one CS-low window (the DW3000 streams
+sequentially). Only the DW3000 is on SPI2 (the status LED is on RMT), so this is safe.
+This is what carried the chain to a sustained lock. (commit `d9051c8`)
+- Clock is **not** the lever: 2 MHz vs 8 MHz was ~75 vs 84 µs — the ~6 µs of bit-time is
+  lost in ~70 µs of fixed overhead.
+
+### 6.3 An SP3-ND Final completes with RXFR|CIADONE, not RXFCG
+**VERIFIED.** The POLL is an SP3 STS frame carrying FCS (completes `st=0x6700`, has
+RXFCG=0x4000). The **Final is SP3-ND (STS only, no PHR/payload)** — it completes
+`st=0xa7b0` with RXFR|CIADONE and **no RXFCG**. Any Final-detect that waits on RXFCG hangs
+forever; watch CIADONE(0x400). A synchronous busy-wait for the Final *inside* the POLL
+callback also fails: the SP3-ND completion lands after the handler returns, and the spin
+wedged the receiver / tripped the watchdog. Capture the Final in its own async callback.
+
+### 6.4 "Negative distance" was cross-round mixing, NOT antenna delay
+**VERIFIED — a multi-run red herring.** t2/t3/t6 (POLL-RX / Response-TX / Final-RX) are
+single globals. On ESP the phone's SP0 Final_Data lands only after the *next* round has
+overwritten t2/t3, so recomputing the DS-TWR intervals in `final_data_decode` mixed this
+round's t6 with the next round's t3 → km-scale garbage, or a **plausible-looking but wrong
+negative distance that still passed the STS gate**. The `-783 mm` / `-333 mm` readings
+looked exactly like an uncalibrated antenna delay and sent us chasing calibration. Fix:
+snapshot `reply1 = t3−t2`, `round2 = t6−t3` at Final capture (same round), consume once
+(`g_final_round_valid`). With correct pairing the distances are **positive and realistic
+with no antenna calibration at all** (~0 mm at contact, ~21 cm for a phone at ~21 cm).
+ESP-guarded so the nRF path keeps its original recompute-from-live-globals (nRF processes
+Final_Data before the overwrite). (commit `d9051c8`) **Lesson: a constant-looking offset
+that passes your integrity gate can be a data-pairing bug, not a physical calibration.**
+
+### 6.5 THE Final_Data trap: blocking `printk` in the hot path starves the ISR task
+**VERIFIED — the last blocker before the door opened.** `DIAGK` → `printk`, which is
+**blocking** on ESP. `POLL result` + `FINAL result` printed **every round** (~185 chars);
+at 115200 that cannot drain inside the ~6 ms burst of per-round callbacks, so the DW3000
+ISR task (which runs `dwt_isr` + the callbacks) backs up. One cause, two symptoms:
+- The **Final callback dispatches late** → the SP0 revert re-opens RX *after* the phone's
+  Final_Data slot (~1 slot ≈ 2 ms behind the Final) → Final_Data never caught → **no
+  distance ever computed**, even though POLL/Response/Final were flawless.
+- The sustained backlog **trips the task watchdog** → spontaneous reset mid-session.
+
+Fix: throttle `POLL result` and `FINAL result` to the first `CCC_RX_PREPOLL_LOG` (16)
+rounds so the steady state is print-free (PREPOLL and RESP-txdone were already gated).
+Moving a print *within* a callback cannot help — the callback itself was firing late.
+**A per-round blocking log in a 2-ms-deadline path is a real-time bug, not just noise.**
+(commit `677cfd1`)
+
+### 6.6 Time-critical FIRST: revert to SP0 before the (throttled) print
+The Final handler reverts SP3→SP0 (`revert_to_sp0_listen`) to catch the Final_Data; do it
+**before** the diagnostic print, mirroring the POLL handler which arms the Response before
+its stsq read + printk. (Redundant once 6.5 throttles the print, but the correct ordering
+and cheap insurance.) (commit `677cfd1`)
+
+### 6.7 STS key cache — the dURSK is per ranging CYCLE
+**VERIFIED.** The STS key (dURSK) is constant across a whole ranging cycle (POLL,
+Response, Final, and every block in the cycle share it), but each arm re-wrote all four
+STS_KEY registers (~258 µs, ~40 % of the arm). Cache the loaded dURSK and skip
+`dwt_configurestskey` when unchanged; the registers persist across the per-frame
+IV/loadiv/mode reprogramming. Helps the Response/Final arms (same-cycle key = cache hit);
+the POLL arm's key changes per block so it misses. ESP-guarded. (commit `d9051c8`)
+
+### 6.8 Auto-relock defaults to 5 s (reads as "it locked itself instantly")
+`create_auto_relock_time(door_lock_cluster, 5)` in `app_main.cpp` relocks the bolt 5 s
+after an unlock, so a successful approach-unlock appears to re-lock almost immediately.
+Raise it (or drive it from the Matter `AutoRelockTime` attribute) for a usable hold. It is
+a config value, not a ranging fault.
+
+### 6.9 ESP vs nRF: the logic is shared and proven; ESP is the real-time port
+The whole Aliro/CCC/DS-TWR stack in `modules/woz_uwb` is compiled by **both** the nRF5340
+Aliro app and this ESP port. When ESP misbehaved, the bug was never in that shared logic
+(the nRF proves it) — it was ESP's slower SPI + jitterier callback dispatch. Two
+consequences worth remembering: (a) lean on the nRF reference to confirm intent before
+re-deriving on hardware; (b) any ESP-only tweak to the shared file must be
+`#if defined(ESP_PLATFORM)`-guarded so the nRF build keeps the original path — the
+snapshot (6.4) and STS-key cache (6.7) are both guarded, verified by the host suite
+(`tests/host/run.sh`, 558/558) compiling the file *without* `ESP_PLATFORM`. (commit
+`d9051c8`)
+
+---
+
+## 7. Reader state-machine & diagnostics
 
 ### 6.1 The GeneralError short-circuit must not fire during ranging
 **VERIFIED.** The reader had a blanket rule: a proto-2 / id-0 Notification-Event mid-auth
@@ -262,7 +366,7 @@ once the SDU is opened.
 
 ---
 
-## 7. Provisioning & identity
+## 8. Provisioning & identity
 
 ### 7.1 A per-boot random reader key changes the reader's identity every reboot
 **VERIFIED.** The reader originally generated a random dev P-256 key at boot, so its
@@ -285,7 +389,7 @@ vanish across reboot, suspect an id collision with a reserved slot.
 
 ---
 
-## 8. Reverse-engineering methodology (for the next unknown)
+## 9. Reverse-engineering methodology (for the next unknown)
 
 - **The reference binaries are ground truth.** `workspace/ncs-door-lock-and-access-
   control/lib/aliro/bin/debug/cortex-m33/libaliro{,_ble}.a` are **debug** builds with
@@ -306,16 +410,18 @@ vanish across reboot, suspect an id collision with a reserved slot.
 
 ---
 
-## 9. Current status (as of the ranging session-id fix)
+## 10. Current status — ranging works end to end
 
-- **VERIFIED on silicon:** full credential-auth — discovery / L2CAP CoC / AUTH0 / AUTH1
-  decrypt / device-signature / credential-trust / URSK derivation — against a live iPhone.
-- **BENCH-GATED (built, host-KAT'd, not yet re-flashed):** the BleSK ranging channel,
-  Reader-Status-AP-Completed, the encrypted-event fix, and the TXID-derived session-id.
-  Expected next milestone: the phone answers M1 with **M2 (`proto=0x01 id=0x01`)** instead
-  of `general error 3`.
-- **Uncommitted** at time of writing: `aliro_crypto.{c,h}`, `aliro_ranging.{c,h}`,
-  `aliro_reader.c` (ranging transport + session-id), and the `Makefile` `LC_ALL=C` fix.
+- **VERIFIED on silicon (full path):** credential-auth (discovery / L2CAP CoC / AUTH0 /
+  AUTH1 decrypt / device-signature / credential-trust / URSK) → M1–M4 ranging setup →
+  **live DS-TWR**: continuous positive DIST every round, tracking the phone (d ~6–45 cm at
+  arm's length, growing as it withdraws), then `Aliro trusted range NN cm (<= 100):
+  unlocking` and auto-relock. No watchdog resets. Against a live iPhone.
+- **No antenna calibration was needed** — see 6.4; the earlier "negative distance" was a
+  cross-round pairing bug, not a physical offset.
+- **Open polish (non-blocking):** per-round DIST jitter (the AccessManager already
+  medians/filters it enough to unlock cleanly); auto-relock time (6.8); the phone's
+  `general error 0` at end-of-session is post-unlock and benign.
 
 ### Commit map (worktree-esp32, newest first)
 | Commit | What |
