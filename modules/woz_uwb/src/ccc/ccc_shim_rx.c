@@ -1128,21 +1128,29 @@ static void prepoll_rx_rearm(const dwt_cb_data_t *cb)
 			g_final_sts_verdict = qret;
 			g_final_sts_index = stsq;
 		}
-#if ALIRO_NUM_RESPONDERS >= 2
-		/* Final result (DS-TWR leg 3): cper=0 => the idx+3 STS correlated; ip is the
-		 * responder's third timestamp, d = Final - POLL. */
-		DIAGK("FINAL result st=%08x cper=%u ip=%08x d=%d(%dus) slots=%d stsq=%d/%d "
-		      "idx=%08x\n",
-		      (unsigned)st, cper, (unsigned)ip, d, d / 250, d_slots, (int)stsq, qret,
-		      (unsigned)(g_armed_index + ALIRO_FINAL_SLOT_OFFSET));
-#else
-		/* Final result (DS-TWR leg 3): cper=0 => the idx+2 STS correlated; ip is the
-		 * responder's third timestamp, d = Final - POLL ~= 2 slots. */
-		DIAGK("FINAL result st=%08x cper=%u ip=%08x d=%d(%dus) stsq=%d/%d idx=%08x\n",
-		      (unsigned)st, cper, (unsigned)ip, d, d / 250, (int)stsq, qret,
-		      (unsigned)(g_armed_index + ALIRO_FINAL_SLOT_OFFSET));
-#endif
+		/* Time-critical FIRST: revert to SP0 and re-open RX before the (blocking) UART
+		 * print, so the phone's SP0 Final_Data (~1 slot behind this Final) lands in our
+		 * window instead of while the log drains. Mirrors the POLL handler, which arms the
+		 * Response before its printk. The print is throttled to the first CCC_RX_PREPOLL_LOG
+		 * rounds so the steady-state callback is print-free: a per-round printk here blocks
+		 * the ISR task ~ms, backing up dispatch (missed Final_Data) and tripping the wdt. */
 		revert_to_sp0_listen();
+		if (g_pp_logged < CCC_RX_PREPOLL_LOG) {
+#if ALIRO_NUM_RESPONDERS >= 2
+			/* Final result (DS-TWR leg 3): cper=0 => the idx+3 STS correlated; ip is the
+			 * responder's third timestamp, d = Final - POLL. */
+			DIAGK("FINAL result st=%08x cper=%u ip=%08x d=%d(%dus) slots=%d stsq=%d/%d "
+			      "idx=%08x\n",
+			      (unsigned)st, cper, (unsigned)ip, d, d / 250, d_slots, (int)stsq, qret,
+			      (unsigned)(g_armed_index + ALIRO_FINAL_SLOT_OFFSET));
+#else
+			/* Final result (DS-TWR leg 3): cper=0 => the idx+2 STS correlated; ip is the
+			 * responder's third timestamp, d = Final - POLL ~= 2 slots. */
+			DIAGK("FINAL result st=%08x cper=%u ip=%08x d=%d(%dus) stsq=%d/%d idx=%08x\n",
+			      (unsigned)st, cper, (unsigned)ip, d, d / 250, (int)stsq, qret,
+			      (unsigned)(g_armed_index + ALIRO_FINAL_SLOT_OFFSET));
+#endif
+		}
 	} else if (g_await_poll) {
 		unsigned cper = (st & 0x10000000u) ? 1u : 0u;
 		int d = (ip != 0u) ? (int)(ip - g_prepoll_ip) : 0;
@@ -1205,16 +1213,20 @@ static void prepoll_rx_rearm(const dwt_cb_data_t *cb)
 		}
 		/* else: stay SP3/ND; resp_tx_done arms the Final RX, then reverts to SP0. */
 
-		/* Deferred diagnostics (off the TX critical path): stsq splits the cper=1 cause
-		 * (low = key/IV wrong, high-but-clipped = saturation). */
-		if (ip != 0u) {
-			qret = dwt_readstsquality(&stsq, 0);
+		/* Deferred diagnostics (off the TX critical path), throttled to the first
+		 * CCC_RX_PREPOLL_LOG rounds so the steady-state callback stays print-free (a
+		 * per-round printk blocks the ISR task ~ms, delaying dispatch). stsq splits the
+		 * cper=1 cause (low = key/IV wrong, high-but-clipped = saturation). */
+		if (g_pp_logged < CCC_RX_PREPOLL_LOG) {
+			if (ip != 0u) {
+				qret = dwt_readstsquality(&stsq, 0);
+			}
+			DIAGK("POLL result st=%08x cper=%u d=%d(%dus) stsq=%d/%d idx=%08x resp=%s "
+			      "dec=%dus\n",
+			      (unsigned)st, cper, d, d / 250, (int)stsq, qret, (unsigned)g_armed_index,
+			      (cper == 0u && ip != 0u) ? ((tr == 0) ? "armed" : "FAIL") : "-",
+			      (int)(g_ccc_dbg_decode / 250u));
 		}
-		DIAGK("POLL result st=%08x cper=%u d=%d(%dus) stsq=%d/%d idx=%08x resp=%s "
-		      "dec=%dus\n",
-		      (unsigned)st, cper, d, d / 250, (int)stsq, qret, (unsigned)g_armed_index,
-		      (cper == 0u && ip != 0u) ? ((tr == 0) ? "armed" : "FAIL") : "-",
-		      (int)(g_ccc_dbg_decode / 250u));
 
 		/* Deferred Pre-POLL decode (warms the NEXT block's STS): on a Response-sent block
 		 * resp_tx_done runs it; otherwise run it here in the idle. */
