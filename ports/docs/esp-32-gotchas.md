@@ -244,6 +244,25 @@ The phone leads ranging with a proto-3 SupplementaryService config blob. **VERIF
 reference's ranging engine (same Qorvo code) also returns "protocol 3 unsupported" for
 it — both reference and port ignore it. It is not a step we skip; don't chase it.
 
+### 5.10 THE Wallet animation gate: send Reader-Status-Changed on grant (step 23)
+**VERIFIED byte-exact (disassembly + live iPhone).** Driving the bolt is not enough: iOS
+plays the HomeKey Wallet unlock animation only when the reader tells the phone it granted
+access over the BleSK channel — the "Reader Status Changed" message, Aliro transaction
+step 23 (the grant-phase sibling of 5.3's AP-Completed). Without it the port unlocked the
+bolt locally, Matter saw the state change and posted a Matter *accessory* notification, but
+the Wallet never animated. The phone's own computed distance is **not** the gate.
+
+Payload (proto-2 id-2, BleSK-sealed) = `02 02 00 04 00 02 04 01` — one State Attribute
+(attr-id 0, len 2) = `[OperationSource = 0x04 (this device, BLE+UWB Aliro flow),
+ReaderState = 0x01 Unsecured]`; relock is identical with ReaderState = 0x00 Secured.
+Disassembly of `AliroStack::SendReaderStatusChangedMessage → BleTpReaderStatusChanged`
+confirmed these exact bytes. The 65-byte access-credential public key is **not** serialized
+— the library takes it only to select which connection to notify, then drops it.
+
+Send Unsecured on grant, Secured on relock, from the proximity relock task; post it onto
+the BLE-host task so it serializes with the other BleSK seals (counter stays monotonic).
+(commit `ba612c8`)
+
 ---
 
 ## 6. UWB DS-TWR ranging engine — the real-time layer
@@ -416,8 +435,12 @@ vanish across reboot, suspect an id collision with a reserved slot.
 
 ---
 
-## 10. Current status — ranging works end to end
+## 10. Current status — approach-unlock works end to end
 
+- **VERIFIED on a live iPhone (2026-07-20):** the full HomeKey Wallet approach-unlock — the
+  unlock animation plays as you walk up, then relocks on departure. The final gate was the
+  reader→phone Reader-Status-Changed grant message (5.10); before it the bolt moved and
+  Matter reported it, but the Wallet stayed silent.
 - **VERIFIED on silicon (full path):** credential-auth (discovery / L2CAP CoC / AUTH0 /
   AUTH1 decrypt / device-signature / credential-trust / URSK) → M1–M4 ranging setup →
   **live DS-TWR**: continuous positive DIST every round, tracking the phone (d ~6–45 cm at
