@@ -60,4 +60,16 @@ void test_aliro_parser(void)
 	/* offset already at end -> immediate NULL. */
 	struct aliro_uwb_msg_parser ep = { .length = 4, .offset = 4, .data = ov };
 	T_OK("empty", aliro_uwb_msg_next_attribute(&ep) == NULL);
+
+	t_group("lone trailing byte (no over-read)");
+	/* One good attribute then a single header-less trailing byte. The cursor
+	 * must stop cleanly: reading attr->length for that lone byte would over-read
+	 * one byte past the payload. Regression found by the fuzz harness. */
+	static const uint8_t tail[] = { 0x01, 0x00, 0x00, 0x04, 0x0a, 0x01, 0x42, 0x0b };
+	struct aliro_uwb_msg_parser tp = {
+		.length = sizeof(tail), .offset = ALIRO_HEADER_LENGTH, .data = tail,
+	};
+	a = aliro_uwb_msg_next_attribute(&tp);
+	T_OK("tail.a1", a && a->id == 0x0au && a->length == 1u);
+	T_OK("tail.stop", aliro_uwb_msg_next_attribute(&tp) == NULL);
 }

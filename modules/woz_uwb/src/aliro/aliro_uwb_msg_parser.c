@@ -16,7 +16,11 @@ struct aliro_uwb_msg_attribute
 {
 	struct aliro_uwb_msg_attribute *attr;
 
-	if (parser->offset >= parser->length) {
+	/* Need the full 2-byte attribute header (id + length) present before
+	 * dereferencing attr->length; a lone trailing byte would over-read
+	 * parser->data[offset + 1]. Written as an addition (offset <= length is an
+	 * invariant here) to avoid a size_t underflow. */
+	if (parser->offset + ALIRO_ATTRIBUTE_HEADER_LENGTH > parser->length) {
 		return NULL;
 	}
 
