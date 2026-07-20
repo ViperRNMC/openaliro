@@ -53,6 +53,11 @@ uint16_t aliro_ble_spsm(void);
 /** Send an SDU to the peer over its L2CAP channel (2.2+). Returns 0 on success. */
 int aliro_ble_send(uint16_t conn_handle, const uint8_t *data, size_t len);
 
+/* Marshal a reader->phone status send onto the NimBLE host task (where every sc_ble
+ * seal + L2CAP send already runs), so a caller on another task can send without racing
+ * the BleSK counter. `cb` runs on the host task and is passed `unsecured`. */
+void aliro_ble_post_reader_status(void (*cb)(bool unsecured), bool unsecured);
+
 /* ---- Attach mode: share a NimBLE host another stack already owns ---------- *
  * Instead of owning NimBLE (aliro_ble_start), the reader can attach to a host
  * brought up by e.g. esp-matter, so both coexist on one controller. Three

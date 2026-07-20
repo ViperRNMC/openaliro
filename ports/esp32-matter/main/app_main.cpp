@@ -67,7 +67,8 @@ static const uint16_t s_decryption_key_len = decryption_key_end - decryption_key
 // advertiser: after commissioning, or immediately when already paired). A trusted
 // UWB range then drives the Matter lock to Unlocked. This replaces the old handoff,
 // which crashed because NimBLE can't be re-inited after Matter reclaims BLE.
-#define ALIRO_UNLOCK_RANGE_CM 100 // bench-tunable
+#define ALIRO_UNLOCK_RANGE_CM 100 // approach threshold: unlock at/under this (bench-tunable)
+#define ALIRO_RELOCK_RANGE_CM 150 // depart threshold: relock past this (hysteresis > unlock)
 
 static void aliro_reader_task(void *arg)
 {
@@ -79,22 +80,41 @@ static void aliro_reader_task(void *arg)
 	ESP_LOGI(TAG, "aliro_reader_start_attached() = %d (%s)", rc,
 		 rc == 0 ? "reader advertising on shared host" : "reader start FAILED");
 
-	bool armed = true;
+	// Approach-unlock: `locked` mirrors the bolt. The fixed Matter auto-relock is
+	// disabled (see create_auto_relock_time(..., 0)), so this loop is the only
+	// auto-driver: unlock when the peer is within range, hold while it is present,
+	// and relock when it leaves (moved past the relock band, or disconnected).
+	bool locked = true;
 	while (true) {
-		int32_t cm;
-		if (woz_uwb_trusted_range_cm(&cm)) {
-			if (armed && cm >= 0 && cm <= ALIRO_UNLOCK_RANGE_CM) {
-				ESP_LOGI(TAG, "Aliro trusted range %d cm (<= %d): unlocking",
-					 (int)cm, ALIRO_UNLOCK_RANGE_CM);
-				chip::DeviceLayer::PlatformMgr().ScheduleWork([](intptr_t) {
-					BoltLockMgr().Unlock(door_lock_endpoint_id,
-							     chip::app::Clusters::DoorLock::
-								     OperationSourceEnum::kAliro);
-				});
-				armed = false; // debounce until the peer leaves range
-			}
-		} else {
-			armed = true; // no trusted range; re-arm
+		int32_t cm = 0;
+		bool have = woz_uwb_trusted_range_cm(&cm);
+
+		if (have && locked && cm >= 0 && cm <= ALIRO_UNLOCK_RANGE_CM) {
+			ESP_LOGI(TAG, "Aliro trusted range %d cm (<= %d): unlocking", (int)cm,
+				 ALIRO_UNLOCK_RANGE_CM);
+			chip::DeviceLayer::PlatformMgr().ScheduleWork([](intptr_t) {
+				BoltLockMgr().Unlock(door_lock_endpoint_id,
+						     chip::app::Clusters::DoorLock::
+							     OperationSourceEnum::kAliro);
+			});
+			// Tell the phone's Wallet the reader granted access: the reader->phone
+			// "Reader Status Changed" (Unsecured, Aliro step 23) is what fires the
+			// iPhone unlock animation. Marshaled to the BLE-host task; a no-op if the
+			// ranging session already dropped.
+			aliro_reader_notify_unlock(true);
+			locked = false;
+		} else if (!locked && (!have || cm > ALIRO_RELOCK_RANGE_CM)) {
+			// Hysteresis (RELOCK > UNLOCK) keeps the door open across range jitter
+			// while the peer stays near; no trusted range means it disconnected.
+			ESP_LOGI(TAG, "Aliro peer %s: relocking",
+				 have ? "out of range" : "gone");
+			chip::DeviceLayer::PlatformMgr().ScheduleWork([](intptr_t) {
+				BoltLockMgr().Lock(door_lock_endpoint_id,
+						   chip::app::Clusters::DoorLock::
+							   OperationSourceEnum::kAliro);
+			});
+			aliro_reader_notify_unlock(false); // Reader Status Changed -> Secured
+			locked = true;
 		}
 		vTaskDelay(pdMS_TO_TICKS(200));
 	}
@@ -275,7 +295,10 @@ extern "C" void app_main()
 	cluster::door_lock::feature::aliro_provisioning::add(door_lock_cluster);
 	cluster::door_lock::feature::aliro_bleuwb::add(door_lock_cluster);
 #endif
-	cluster::door_lock::attribute::create_auto_relock_time(door_lock_cluster, 5);
+	// 0 disables CHIP's fixed auto-relock timer (DoorLockServer skips scheduling when
+	// AutoRelockTime == 0). Relock is driven by proximity instead: the reader task
+	// relocks when the Aliro peer leaves range (see aliro_reader_task).
+	cluster::door_lock::attribute::create_auto_relock_time(door_lock_cluster, 0);
 
 	door_lock_endpoint_id = endpoint::get_id(endpoint);
 	ESP_LOGI(TAG, "Door lock created with endpoint_id %d", door_lock_endpoint_id);

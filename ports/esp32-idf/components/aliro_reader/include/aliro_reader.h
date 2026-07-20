@@ -13,6 +13,8 @@
  */
 #pragma once
 
+#include <stdbool.h>
+
 #ifdef __cplusplus
 extern "C" {
 #endif
@@ -42,6 +44,13 @@ int aliro_reader_start_attached(void);
  *  config, so its first advertisement has no GRK and the phone cannot resolve it.
  *  No-op if the reader has no GRK or is not yet advertising. */
 void aliro_reader_refresh_adv(void);
+
+/* Send the phone a "Reader Status Changed" SDU (Aliro transaction step 23) over the
+ * active ranging session's BleSK channel: `unsecured` true on an approach grant (this
+ * is what fires the iPhone Wallet unlock animation), false on relock. Safe to call
+ * from any task -- it marshals the send onto the BLE-host task. No-op if no ranging
+ * session is established. */
+void aliro_reader_notify_unlock(bool unsecured);
 
 /* ---- Bench provisioning helpers (Phase 3.4) ---------------------------- *
  * Back the `aliro-prov` / `aliro-trust` console commands. Kept as plain calls

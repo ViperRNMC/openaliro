@@ -328,11 +328,17 @@ STS_KEY registers (~258 µs, ~40 % of the arm). Cache the loaded dURSK and skip
 IV/loadiv/mode reprogramming. Helps the Response/Final arms (same-cycle key = cache hit);
 the POLL arm's key changes per block so it misses. ESP-guarded. (commit `d9051c8`)
 
-### 6.8 Auto-relock defaults to 5 s (reads as "it locked itself instantly")
-`create_auto_relock_time(door_lock_cluster, 5)` in `app_main.cpp` relocks the bolt 5 s
-after an unlock, so a successful approach-unlock appears to re-lock almost immediately.
-Raise it (or drive it from the Matter `AutoRelockTime` attribute) for a usable hold. It is
-a config value, not a ranging fault.
+### 6.8 Auto-relock: a fixed timer fights approach-unlock — drive relock from proximity
+`create_auto_relock_time(door_lock_cluster, 5)` made the bolt relock 5 s after an unlock,
+so a successful approach-unlock re-locked while the phone was still right there. A fixed
+timer is fundamentally wrong for approach-unlock: you cannot both "relock after N s" and
+"stay unlocked while the peer is present." Fix: set **`AutoRelockTime = 0`** — CHIP's
+`DoorLockServer` skips scheduling when it is 0 (`VerifyOrReturnError(0 != autoRelockTime,
+true)`) — and drive relock from proximity in `aliro_reader_task`: unlock at
+`<= ALIRO_UNLOCK_RANGE_CM` (100 cm), hold while present, relock when the peer moves past
+`ALIRO_RELOCK_RANGE_CM` (150 cm — hysteresis stops boundary flapping) or the ranging
+session drops. Re-unlock within one session now works too (the old code debounced until
+disconnect). Not a ranging fault; a lock-policy design choice.
 
 ### 6.9 ESP vs nRF: the logic is shared and proven; ESP is the real-time port
 The whole Aliro/CCC/DS-TWR stack in `modules/woz_uwb` is compiled by **both** the nRF5340

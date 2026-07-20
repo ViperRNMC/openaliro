@@ -619,3 +619,29 @@ int aliro_ble_send(uint16_t conn_handle, const uint8_t *data, size_t len)
 	ESP_LOGW(TAG, "ble_l2cap_send rc=%d", rc);
 	return -1;
 }
+
+/* ---- Cross-task reader->phone status send (host-task marshaling) ----------- */
+
+static struct ble_npl_event s_reader_status_ev;
+static void (*s_reader_status_cb)(bool);
+static bool s_reader_status_unsecured;
+
+static void reader_status_ev_cb(struct ble_npl_event *ev)
+{
+	(void)ev;
+	if (s_reader_status_cb != NULL) {
+		s_reader_status_cb(s_reader_status_unsecured);
+	}
+}
+
+void aliro_ble_post_reader_status(void (*cb)(bool unsecured), bool unsecured)
+{
+	/* Seal + send must run on the host task so they serialize with every other sc_ble
+	 * seal (AP-Completed, M1-M4, notifications) and keep the BleSK counter monotonic.
+	 * A grant and its relock are >200 ms apart and the host drains the queue within a
+	 * few ms, so the single-slot event is race-free in practice. */
+	s_reader_status_cb = cb;
+	s_reader_status_unsecured = unsecured;
+	ble_npl_event_init(&s_reader_status_ev, reader_status_ev_cb, NULL);
+	ble_npl_eventq_put(nimble_port_get_dflt_eventq(), &s_reader_status_ev);
+}

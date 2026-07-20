@@ -542,6 +542,52 @@ static void on_exchange_response(struct aliro_session *s, const uint8_t *pl, siz
 	}
 }
 
+/* Reader Status Changed (Aliro transaction step 23): the reader->phone grant/relock
+ * confirmation that fires the iPhone Wallet unlock animation. proto-2 (Notification)
+ * message-id 0x02, one State Attribute (id 0x00, len 2) = [OperationSource,
+ * ReaderStateByte]. OperationSource 0x04 = this user device in the BLE+UWB Aliro flow;
+ * ReaderStateByte Unsecured 0x01 = granted (animate), Secured 0x00 = relocked. The
+ * 65-byte access-credential public key is NOT serialized (the reference uses it only
+ * to select which connection to notify). Plaintext the BleSK channel then seals:
+ * [02][02][00 04][00 02 04 <state>]. Runs on the BLE-host task (posted via
+ * aliro_ble_post_reader_status) so it serializes with the other sc_ble seals. */
+static void reader_status_send_on_host(bool unsecured)
+{
+	struct aliro_session *s = NULL;
+
+	for (int i = 0; i < ALIRO_MAX_SESSIONS; i++) {
+		if (s_sessions[i].active && s_sessions[i].phase == PH_ESTABLISHED) {
+			s = &s_sessions[i];
+			break;
+		}
+	}
+	if (s == NULL) {
+		ESP_LOGW(TAG, "reader-status-changed: no established session to notify");
+		return;
+	}
+
+	const uint8_t plain[8] = {
+		0x02u, 0x02u, 0x00u, 0x04u, 0x00u, 0x02u, 0x04u,
+		(uint8_t)(unsecured ? 0x01u : 0x00u),
+	};
+	uint8_t wire[64];
+	size_t wl;
+
+	if (aliro_msg_seal(&s->sc_ble, plain, sizeof(plain), wire, sizeof(wire), &wl) != 0) {
+		ESP_LOGE(TAG, "[conn %u] reader-status-changed seal failed", s->conn_handle);
+		return;
+	}
+	int rc = aliro_ble_send(s->conn_handle, wire, wl);
+
+	ESP_LOGI(TAG, "[conn %u] Reader-Status-Changed %s sent (%u B, rc=%d)", s->conn_handle,
+		 unsecured ? "Unsecured/grant" : "Secured/relock", (unsigned)wl, rc);
+}
+
+void aliro_reader_notify_unlock(bool unsecured)
+{
+	aliro_ble_post_reader_status(reader_status_send_on_host, unsecured);
+}
+
 /* Scan an op-0x05 Initiate-Access-Protocol payload for the phone's 0xA5
  * proprietary-information TLV (short-form BER length; the A5 value is small) and
  * copy the whole TLV (tag+len+value) into out. Returns the stored length, or 0
