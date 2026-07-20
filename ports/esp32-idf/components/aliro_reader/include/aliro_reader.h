@@ -53,6 +53,15 @@ void aliro_reader_refresh_adv(void);
  * session is established. */
 void aliro_reader_notify_unlock(bool unsecured);
 
+/* Copy out the credential public key (uncompressed P-256, 65 bytes) of the most
+ * recent session that passed the trust check. The Matter door lock resolves it to
+ * the user that owns it, so the LockOperation event names who unlocked; without
+ * that the event is anonymous and Apple Home notifies every device in the home,
+ * including the one that just unlocked. Returns true if a credential has
+ * authenticated since boot (cred_pub written), false otherwise (left untouched).
+ * Safe to call from any task. */
+bool aliro_reader_authenticated_credential(uint8_t cred_pub[65]);
+
 /* ---- Bench provisioning helpers (Phase 3.4) ---------------------------- *
  * Back the `aliro-prov` / `aliro-trust` console commands. Kept as plain calls
  * so the shell does not need the internal aliro_prov types. */

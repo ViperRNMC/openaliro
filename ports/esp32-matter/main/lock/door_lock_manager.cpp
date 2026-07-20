@@ -202,18 +202,58 @@ bool BoltLockManager::ReadConfigValues()
 
 // Lock the bolt on the given endpoint, updating the Matter door lock cluster state and the status
 // LED. Records source as the cause of the lock transition.
-void BoltLockManager::Lock(EndpointId endpointId, OperationSourceEnum source)
+// userIndex: one-indexed user the operation is attributed to in the LockOperation event, or null
+// when the operation cannot be traced to a stored user.
+void BoltLockManager::Lock(EndpointId endpointId, OperationSourceEnum source, const DataModel::Nullable<uint16_t>  &userIndex)
 {
-    DoorLockServer::Instance().SetLockState(endpointId, DlLockState::kLocked, source);
+    DoorLockServer::Instance().SetLockState(endpointId, DlLockState::kLocked, source, userIndex);
     app_driver_led_lock_state(true, false);
 }
 
 // Unlock the bolt on the given endpoint, updating the Matter door lock cluster state and the status
 // LED. Drives the LED's Aliro-specific indication when source is kAliro.
-void BoltLockManager::Unlock(EndpointId endpointId, OperationSourceEnum source)
+// userIndex: one-indexed user the operation is attributed to in the LockOperation event, or null
+// when the operation cannot be traced to a stored user.
+void BoltLockManager::Unlock(EndpointId endpointId, OperationSourceEnum source, const DataModel::Nullable<uint16_t>  &userIndex)
 {
-    DoorLockServer::Instance().SetLockState(endpointId, DlLockState::kUnlocked, source);
+    DoorLockServer::Instance().SetLockState(endpointId, DlLockState::kUnlocked, source, userIndex);
     app_driver_led_lock_state(false, source == OperationSourceEnum::kAliro);
+}
+
+// Find the user that owns a given Aliro endpoint key, so an approach unlock can be attributed to a
+// person in the LockOperation event rather than reported anonymously.
+// credentialData: the credential public key the reader authenticated (uncompressed P-256, 65 bytes).
+// Scans occupied users' credential links for an Aliro endpoint-key credential whose stored bytes
+// match, comparing against the mCredentialData backing store directly (the ByteSpan in
+// mLockCredentials is restored from NVM with a stale pointer after a reboot).
+// Returns the one-indexed user index, or 0 if no occupied user owns a matching credential.
+uint16_t BoltLockManager::UserIndexForAliroCredential(const ByteSpan  &credentialData)
+{
+    for (uint16_t userIndex = 0; userIndex < kMaxUsers; userIndex++) {
+        if (UserStatusEnum::kAvailable == mLockUsers[userIndex].userStatus) {
+            continue;
+        }
+        for (uint8_t i = 0; i < kMaxCredentialsPerUser; i++) {
+            const auto  &link = mCredentials[userIndex][i];
+            if (link.credentialType != CredentialTypeEnum::kAliroEvictableEndpointKey &&
+                    link.credentialType != CredentialTypeEnum::kAliroNonEvictableEndpointKey) {
+                continue;
+            }
+            // Credential links carry the one-indexed cluster index; the storage index is
+            // computed from the zero-based one, as in GetCredential.
+            if (link.credentialIndex == 0 || !IsValidCredentialIndex(link.credentialIndex - 1, link.credentialType)) {
+                continue;
+            }
+            uint16_t storageIndex = CredentialStorageIndex(link.credentialIndex - 1, link.credentialType);
+            if (DlCredentialStatus::kOccupied != mLockCredentials[storageIndex].status) {
+                continue;
+            }
+            if (credentialData.data_equal(ByteSpan(mCredentialData[storageIndex], kMaxCredentialSize))) {
+                return static_cast<uint16_t>(userIndex + 1); // user indices are one-indexed
+            }
+        }
+    }
+    return 0;
 }
 
 // Looks up a stored user by index for the Matter door lock cluster.

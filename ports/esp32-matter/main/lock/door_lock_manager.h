@@ -135,8 +135,12 @@ public:
 
     bool ValidatePIN(chip::EndpointId endpointId, const Optional<chip::ByteSpan>  &pin, OperationErrorEnum  &err) const;
 
-    void Lock(chip::EndpointId endpointId, app::Clusters::DoorLock::OperationSourceEnum source);
-    void Unlock(chip::EndpointId endpointId, app::Clusters::DoorLock::OperationSourceEnum source);
+    void Lock(chip::EndpointId endpointId, app::Clusters::DoorLock::OperationSourceEnum source,
+              const chip::app::DataModel::Nullable<uint16_t>  &userIndex = chip::app::DataModel::NullNullable);
+    void Unlock(chip::EndpointId endpointId, app::Clusters::DoorLock::OperationSourceEnum source,
+                const chip::app::DataModel::Nullable<uint16_t>  &userIndex = chip::app::DataModel::NullNullable);
+
+    uint16_t UserIndexForAliroCredential(const chip::ByteSpan  &credentialData);
 
     bool GetUser(chip::EndpointId endpointId, uint16_t userIndex, EmberAfPluginDoorLockUserInfo  &user);
     bool SetUser(chip::EndpointId endpointId, uint16_t userIndex, chip::FabricIndex creator, chip::FabricIndex modifier,

@@ -56,6 +56,12 @@ static bool s_loaded;
 static uint8_t s_last_cred_pub[ALIRO_CRED_PUB_LEN];
 static bool s_have_last_cred;
 
+/* The credential key of the most recent session that passed the trust check, as
+ * opposed to s_last_cred_pub which is every key presented. Attribution only: the
+ * Matter LockOperation event names the user this key belongs to. */
+static uint8_t s_auth_cred_pub[ALIRO_CRED_PUB_LEN];
+static bool s_have_auth_cred;
+
 /* Reader group key X = the X coordinate of pub(sign_priv). This is salt field 1
  * (reader_group_identifier_key.x) in the §8.3.1.13 key schedule; both sides must
  * agree on it, so it is derived from the provisioned signingKey (its public
@@ -86,10 +92,11 @@ static void compute_reader_group_x(void)
 	}
 }
 
-/* Guards s_trust + s_last_cred_pub/s_have_last_cred, which the BLE-host task
- * (on_auth1_response) and the REPL task (the aliro-prov/aliro-trust commands)
- * both touch. s_id/s_loaded are set once at boot before the REPL starts, so they
- * need no lock. Created in load_provisioning() (runs single-threaded at boot). */
+/* Guards s_trust + s_last_cred_pub/s_have_last_cred + s_auth_cred_pub/
+ * s_have_auth_cred, which the BLE-host task (on_auth1_response), the REPL task
+ * (the aliro-prov/aliro-trust commands) and the reader task (the attribution
+ * lookup) all touch. s_id/s_loaded are set once at boot before the REPL starts,
+ * so they need no lock. Created in load_provisioning() (single-threaded boot). */
 static SemaphoreHandle_t s_prov_lock;
 
 enum txn_phase {
@@ -465,6 +472,13 @@ static void on_auth1_response(struct aliro_session *s, const uint8_t *pl, size_t
 		return;
 	}
 
+	/* Accepted: remember which key it was, so the unlock this session goes on to
+	 * grant can be attributed to the Matter user that owns it. */
+	xSemaphoreTake(s_prov_lock, portMAX_DELAY);
+	memcpy(s_auth_cred_pub, cred_pub, ALIRO_CRED_PUB_LEN);
+	s_have_auth_cred = true;
+	xSemaphoreGive(s_prov_lock);
+
 	/* EXCHANGE: seal the URSK-ready trigger and frame it. */
 	uint8_t ex[16], ct[16], tag[ALIRO_GCM_TAG_LEN], payload[32];
 	size_t exn;
@@ -607,6 +621,25 @@ static void reader_status_send_on_host(bool unsecured)
 void aliro_reader_notify_unlock(bool unsecured)
 {
 	aliro_ble_post_reader_status(reader_status_send_on_host, unsecured);
+}
+
+// Copies the credential public key that most recently passed the trust check into out.
+// Returns true if a credential has authenticated since boot (out written), false otherwise
+// (out untouched). Safe to call from any task.
+bool aliro_reader_authenticated_credential(uint8_t out[ALIRO_CRED_PUB_LEN])
+{
+	bool have;
+
+	load_provisioning(); /* the Matter task can reach here before the reader started */
+
+	xSemaphoreTake(s_prov_lock, portMAX_DELAY);
+	have = s_have_auth_cred;
+	if (have) {
+		memcpy(out, s_auth_cred_pub, ALIRO_CRED_PUB_LEN);
+	}
+	xSemaphoreGive(s_prov_lock);
+
+	return have;
 }
 
 /* Scan an op-0x05 Initiate-Access-Protocol payload for the phone's 0xA5

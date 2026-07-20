@@ -76,6 +76,31 @@ static const uint16_t s_decryption_key_len = decryption_key_end - decryption_key
 #define ALIRO_UNLOCK_RANGE_CM 100 // approach threshold: unlock at/under this (bench-tunable)
 #define ALIRO_RELOCK_RANGE_CM 150 // depart threshold: relock past this (hysteresis > unlock)
 
+// Resolve the Matter user that owns the credential the reader authenticated, so the LockOperation
+// event names who operated the lock. Without it the event is anonymous and Apple Home, unable to
+// tell which member unlocked, notifies every device in the home including the one that just did it.
+// Call from the Matter task (it reads the door lock's user and credential tables).
+// Returns a null user index if no credential has authenticated since boot or no stored user owns it.
+static app::DataModel::Nullable<uint16_t> aliro_operating_user(void)
+{
+	uint8_t cred[65];
+
+	if (!aliro_reader_authenticated_credential(cred)) {
+		ESP_LOGW(TAG, "no authenticated Aliro credential; LockOperation stays unattributed");
+		return app::DataModel::NullNullable;
+	}
+
+	uint16_t user_index = BoltLockMgr().UserIndexForAliroCredential(ByteSpan(cred, sizeof(cred)));
+
+	if (user_index == 0) {
+		ESP_LOGW(TAG, "Aliro credential matches no stored user; LockOperation stays "
+			      "unattributed (did Apple send SetUser, not just SetCredential?)");
+		return app::DataModel::NullNullable;
+	}
+	ESP_LOGI(TAG, "Aliro operation attributed to user index %u", user_index);
+	return app::DataModel::MakeNullable(user_index);
+}
+
 // Background task that starts the Aliro reader and drives approach-based lock/unlock from UWB range.
 // Delays 1 s at startup to let Matter's BLE host finish syncing before the reader takes over the
 // shared legacy advertiser, then calls aliro_reader_start_attached().
@@ -110,7 +135,8 @@ static void aliro_reader_task(void *arg)
 			chip::DeviceLayer::PlatformMgr().ScheduleWork([](intptr_t) {
 				BoltLockMgr().Unlock(door_lock_endpoint_id,
 						     chip::app::Clusters::DoorLock::
-							     OperationSourceEnum::kAliro);
+							     OperationSourceEnum::kAliro,
+						     aliro_operating_user());
 			});
 			// Tell the phone's Wallet the reader granted access: the reader->phone
 			// "Reader Status Changed" (Unsecured, Aliro step 23) is what fires the
@@ -126,7 +152,8 @@ static void aliro_reader_task(void *arg)
 			chip::DeviceLayer::PlatformMgr().ScheduleWork([](intptr_t) {
 				BoltLockMgr().Lock(door_lock_endpoint_id,
 						   chip::app::Clusters::DoorLock::
-							   OperationSourceEnum::kAliro);
+							   OperationSourceEnum::kAliro,
+						   aliro_operating_user());
 			});
 			aliro_reader_notify_unlock(false); // Reader Status Changed -> Secured
 			locked = true;
