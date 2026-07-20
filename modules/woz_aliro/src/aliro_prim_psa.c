@@ -36,13 +36,12 @@ int aliro_random(uint8_t *out, size_t len)
 }
 
 // Encrypt and authenticate plaintext with AES-256-GCM via PSA Crypto.
-// Writes pt_len bytes of ciphertext to ct and tag_len bytes of authentication tag to tag. Returns 0 on
-// success, -1 if tag_len exceeds ALIRO_GCM_TAG, pt_len exceeds ALIRO_AEAD_MAX, key import fails, or
-// encryption fails.
-int aliro_aes256_gcm_encrypt(const uint8_t key[32], const uint8_t *nonce,
-			     size_t nonce_len, const uint8_t *aad, size_t aad_len,
-			     const uint8_t *pt, size_t pt_len, uint8_t *ct,
-			     uint8_t *tag, size_t tag_len)
+// Writes pt_len bytes of ciphertext to ct and tag_len bytes of authentication tag to tag. Returns 0
+// on success, -1 if tag_len exceeds ALIRO_GCM_TAG, pt_len exceeds ALIRO_AEAD_MAX, key import fails,
+// or encryption fails.
+int aliro_aes256_gcm_encrypt(const uint8_t key[32], const uint8_t *nonce, size_t nonce_len,
+			     const uint8_t *aad, size_t aad_len, const uint8_t *pt, size_t pt_len,
+			     uint8_t *ct, uint8_t *tag, size_t tag_len)
 {
 	psa_key_attributes_t attr = PSA_KEY_ATTRIBUTES_INIT;
 	psa_key_id_t k = 0;
@@ -60,9 +59,9 @@ int aliro_aes256_gcm_encrypt(const uint8_t key[32], const uint8_t *nonce,
 	if (psa_import_key(&attr, key, 32, &k) != PSA_SUCCESS) {
 		return -1;
 	}
-	if (psa_aead_encrypt(k, PSA_ALG_AEAD_WITH_SHORTENED_TAG(PSA_ALG_GCM, tag_len),
-			     nonce, nonce_len, aad, aad_len, pt, pt_len, buf,
-			     sizeof(buf), &olen) == PSA_SUCCESS &&
+	if (psa_aead_encrypt(k, PSA_ALG_AEAD_WITH_SHORTENED_TAG(PSA_ALG_GCM, tag_len), nonce,
+			     nonce_len, aad, aad_len, pt, pt_len, buf, sizeof(buf),
+			     &olen) == PSA_SUCCESS &&
 	    olen == pt_len + tag_len) {
 		memcpy(ct, buf, pt_len);
 		memcpy(tag, buf + pt_len, tag_len);
@@ -73,12 +72,12 @@ int aliro_aes256_gcm_encrypt(const uint8_t key[32], const uint8_t *nonce,
 }
 
 // Decrypt and authenticate an AES-256-GCM ciphertext via PSA Crypto.
-// Writes ct_len bytes of plaintext to pt. Returns 0 on success (tag verified), -1 if tag_len exceeds
-// ALIRO_GCM_TAG, ct_len exceeds ALIRO_AEAD_MAX, key import fails, or authentication/decryption fails.
-int aliro_aes256_gcm_decrypt(const uint8_t key[32], const uint8_t *nonce,
-			     size_t nonce_len, const uint8_t *aad, size_t aad_len,
-			     const uint8_t *ct, size_t ct_len, const uint8_t *tag,
-			     size_t tag_len, uint8_t *pt)
+// Writes ct_len bytes of plaintext to pt. Returns 0 on success (tag verified), -1 if tag_len
+// exceeds ALIRO_GCM_TAG, ct_len exceeds ALIRO_AEAD_MAX, key import fails, or
+// authentication/decryption fails.
+int aliro_aes256_gcm_decrypt(const uint8_t key[32], const uint8_t *nonce, size_t nonce_len,
+			     const uint8_t *aad, size_t aad_len, const uint8_t *ct, size_t ct_len,
+			     const uint8_t *tag, size_t tag_len, uint8_t *pt)
 {
 	psa_key_attributes_t attr = PSA_KEY_ATTRIBUTES_INIT;
 	psa_key_id_t k = 0;
@@ -98,9 +97,9 @@ int aliro_aes256_gcm_decrypt(const uint8_t key[32], const uint8_t *nonce,
 	if (psa_import_key(&attr, key, 32, &k) != PSA_SUCCESS) {
 		return -1;
 	}
-	if (psa_aead_decrypt(k, PSA_ALG_AEAD_WITH_SHORTENED_TAG(PSA_ALG_GCM, tag_len),
-			     nonce, nonce_len, aad, aad_len, buf, ct_len + tag_len,
-			     pt, ct_len, &olen) == PSA_SUCCESS &&
+	if (psa_aead_decrypt(k, PSA_ALG_AEAD_WITH_SHORTENED_TAG(PSA_ALG_GCM, tag_len), nonce,
+			     nonce_len, aad, aad_len, buf, ct_len + tag_len, pt, ct_len,
+			     &olen) == PSA_SUCCESS &&
 	    olen == ct_len) {
 		rc = 0;
 	}
@@ -109,10 +108,9 @@ int aliro_aes256_gcm_decrypt(const uint8_t key[32], const uint8_t *nonce,
 }
 
 // Generate a new NIST P-256 key pair via PSA Crypto.
-// Writes the private scalar to priv and the uncompressed public point to pub. Returns 0 on success, -1 if
-// key generation or export fails.
-int aliro_ec_p256_keygen(uint8_t priv[ALIRO_P256_SCALAR],
-			 uint8_t pub[ALIRO_P256_POINT])
+// Writes the private scalar to priv and the uncompressed public point to pub. Returns 0 on success,
+// -1 if key generation or export fails.
+int aliro_ec_p256_keygen(uint8_t priv[ALIRO_P256_SCALAR], uint8_t pub[ALIRO_P256_POINT])
 {
 	psa_key_attributes_t attr = PSA_KEY_ATTRIBUTES_INIT;
 	psa_key_id_t k = 0;
@@ -137,8 +135,8 @@ int aliro_ec_p256_keygen(uint8_t priv[ALIRO_P256_SCALAR],
 }
 
 // Derive the uncompressed P-256 public point from an existing private scalar via PSA Crypto.
-// Writes the public point to pub. Returns 0 on success, -1 if the private key import or public-key export
-// fails.
+// Writes the public point to pub. Returns 0 on success, -1 if the private key import or public-key
+// export fails.
 int aliro_ec_p256_pub_from_priv(const uint8_t priv[ALIRO_P256_SCALAR],
 				uint8_t pub[ALIRO_P256_POINT])
 {
@@ -162,11 +160,10 @@ int aliro_ec_p256_pub_from_priv(const uint8_t priv[ALIRO_P256_SCALAR],
 	return rc;
 }
 
-// Compute the P-256 ECDH shared secret x-coordinate for priv and a peer's public point via PSA Crypto.
-// Writes the shared x-coordinate to shared_x. Returns 0 on success, -1 if key import or key agreement
-// fails.
-int aliro_ecdh_p256(const uint8_t priv[ALIRO_P256_SCALAR],
-		    const uint8_t peer_pub[ALIRO_P256_POINT],
+// Compute the P-256 ECDH shared secret x-coordinate for priv and a peer's public point via PSA
+// Crypto. Writes the shared x-coordinate to shared_x. Returns 0 on success, -1 if key import or key
+// agreement fails.
+int aliro_ecdh_p256(const uint8_t priv[ALIRO_P256_SCALAR], const uint8_t peer_pub[ALIRO_P256_POINT],
 		    uint8_t shared_x[ALIRO_P256_SCALAR])
 {
 	psa_key_attributes_t attr = PSA_KEY_ATTRIBUTES_INIT;
@@ -181,8 +178,8 @@ int aliro_ecdh_p256(const uint8_t priv[ALIRO_P256_SCALAR],
 	if (psa_import_key(&attr, priv, ALIRO_P256_SCALAR, &k) != PSA_SUCCESS) {
 		return -1;
 	}
-	if (psa_raw_key_agreement(PSA_ALG_ECDH, k, peer_pub, ALIRO_P256_POINT,
-				  shared_x, ALIRO_P256_SCALAR, &olen) == PSA_SUCCESS &&
+	if (psa_raw_key_agreement(PSA_ALG_ECDH, k, peer_pub, ALIRO_P256_POINT, shared_x,
+				  ALIRO_P256_SCALAR, &olen) == PSA_SUCCESS &&
 	    olen == ALIRO_P256_SCALAR) {
 		rc = 0;
 	}
@@ -192,8 +189,7 @@ int aliro_ecdh_p256(const uint8_t priv[ALIRO_P256_SCALAR],
 
 // Sign a message with ECDSA over P-256 using SHA-256, via PSA Crypto.
 // Writes the signature to sig. Returns 0 on success, -1 if private key import or signing fails.
-int aliro_ecdsa_p256_sign(const uint8_t priv[ALIRO_P256_SCALAR],
-			  const uint8_t *msg, size_t msg_len,
+int aliro_ecdsa_p256_sign(const uint8_t priv[ALIRO_P256_SCALAR], const uint8_t *msg, size_t msg_len,
 			  uint8_t sig[ALIRO_P256_SIG])
 {
 	psa_key_attributes_t attr = PSA_KEY_ATTRIBUTES_INIT;
@@ -208,8 +204,8 @@ int aliro_ecdsa_p256_sign(const uint8_t priv[ALIRO_P256_SCALAR],
 	if (psa_import_key(&attr, priv, ALIRO_P256_SCALAR, &k) != PSA_SUCCESS) {
 		return -1;
 	}
-	if (psa_sign_message(k, PSA_ALG_ECDSA(PSA_ALG_SHA_256), msg, msg_len, sig,
-			     ALIRO_P256_SIG, &slen) == PSA_SUCCESS &&
+	if (psa_sign_message(k, PSA_ALG_ECDSA(PSA_ALG_SHA_256), msg, msg_len, sig, ALIRO_P256_SIG,
+			     &slen) == PSA_SUCCESS &&
 	    slen == ALIRO_P256_SIG) {
 		rc = 0;
 	}
@@ -219,8 +215,7 @@ int aliro_ecdsa_p256_sign(const uint8_t priv[ALIRO_P256_SCALAR],
 
 // Verify an ECDSA-P256/SHA-256 signature against a message and public key, via PSA Crypto.
 // Returns 0 if the signature verifies, -1 if public key import fails or verification fails.
-int aliro_ecdsa_p256_verify(const uint8_t pub[ALIRO_P256_POINT],
-			    const uint8_t *msg, size_t msg_len,
+int aliro_ecdsa_p256_verify(const uint8_t pub[ALIRO_P256_POINT], const uint8_t *msg, size_t msg_len,
 			    const uint8_t sig[ALIRO_P256_SIG])
 {
 	psa_key_attributes_t attr = PSA_KEY_ATTRIBUTES_INIT;

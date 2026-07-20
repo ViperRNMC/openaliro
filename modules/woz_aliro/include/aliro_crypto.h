@@ -26,20 +26,20 @@
 extern "C" {
 #endif
 
-#define ALIRO_URSK_LEN        32u
-#define ALIRO_KEY_BLOCK_LEN   160u /* full derived block */
-#define ALIRO_URSK_OFFSET     128u /* URSK = block[128 .. 159] */
-#define ALIRO_SESSION_KEY_LEN 32u
+#define ALIRO_URSK_LEN          32u
+#define ALIRO_KEY_BLOCK_LEN     160u /* full derived block */
+#define ALIRO_URSK_OFFSET       128u /* URSK = block[128 .. 159] */
+#define ALIRO_SESSION_KEY_LEN   32u
 #define ALIRO_SHARED_SECRET_LEN 32u /* ECDH X coordinate */
-#define ALIRO_TXID_LEN        16u
-#define ALIRO_EC_PUBX_LEN     32u   /* an EC point's X coordinate */
-#define ALIRO_GCM_NONCE_LEN   12u
-#define ALIRO_GCM_TAG_LEN     16u
+#define ALIRO_TXID_LEN          16u
+#define ALIRO_EC_PUBX_LEN       32u /* an EC point's X coordinate */
+#define ALIRO_GCM_NONCE_LEN     12u
+#define ALIRO_GCM_TAG_LEN       16u
 
 /* interface_byte for the salt transcript (Aliro §8.3.1.13): the transport the
  * transaction runs on. BLE for the reader's live path; NFC for the §14 example. */
-#define ALIRO_IFACE_NFC       0x5Eu
-#define ALIRO_IFACE_BLE       0xC3u
+#define ALIRO_IFACE_NFC 0x5Eu
+#define ALIRO_IFACE_BLE 0xC3u
 
 /* Initialise the crypto backend (idempotent). 0 on success, negative on fail. */
 int aliro_crypto_init(void);
@@ -62,8 +62,7 @@ void aliro_crypto_derive_z(const uint8_t shared_secret[ALIRO_SHARED_SECRET_LEN],
  * Stage 2: block = HKDF-SHA256(salt, IKM=z, info=device_pub_x(32), L=160). The
  * salt is the CreateSalt transcript (aliro_salt_build). Returns 0 on success.
  */
-int aliro_crypto_derive_block(const uint8_t z[32], const uint8_t *salt,
-			      size_t salt_len,
+int aliro_crypto_derive_block(const uint8_t z[32], const uint8_t *salt, size_t salt_len,
 			      const uint8_t device_pub_x[ALIRO_EC_PUBX_LEN],
 			      uint8_t block[ALIRO_KEY_BLOCK_LEN]);
 
@@ -72,10 +71,8 @@ int aliro_crypto_derive_block(const uint8_t z[32], const uint8_t *salt,
  * Auth1 cryptogram key (salt type 0) both use this, differing only in the salt.
  * block = HKDF-SHA256(salt, IKM=z, info=device_pub_x, L=32). Returns 0 on ok.
  */
-int aliro_crypto_derive_key32(const uint8_t z[32], const uint8_t *salt,
-			      size_t salt_len,
-			      const uint8_t device_pub_x[ALIRO_EC_PUBX_LEN],
-			      uint8_t out[32]);
+int aliro_crypto_derive_key32(const uint8_t z[32], const uint8_t *salt, size_t salt_len,
+			      const uint8_t device_pub_x[ALIRO_EC_PUBX_LEN], uint8_t out[32]);
 
 /*
  * Split the 160-byte block into the two directional session keys + URSK. The
@@ -85,8 +82,7 @@ int aliro_crypto_derive_key32(const uint8_t z[32], const uint8_t *salt,
  */
 void aliro_crypto_split(const uint8_t block[ALIRO_KEY_BLOCK_LEN], int with_c,
 			uint8_t enc_key[ALIRO_SESSION_KEY_LEN],
-			uint8_t dec_key[ALIRO_SESSION_KEY_LEN],
-			uint8_t ursk[ALIRO_URSK_LEN]);
+			uint8_t dec_key[ALIRO_SESSION_KEY_LEN], uint8_t ursk[ALIRO_URSK_LEN]);
 
 /*
  * ---- Secure channel (AES-256-GCM, directional per-message counters) ------
@@ -103,20 +99,19 @@ struct aliro_secchan {
 	uint32_t dec_ctr;
 };
 
-void aliro_secchan_init(struct aliro_secchan *sc,
-			const uint8_t enc_key[ALIRO_SESSION_KEY_LEN],
+void aliro_secchan_init(struct aliro_secchan *sc, const uint8_t enc_key[ALIRO_SESSION_KEY_LEN],
 			const uint8_t dec_key[ALIRO_SESSION_KEY_LEN]);
 void aliro_crypto_gcm_nonce(uint64_t direction, uint32_t counter,
 			    uint8_t nonce[ALIRO_GCM_NONCE_LEN]);
 /* Seal/open advance the matching counter on success. Return 0 on success;
  * open returns <0 on a tag mismatch (hard auth failure) — never trust the
  * plaintext then. */
-int aliro_secchan_seal(struct aliro_secchan *sc, const uint8_t *aad,
-		       size_t aad_len, const uint8_t *pt, size_t pt_len,
-		       uint8_t *ct, uint8_t tag[ALIRO_GCM_TAG_LEN]);
-int aliro_secchan_open(struct aliro_secchan *sc, const uint8_t *aad,
-		       size_t aad_len, const uint8_t *ct, size_t ct_len,
-		       const uint8_t tag[ALIRO_GCM_TAG_LEN], uint8_t *pt);
+int aliro_secchan_seal(struct aliro_secchan *sc, const uint8_t *aad, size_t aad_len,
+		       const uint8_t *pt, size_t pt_len, uint8_t *ct,
+		       uint8_t tag[ALIRO_GCM_TAG_LEN]);
+int aliro_secchan_open(struct aliro_secchan *sc, const uint8_t *aad, size_t aad_len,
+		       const uint8_t *ct, size_t ct_len, const uint8_t tag[ALIRO_GCM_TAG_LEN],
+		       uint8_t *pt);
 
 /*
  * ---- Aliro message security (§11.8): ranging/notification SDUs -----------
@@ -134,21 +129,20 @@ int aliro_secchan_open(struct aliro_secchan *sc, const uint8_t *aad,
 /* Derive BleSKReader + BleSKDevice from the 160-byte block per §11.8.1:
  * HKDF-SHA256(ikm=BleSK, info="BleSKReader"/"BleSKDevice", L=32,
  * salt = reader_supported_versions || user_device_selected_version). 0 on ok. */
-int aliro_crypto_derive_ble_keys(const uint8_t block[ALIRO_KEY_BLOCK_LEN],
-				 const uint8_t *salt, size_t salt_len,
-				 uint8_t ble_reader[ALIRO_SESSION_KEY_LEN],
+int aliro_crypto_derive_ble_keys(const uint8_t block[ALIRO_KEY_BLOCK_LEN], const uint8_t *salt,
+				 size_t salt_len, uint8_t ble_reader[ALIRO_SESSION_KEY_LEN],
 				 uint8_t ble_device[ALIRO_SESSION_KEY_LEN]);
 
 /* Seal an engine plaintext message [proto][id][len_plain_be16][payload] into the
  * on-wire [proto][id][(len_plain+16)_be16][ct||tag], sealed under sc with the
  * 4-byte plaintext-length header as AAD (§11.8.2). *wire_len set on 0-return. */
-int aliro_msg_seal(struct aliro_secchan *sc, const uint8_t *plain, size_t plain_len,
-		   uint8_t *wire, size_t wire_cap, size_t *wire_len);
+int aliro_msg_seal(struct aliro_secchan *sc, const uint8_t *plain, size_t plain_len, uint8_t *wire,
+		   size_t wire_cap, size_t *wire_len);
 
 /* Inverse of aliro_msg_seal: open a wire SDU into the engine plaintext form,
  * verifying the tag. Returns <0 on a tag mismatch (drop the connection then). */
-int aliro_msg_open(struct aliro_secchan *sc, const uint8_t *wire, size_t wire_len,
-		   uint8_t *plain, size_t plain_cap, size_t *plain_len);
+int aliro_msg_open(struct aliro_secchan *sc, const uint8_t *wire, size_t wire_len, uint8_t *plain,
+		   size_t plain_cap, size_t *plain_len);
 
 /*
  * ---- CreateSalt transcript builder --------------------------------------
@@ -172,13 +166,11 @@ enum aliro_salt_type {
 
 int aliro_salt_build(enum aliro_salt_type type, const uint8_t txid[ALIRO_TXID_LEN],
 		     const uint8_t span_s1[ALIRO_EC_PUBX_LEN],
-		     const uint8_t reader_value[ALIRO_EC_PUBX_LEN],
-		     const uint8_t reader_id[32], uint8_t interface_byte,
-		     uint16_t proto_version, uint8_t exp_phase_type,
+		     const uint8_t reader_value[ALIRO_EC_PUBX_LEN], const uint8_t reader_id[32],
+		     uint8_t interface_byte, uint16_t proto_version, uint8_t exp_phase_type,
 		     uint8_t user_auth_policy,
 		     const uint8_t s3opt[ALIRO_EC_PUBX_LEN] /* NULL for type 1 */,
-		     const uint8_t *a5_tlv, size_t a5_tlv_len,
-		     uint8_t *out, size_t *out_len);
+		     const uint8_t *a5_tlv, size_t a5_tlv_len, uint8_t *out, size_t *out_len);
 
 #ifdef __cplusplus
 }

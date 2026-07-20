@@ -32,18 +32,15 @@ int aliro_prim_init(void);
 int aliro_random(uint8_t *out, size_t len);
 
 /* AES-256-GCM. tag_len must be <= 16. Decrypt verifies the tag. */
-int aliro_aes256_gcm_encrypt(const uint8_t key[32], const uint8_t *nonce,
-			     size_t nonce_len, const uint8_t *aad, size_t aad_len,
-			     const uint8_t *pt, size_t pt_len, uint8_t *ct,
-			     uint8_t *tag, size_t tag_len);
-int aliro_aes256_gcm_decrypt(const uint8_t key[32], const uint8_t *nonce,
-			     size_t nonce_len, const uint8_t *aad, size_t aad_len,
-			     const uint8_t *ct, size_t ct_len, const uint8_t *tag,
-			     size_t tag_len, uint8_t *pt);
+int aliro_aes256_gcm_encrypt(const uint8_t key[32], const uint8_t *nonce, size_t nonce_len,
+			     const uint8_t *aad, size_t aad_len, const uint8_t *pt, size_t pt_len,
+			     uint8_t *ct, uint8_t *tag, size_t tag_len);
+int aliro_aes256_gcm_decrypt(const uint8_t key[32], const uint8_t *nonce, size_t nonce_len,
+			     const uint8_t *aad, size_t aad_len, const uint8_t *ct, size_t ct_len,
+			     const uint8_t *tag, size_t tag_len, uint8_t *pt);
 
 /* P-256 ephemeral key pair: priv = 32-byte scalar, pub = 65-byte point. */
-int aliro_ec_p256_keygen(uint8_t priv[ALIRO_P256_SCALAR],
-			 uint8_t pub[ALIRO_P256_POINT]);
+int aliro_ec_p256_keygen(uint8_t priv[ALIRO_P256_SCALAR], uint8_t pub[ALIRO_P256_POINT]);
 
 /* Derive the 65-byte uncompressed public key from a 32-byte P-256 private
  * scalar (used to recover the reader group key X from the provisioned
@@ -52,16 +49,13 @@ int aliro_ec_p256_pub_from_priv(const uint8_t priv[ALIRO_P256_SCALAR],
 				uint8_t pub[ALIRO_P256_POINT]);
 
 /* ECDH: shared_x = X coordinate (32 bytes) of priv * peer_pub. */
-int aliro_ecdh_p256(const uint8_t priv[ALIRO_P256_SCALAR],
-		    const uint8_t peer_pub[ALIRO_P256_POINT],
+int aliro_ecdh_p256(const uint8_t priv[ALIRO_P256_SCALAR], const uint8_t peer_pub[ALIRO_P256_POINT],
 		    uint8_t shared_x[ALIRO_P256_SCALAR]);
 
 /* ECDSA-P256-SHA256 over the raw message (hashing is internal). sig = r|s. */
-int aliro_ecdsa_p256_sign(const uint8_t priv[ALIRO_P256_SCALAR],
-			  const uint8_t *msg, size_t msg_len,
+int aliro_ecdsa_p256_sign(const uint8_t priv[ALIRO_P256_SCALAR], const uint8_t *msg, size_t msg_len,
 			  uint8_t sig[ALIRO_P256_SIG]);
-int aliro_ecdsa_p256_verify(const uint8_t pub[ALIRO_P256_POINT],
-			    const uint8_t *msg, size_t msg_len,
+int aliro_ecdsa_p256_verify(const uint8_t pub[ALIRO_P256_POINT], const uint8_t *msg, size_t msg_len,
 			    const uint8_t sig[ALIRO_P256_SIG]);
 
 #ifdef __cplusplus

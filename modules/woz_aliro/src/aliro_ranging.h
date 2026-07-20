@@ -42,7 +42,8 @@ struct aliro_secchan; /* the BleSK ranging channel (from aliro_crypto.h) */
  *  success, negative on failure or if a ranging session is already active (the DW3000
  *  is single-session). */
 int aliro_ranging_start(uint16_t conn_handle, uint32_t session_id, const uint8_t *ursk,
-			// Output secure channel for the BLE ranging control channel (M1-M4), populated alongside the AP secure channel during Aliro authentication.
+			// Output secure channel for the BLE ranging control channel (M1-M4),
+			// populated alongside the AP secure channel during Aliro authentication.
 			struct aliro_secchan *sc_ble);
 
 /** Feed one inbound post-auth PLAINTEXT SDU (already BleSK-opened by the reader;

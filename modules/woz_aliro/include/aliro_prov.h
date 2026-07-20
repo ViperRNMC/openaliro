@@ -43,7 +43,7 @@ struct aliro_reader_identity {
 	uint8_t reader_id[ALIRO_READER_ID_LEN];
 	uint8_t sign_priv[ALIRO_READER_PRIV_LEN];
 	uint8_t grk[ALIRO_GRK_LEN]; /* group resolving key; all-zero if none */
-	bool    is_dev;
+	bool is_dev;
 };
 
 /*
@@ -60,26 +60,23 @@ struct aliro_trust_store {
 /* Serialised blob v2: magic(4) ver(1) flags(1) reader_id(32) sign_priv(32)
  * grk(16) count(1) then count * cred_pub(65). (v1 had no grk; still parsed.) */
 #define ALIRO_PROV_BLOB_HDR 6u
-#define ALIRO_PROV_BLOB_MAX (ALIRO_PROV_BLOB_HDR + ALIRO_READER_ID_LEN + \
-			     ALIRO_READER_PRIV_LEN + ALIRO_GRK_LEN + 1u + \
-			     (size_t)ALIRO_TRUST_MAX * ALIRO_CRED_PUB_LEN)
+#define ALIRO_PROV_BLOB_MAX                                                                        \
+	(ALIRO_PROV_BLOB_HDR + ALIRO_READER_ID_LEN + ALIRO_READER_PRIV_LEN + ALIRO_GRK_LEN + 1u +  \
+	 (size_t)ALIRO_TRUST_MAX * ALIRO_CRED_PUB_LEN)
 
 /* ---- portable core (aliro_prov.c) --------------------------------------- */
 
 /* Populate the built-in clearly-marked dev identity + an empty trust store. */
-void aliro_prov_dev_default(struct aliro_reader_identity *id,
-			    struct aliro_trust_store *ts);
+void aliro_prov_dev_default(struct aliro_reader_identity *id, struct aliro_trust_store *ts);
 
 /* Serialise identity+trust to a self-describing blob. 0 + *out_len on success,
  * -1 on overflow (cap < the assembled length). */
-int aliro_prov_serialize(const struct aliro_reader_identity *id,
-			 const struct aliro_trust_store *ts,
+int aliro_prov_serialize(const struct aliro_reader_identity *id, const struct aliro_trust_store *ts,
 			 uint8_t *out, size_t cap, size_t *out_len);
 
 /* Parse a blob written by aliro_prov_serialize. 0 on success; -1 if malformed
  * (bad magic/version/length/count). Outputs are untouched on failure. */
-int aliro_prov_deserialize(const uint8_t *buf, size_t len,
-			   struct aliro_reader_identity *id,
+int aliro_prov_deserialize(const uint8_t *buf, size_t len, struct aliro_reader_identity *id,
 			   struct aliro_trust_store *ts);
 
 /* Trust decision for a presented credential public key:
@@ -91,8 +88,7 @@ int aliro_prov_trust_check(const struct aliro_trust_store *ts,
 
 /* Add a credential key to the store. 0 added; 1 already present (dedup); -1 full
  * or the point is not an uncompressed P-256 point (leading byte != 0x04). */
-int aliro_prov_trust_add(struct aliro_trust_store *ts,
-			 const uint8_t cred_pub[ALIRO_CRED_PUB_LEN]);
+int aliro_prov_trust_add(struct aliro_trust_store *ts, const uint8_t cred_pub[ALIRO_CRED_PUB_LEN]);
 
 /* ---- target NVS backend (aliro_prov_nvs.c) ------------------------------ */
 
@@ -101,12 +97,10 @@ int aliro_prov_trust_add(struct aliro_trust_store *ts,
  *    0  a stored blob was loaded
  *    1  the dev default was used (nothing stored)
  *   -1  an NVS error occurred; the dev default was used. */
-int aliro_prov_load(struct aliro_reader_identity *id,
-		    struct aliro_trust_store *ts);
+int aliro_prov_load(struct aliro_reader_identity *id, struct aliro_trust_store *ts);
 
 /* Persist identity+trust to NVS. 0 on success, negative on an NVS error. */
-int aliro_prov_store(const struct aliro_reader_identity *id,
-		     const struct aliro_trust_store *ts);
+int aliro_prov_store(const struct aliro_reader_identity *id, const struct aliro_trust_store *ts);
 
 #ifdef __cplusplus
 }

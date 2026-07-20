@@ -23,25 +23,22 @@
  * earlier scaffold used); sign_priv = the matching private scalar.
  */
 static const uint8_t k_dev_reader_id[ALIRO_READER_ID_LEN] = {
-	0x11, 0x3b, 0x1a, 0x9e, 0xf2, 0x95, 0x67, 0x60,
-	0x8b, 0x75, 0x00, 0xfb, 0xac, 0xa6, 0x09, 0xe9,
-	0xc0, 0x7b, 0x87, 0x4e, 0x18, 0x2a, 0xe5, 0x65,
-	0x02, 0x4b, 0x54, 0x3e, 0x3b, 0x40, 0x93, 0x5f,
+	0x11, 0x3b, 0x1a, 0x9e, 0xf2, 0x95, 0x67, 0x60, 0x8b, 0x75, 0x00,
+	0xfb, 0xac, 0xa6, 0x09, 0xe9, 0xc0, 0x7b, 0x87, 0x4e, 0x18, 0x2a,
+	0xe5, 0x65, 0x02, 0x4b, 0x54, 0x3e, 0x3b, 0x40, 0x93, 0x5f,
 };
 static const uint8_t k_dev_sign_priv[ALIRO_READER_PRIV_LEN] = {
-	0x4d, 0x33, 0x21, 0x69, 0xf4, 0x33, 0x9e, 0xef,
-	0x54, 0x9e, 0xf2, 0xa6, 0xa9, 0x4b, 0x61, 0x95,
-	0xa4, 0x2f, 0xc2, 0xaf, 0x8c, 0xcf, 0xdf, 0xce,
-	0x35, 0xbd, 0xf9, 0xbe, 0xd8, 0xf3, 0x83, 0xa3,
+	0x4d, 0x33, 0x21, 0x69, 0xf4, 0x33, 0x9e, 0xef, 0x54, 0x9e, 0xf2,
+	0xa6, 0xa9, 0x4b, 0x61, 0x95, 0xa4, 0x2f, 0xc2, 0xaf, 0x8c, 0xcf,
+	0xdf, 0xce, 0x35, 0xbd, 0xf9, 0xbe, 0xd8, 0xf3, 0x83, 0xa3,
 };
 
-static const uint8_t k_magic[4] = { 'A', 'P', 'R', 'V' };
+static const uint8_t k_magic[4] = {'A', 'P', 'R', 'V'};
 #define ALIRO_PROV_VERSION   0x02u /* current: includes grk(16) */
 #define ALIRO_PROV_VERSION_1 0x01u /* legacy: no grk (still parsed) */
 #define ALIRO_PROV_FLAG_DEV  0x01u
 
-void aliro_prov_dev_default(struct aliro_reader_identity *id,
-			    struct aliro_trust_store *ts)
+void aliro_prov_dev_default(struct aliro_reader_identity *id, struct aliro_trust_store *ts)
 {
 	if (id != NULL) {
 		memset(id, 0, sizeof(*id)); /* zeroes grk (dev has none) + padding */
@@ -54,8 +51,7 @@ void aliro_prov_dev_default(struct aliro_reader_identity *id,
 	}
 }
 
-int aliro_prov_serialize(const struct aliro_reader_identity *id,
-			 const struct aliro_trust_store *ts,
+int aliro_prov_serialize(const struct aliro_reader_identity *id, const struct aliro_trust_store *ts,
 			 uint8_t *out, size_t cap, size_t *out_len)
 {
 	uint8_t count = (ts != NULL) ? ts->count : 0u;
@@ -64,9 +60,8 @@ int aliro_prov_serialize(const struct aliro_reader_identity *id,
 		return -1;
 	}
 
-	size_t need = ALIRO_PROV_BLOB_HDR + ALIRO_READER_ID_LEN +
-		      ALIRO_READER_PRIV_LEN + ALIRO_GRK_LEN + 1u +
-		      (size_t)count * ALIRO_CRED_PUB_LEN;
+	size_t need = ALIRO_PROV_BLOB_HDR + ALIRO_READER_ID_LEN + ALIRO_READER_PRIV_LEN +
+		      ALIRO_GRK_LEN + 1u + (size_t)count * ALIRO_CRED_PUB_LEN;
 
 	if (out == NULL || cap < need) {
 		return -1;
@@ -96,8 +91,7 @@ int aliro_prov_serialize(const struct aliro_reader_identity *id,
 	return 0;
 }
 
-int aliro_prov_deserialize(const uint8_t *buf, size_t len,
-			   struct aliro_reader_identity *id,
+int aliro_prov_deserialize(const uint8_t *buf, size_t len, struct aliro_reader_identity *id,
 			   struct aliro_trust_store *ts)
 {
 	if (buf == NULL || len < ALIRO_PROV_BLOB_HDR ||
@@ -115,8 +109,8 @@ int aliro_prov_deserialize(const uint8_t *buf, size_t len,
 		return -1;
 	}
 
-	const size_t fixed = ALIRO_PROV_BLOB_HDR + ALIRO_READER_ID_LEN +
-			     ALIRO_READER_PRIV_LEN + grk_len + 1u;
+	const size_t fixed =
+		ALIRO_PROV_BLOB_HDR + ALIRO_READER_ID_LEN + ALIRO_READER_PRIV_LEN + grk_len + 1u;
 
 	if (len < fixed) {
 		return -1;
@@ -124,8 +118,7 @@ int aliro_prov_deserialize(const uint8_t *buf, size_t len,
 
 	uint8_t count = buf[fixed - 1u];
 
-	if (count > ALIRO_TRUST_MAX ||
-	    len != fixed + (size_t)count * ALIRO_CRED_PUB_LEN) {
+	if (count > ALIRO_TRUST_MAX || len != fixed + (size_t)count * ALIRO_CRED_PUB_LEN) {
 		return -1;
 	}
 
@@ -169,8 +162,7 @@ int aliro_prov_trust_check(const struct aliro_trust_store *ts,
 	return -1; /* known set, not a member */
 }
 
-int aliro_prov_trust_add(struct aliro_trust_store *ts,
-			 const uint8_t cred_pub[ALIRO_CRED_PUB_LEN])
+int aliro_prov_trust_add(struct aliro_trust_store *ts, const uint8_t cred_pub[ALIRO_CRED_PUB_LEN])
 {
 	if (ts == NULL || cred_pub[0] != 0x04u) {
 		return -1;

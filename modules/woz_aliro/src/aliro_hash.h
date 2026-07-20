@@ -42,8 +42,8 @@ void aliro_sha256_final(struct aliro_sha256 *s, uint8_t out[ALIRO_SHA256_LEN]);
 void aliro_sha256(const void *data, size_t len, uint8_t out[ALIRO_SHA256_LEN]);
 
 /* HMAC-SHA256 (RFC 2104). out is 32 bytes. */
-void aliro_hmac_sha256(const uint8_t *key, size_t key_len, const void *msg,
-		       size_t msg_len, uint8_t out[ALIRO_SHA256_LEN]);
+void aliro_hmac_sha256(const uint8_t *key, size_t key_len, const void *msg, size_t msg_len,
+		       uint8_t out[ALIRO_SHA256_LEN]);
 
 /*
  * HKDF-SHA256 (RFC 5869).
@@ -51,21 +51,20 @@ void aliro_hmac_sha256(const uint8_t *key, size_t key_len, const void *msg,
  *   expand:  OKM = T(1)|T(2)|... truncated to out_len (<= 255*32).
  * Returns 0 on success, -1 on a bad length.
  */
-void aliro_hkdf_extract(const uint8_t *salt, size_t salt_len, const uint8_t *ikm,
-			size_t ikm_len, uint8_t prk[ALIRO_SHA256_LEN]);
-int aliro_hkdf_expand(const uint8_t prk[ALIRO_SHA256_LEN], const uint8_t *info,
-		      size_t info_len, uint8_t *out, size_t out_len);
-int aliro_hkdf(const uint8_t *salt, size_t salt_len, const uint8_t *ikm,
-	       size_t ikm_len, const uint8_t *info, size_t info_len, uint8_t *out,
-	       size_t out_len);
+void aliro_hkdf_extract(const uint8_t *salt, size_t salt_len, const uint8_t *ikm, size_t ikm_len,
+			uint8_t prk[ALIRO_SHA256_LEN]);
+int aliro_hkdf_expand(const uint8_t prk[ALIRO_SHA256_LEN], const uint8_t *info, size_t info_len,
+		      uint8_t *out, size_t out_len);
+int aliro_hkdf(const uint8_t *salt, size_t salt_len, const uint8_t *ikm, size_t ikm_len,
+	       const uint8_t *info, size_t info_len, uint8_t *out, size_t out_len);
 
 /*
  * ANSI-X9.63 KDF (SEC1 v2 KDF2), SHA-256 variant:
  *   OKM = Hash(Z | counter_be32=1 | info) | Hash(Z | counter=2 | info) | ...
  * truncated to out_len. Returns 0 on success, -1 on a bad length.
  */
-int aliro_x963_kdf(const uint8_t *z, size_t z_len, const uint8_t *info,
-		   size_t info_len, uint8_t *out, size_t out_len);
+int aliro_x963_kdf(const uint8_t *z, size_t z_len, const uint8_t *info, size_t info_len,
+		   uint8_t *out, size_t out_len);
 
 #ifdef __cplusplus
 }

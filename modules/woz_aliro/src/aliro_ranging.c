@@ -33,7 +33,7 @@
 
 LOG_MODULE_REGISTER(aliro_ranging, CONFIG_WOZ_ALIRO_LOG_LEVEL);
 
-#define ALIRO_VERSION        0x0100u
+#define ALIRO_VERSION         0x0100u
 /* Upper bound on an inbound ranging SDU (mirrors the reference kMaxBleMessage). */
 #define ALIRO_RANGING_MSG_MAX 256u
 
@@ -41,14 +41,15 @@ LOG_MODULE_REGISTER(aliro_ranging, CONFIG_WOZ_ALIRO_LOG_LEVEL);
  * adapter stores the pointer, not a copy), so this must have static storage. */
 static struct aliro_uwb_adapter_reader_config s_reader_cfg = {
 	.min_ran_multiplier = 1u,
-	.preferred_hopping_configs = {
-		.configs = { ALIRO_HOPPING_CONFIG_DISABLED,
-			     ALIRO_HOPPING_CONFIG_CONTINUOUS_DEFAULT },
-		.count = 2u,
-	},
-	.mac_mode = 0u,           /* 1 ranging round, offset 0, single antenna */
-	.r1_antennas = { 0u, 0u },
-	.r2_antennas = { 0u, 0u },
+	.preferred_hopping_configs =
+		{
+			.configs = {ALIRO_HOPPING_CONFIG_DISABLED,
+				    ALIRO_HOPPING_CONFIG_CONTINUOUS_DEFAULT},
+			.count = 2u,
+		},
+	.mac_mode = 0u, /* 1 ranging round, offset 0, single antenna */
+	.r1_antennas = {0u, 0u},
+	.r2_antennas = {0u, 0u},
 };
 
 // Process-wide handle to the active Cherry CCC context, or NULL if ranging has not been set up.
@@ -72,9 +73,8 @@ static struct aliro_secchan *s_sc_ble;
 /* Send an adapter-built message verbatim over the peer's L2CAP channel. The
  * bytes already carry the 4-byte Aliro header; hand them straight to the BLE
  * send. We own the message and MUST free it (even if we don't send). */
-static void uwb_tx_cb(struct aliro_uwb_message *message,
-		      struct aliro_uwb_session *session, void *user_data,
-		      bool timeout)
+static void uwb_tx_cb(struct aliro_uwb_message *message, struct aliro_uwb_session *session,
+		      void *user_data, bool timeout)
 {
 	(void)session;
 	(void)timeout;
@@ -86,16 +86,15 @@ static void uwb_tx_cb(struct aliro_uwb_message *message,
 
 		/* The engine hands us a plaintext [proto][id][len][payload]; BleSK-seal it
 		 * (§11.8.2, the 4-byte header as AAD) before it goes on the wire. */
-		if (s_sc_ble != NULL &&
-		    aliro_msg_seal(s_sc_ble, message->data, message->len, wire, sizeof(wire),
-				   &wl) == 0) {
+		if (s_sc_ble != NULL && aliro_msg_seal(s_sc_ble, message->data, message->len, wire,
+						       sizeof(wire), &wl) == 0) {
 			int rc = aliro_ble_send(conn, wire, wl);
 
-			LOG_INF("[conn %u] ranging TX proto=0x%02x id=0x%02x (%u B, rc=%d)",
-				 conn, message->data[0], message->data[1], (unsigned)wl, rc);
+			LOG_INF("[conn %u] ranging TX proto=0x%02x id=0x%02x (%u B, rc=%d)", conn,
+				message->data[0], message->data[1], (unsigned)wl, rc);
 		} else {
 			LOG_ERR("[conn %u] ranging TX seal failed (%u B)", conn,
-				 (unsigned)message->len);
+				(unsigned)message->len);
 		}
 	}
 	aliro_uwb_session_message_free(message);
@@ -113,7 +112,8 @@ static void uwb_ev_cb(struct aliro_uwb_session_event *event, void *user_data)
 		switch (event->data.status->session_state) {
 		case CHERRY_CCC_SESSION_STATE_ACTIVE:
 			LOG_INF("[conn %u] UWB ranging ACTIVE (negotiated "
-				      "params live)", conn);
+				"params live)",
+				conn);
 			break;
 		case CHERRY_CCC_SESSION_STATE_IDLE:
 			LOG_INF("[conn %u] UWB session IDLE", conn);
@@ -149,23 +149,23 @@ int aliro_ranging_init(void)
 
 	/* Advertised CCC capabilities. Deep-copied by create_reader, so these
 	 * locals need not outlive the call. Values match the reference reader. */
-	uint16_t proto[]       = { ALIRO_VERSION };
-	uint16_t uwb_configs[] = { 0x0000u };
-	uint8_t  pulse_combos[] = { 0x00u };
+	uint16_t proto[] = {ALIRO_VERSION};
+	uint16_t uwb_configs[] = {0x0000u};
+	uint8_t pulse_combos[] = {0x00u};
 	// CCC capabilities advertised to the Aliro UWB adapter for this reader.
 	struct cherry_ccc_capabilities ccc = {
 		.slot_bitmask = 0xFFu,
 		.sync_code_index_bitmask = 0x00000F00u, /* SYNC codes 9..12 */
 		.hopping_config_bitmask = 0x1Au,        /* default + continuous + none */
 		.channel_bitmask = 0x03u,               /* ch5 + ch9 */
-		.protocol_versions = { .len = 1u, .items = proto },
-		.uwb_configs = { .len = 1u, .items = uwb_configs },
-		.pulse_shape_combos = { .len = 1u, .items = pulse_combos },
+		.protocol_versions = {.len = 1u, .items = proto},
+		.uwb_configs = {.len = 1u, .items = uwb_configs},
+		.pulse_shape_combos = {.len = 1u, .items = pulse_combos},
 		.minimum_ran_multiplier = 1u,
 		.qorvo_vendor_feature_1_supported = false,
 	};
-	// Device capabilities event reported by CCC, describing supported protocol versions, UWB configurations,
-	// and pulse shape combinations.
+	// Device capabilities event reported by CCC, describing supported protocol versions, UWB
+	// configurations, and pulse shape combinations.
 	struct cherry_core_event_device_capabilities caps = {
 		.status_err = CHERRY_ERR_NONE,
 		.fira_capabilities = NULL,
@@ -190,8 +190,9 @@ int aliro_ranging_init(void)
 	 * latches); the real session at M4 then re-uses it — ccc_prepoll_listen skips the
 	 * probe and only re-applies the negotiated channel. Non-fatal: if the radio is
 	 * absent, auth still runs and M4 will surface the failure. */
-	static const uint8_t k_probe_ursk[ALIRO_URSK_LEN] = { 0 };
-	// Aliro UWB Kconfig-equivalent probe configuration used to bring up the woz_uwb layer on this port.
+	static const uint8_t k_probe_ursk[ALIRO_URSK_LEN] = {0};
+	// Aliro UWB Kconfig-equivalent probe configuration used to bring up the woz_uwb layer on
+	// this port.
 	const struct woz_uwb_aliro_cfg probe_cfg = {
 		.session_id = 0u,
 		.channel = 9u,
@@ -217,7 +218,8 @@ int aliro_ranging_start(uint16_t conn_handle, uint32_t session_id, const uint8_t
 	}
 	if (s_sess_active) {
 		LOG_WRN("[conn %u] ranging busy (active on conn %u); DW3000 is "
-			      "single-session", conn_handle, s_sess_conn);
+			"single-session",
+			conn_handle, s_sess_conn);
 		return -1;
 	}
 
@@ -226,8 +228,7 @@ int aliro_ranging_start(uint16_t conn_handle, uint32_t session_id, const uint8_t
 	woz_uwb_stop();
 
 	struct aliro_uwb_session *sess = aliro_uwb_session_create(
-		s_adapter, session_id, uwb_ev_cb, uwb_tx_cb,
-		(void *)(uintptr_t)conn_handle);
+		s_adapter, session_id, uwb_ev_cb, uwb_tx_cb, (void *)(uintptr_t)conn_handle);
 
 	if (sess == NULL) {
 		LOG_ERR("[conn %u] session_create failed", conn_handle);
@@ -248,7 +249,8 @@ int aliro_ranging_start(uint16_t conn_handle, uint32_t session_id, const uint8_t
 	/* No eager M1: the engine emits it (via uwb_tx_cb, BleSK-sealed) when the
 	 * device sends its Initiate-Ranging-Session (proto-2 id-1). */
 	LOG_INF("[conn %u] ranging armed (session id 0x%08x); awaiting "
-		      "Initiate-Ranging-Session", conn_handle, (unsigned)session_id);
+		"Initiate-Ranging-Session",
+		conn_handle, (unsigned)session_id);
 	return 0;
 }
 
@@ -258,8 +260,7 @@ int aliro_ranging_feed(uint16_t conn_handle, const uint8_t *data, size_t len)
 		return -1;
 	}
 	if (len < 4u || len > ALIRO_RANGING_MSG_MAX) {
-		LOG_WRN("[conn %u] ranging SDU size %u out of range", conn_handle,
-			 (unsigned)len);
+		LOG_WRN("[conn %u] ranging SDU size %u out of range", conn_handle, (unsigned)len);
 		return -1;
 	}
 
