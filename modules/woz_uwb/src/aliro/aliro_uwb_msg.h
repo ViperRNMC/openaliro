@@ -18,6 +18,8 @@ enum aliro_uwb_err aliro_uwb_msg_process_ranging(struct aliro_uwb_session *sessi
 						 struct aliro_uwb_message *message);
 enum aliro_uwb_err aliro_uwb_msg_process_notification(struct aliro_uwb_session *session,
 						      struct aliro_uwb_message *message);
+enum aliro_uwb_err aliro_uwb_msg_process_supplementary(struct aliro_uwb_session *session,
+						       struct aliro_uwb_message *message);
 
 /* Message builders (used by the session lifecycle). */
 struct aliro_uwb_message *aliro_uwb_msg_build_m1(struct aliro_uwb_session *session);

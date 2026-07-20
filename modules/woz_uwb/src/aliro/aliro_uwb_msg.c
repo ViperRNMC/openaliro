@@ -1128,9 +1128,18 @@ parse_event_notification(struct aliro_uwb_session *session,
 			}
 			break;
 		case ALIRO_UWB_MESSAGE_NOTIFICATION_EVENT_ATTR_READER_DESCRIPTOR:
-			LOG_INF("notification: reader descriptor");
+			LOG_INF("notification: reader descriptor (%u bytes)", attr->length);
+			LOG_HEXDUMP_INF(attr->value, attr->length, "reader descriptor");
 			break;
 		default:
+			/* Anything the peer sends that this codec does not model was
+			 * previously dropped without trace. Surface it: an unmodelled
+			 * attribute is the only place a capability we do not implement
+			 * could be arriving from the phone.
+			 */
+			LOG_WRN("notification: unhandled event attr 0x%02x (%u bytes)", attr->id,
+				attr->length);
+			LOG_HEXDUMP_WRN(attr->value, attr->length, "unhandled event attr");
 			break;
 		}
 	}
@@ -1179,6 +1188,9 @@ parse_ranging_notification(struct aliro_uwb_session *session,
 		case ALIRO_UWB_MESSAGE_NOTIFICATION_RANGING_ATTR_SECURE_RANGING_FAILED:
 			break;
 		default:
+			LOG_WRN("notification: unhandled ranging attr 0x%02x (%u bytes)", attr->id,
+				attr->length);
+			LOG_HEXDUMP_WRN(attr->value, attr->length, "unhandled ranging attr");
 			break;
 		}
 		if (err != ALIRO_UWB_ERR_NONE) {
@@ -1212,4 +1224,33 @@ aliro_uwb_msg_process_notification(struct aliro_uwb_session *session,
 			aliro_uwb_msg_message_id(message->data));
 		return ALIRO_UWB_ERR_NONE;
 	}
+}
+
+/**
+ * @brief Log every attribute of a Supplementary Service message (protocol 0x03).
+ *
+ * The phone sends one of these at session establishment. Nothing is modelled yet
+ * and no response is emitted, so this only surfaces the payload: the semantics are
+ * unknown and are being characterised by diffing the attributes across conditions.
+ *
+ * @param session Aliro UWB session (unused; no state is driven from here yet).
+ * @param message Received supplementary-service message to log.
+ * @return ALIRO_UWB_ERR_NONE always.
+ */
+enum aliro_uwb_err aliro_uwb_msg_process_supplementary(struct aliro_uwb_session *session,
+						       struct aliro_uwb_message *message)
+{
+	struct aliro_uwb_msg_parser parser = ALIRO_UWB_MSG_PARSER_INIT(message);
+	struct aliro_uwb_msg_attribute *attr;
+
+	ARG_UNUSED(session);
+
+	LOG_INF("supplementary: msg id %u, %u payload B", aliro_uwb_msg_message_id(message->data),
+		aliro_uwb_msg_payload_length(message->data));
+
+	while ((attr = aliro_uwb_msg_next_attribute(&parser))) {
+		LOG_INF("supplementary: attr 0x%02x (%u B)", attr->id, attr->length);
+		LOG_HEXDUMP_INF(attr->value, attr->length, "supplementary attr");
+	}
+	return ALIRO_UWB_ERR_NONE;
 }
