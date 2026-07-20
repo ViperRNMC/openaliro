@@ -12,6 +12,7 @@
 
 #include "freertos/FreeRTOS.h"
 #include "freertos/task.h"
+#include "freertos/semphr.h"
 #include "esp_timer.h"
 #include "esp_rom_sys.h" /* esp_rom_delay_us */
 #include "esp_cpu.h"     /* esp_cpu_get_cycle_count */
@@ -54,6 +55,32 @@ static inline void k_msleep(int32_t ms)
 		return;
 	}
 	vTaskDelay(pdMS_TO_TICKS(ms));
+}
+
+/* --- mutex (woz_aliro reader trust-store guard) ---
+ * Only the blocking K_FOREVER lock is modelled; the Aliro reader never takes a
+ * timed lock. k_mutex_init is called once before any lock, matching Zephyr. */
+#define K_FOREVER portMAX_DELAY
+
+struct k_mutex {
+	SemaphoreHandle_t sem;
+};
+
+static inline int k_mutex_init(struct k_mutex *m)
+{
+	m->sem = xSemaphoreCreateMutex();
+	return m->sem ? 0 : -1;
+}
+
+// Take the mutex, blocking. Only K_FOREVER is supported; timeout is passed through.
+static inline int k_mutex_lock(struct k_mutex *m, TickType_t timeout)
+{
+	return xSemaphoreTake(m->sem, timeout) == pdTRUE ? 0 : -1;
+}
+
+static inline int k_mutex_unlock(struct k_mutex *m)
+{
+	return xSemaphoreGive(m->sem) == pdTRUE ? 0 : -1;
 }
 
 #endif /* WOZ_ESP_COMPAT_KERNEL_H */

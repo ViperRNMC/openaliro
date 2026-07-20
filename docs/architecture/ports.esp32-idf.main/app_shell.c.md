@@ -3,7 +3,7 @@
 
 ESP32-IDF console shell for the standalone Aliro UWB responder bench app: registers status, range, aliro-start/stop, provisioning, trust, and clear commands and runs the linenoise-based REPL.
 
-**depends on** [`ports/esp32-idf/components/aliro_reader/include/aliro_reader.h`](../ports.esp32-idf.components.aliro_reader.include/aliro_reader.h.md), [`ports/esp32-idf/main/app_shell.h`](app_shell.h.md)
+**depends on** [`ports/esp32-idf/main/app_shell.h`](app_shell.h.md)
 
 ```mermaid
 flowchart TD
@@ -104,6 +104,6 @@ Shell command handler: trusts the last-presented Aliro credential and persists i
 ### `void app_shell_start(void)`
 `ports/esp32-idf/main/app_shell.c:215`
 
-Register commands and start the USB-Serial-JTAG console REPL (own task).
+Register commands and start the UART console REPL (own task).
 
 **calls** `print_banner`

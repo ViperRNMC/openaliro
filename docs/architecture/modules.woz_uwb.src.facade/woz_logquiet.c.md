@@ -17,7 +17,7 @@ Reversible: compiled only under CONFIG_WOZ_PRETTY_SHELL (PRETTY=1). Drop PRETTY
 and every one of these lines returns for raw diagnosis. Needs
 CONFIG_LOG_RUNTIME_FILTERING=y (set in integration/overlays/woz-pretty.conf).
 
-**depends on** [`ports/esp32-idf/components/woz_uwb/compat/zephyr/logging/log.h`](../ports.esp32-idf.components.woz_uwb.compat.zephyr.logging/log.h.md)  ·  **discussed in** [`ports/esp32-idf/README.md`](../../../ports/esp32-idf/README.md)
+**depends on** [`ports/esp32-idf/components/woz_uwb/compat/zephyr/logging/log.h`](../ports.esp32-idf.components.woz_uwb.compat.zephyr.logging/log.h.md)
 
 ## API
 

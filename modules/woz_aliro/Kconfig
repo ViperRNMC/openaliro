@@ -1,0 +1,21 @@
+# Woz Aliro credential-auth stack — the open replacement for the closed
+# libaliro/libaliro_ble reader engine. Shared by the ESP32-S3 port (where it is
+# the only implementation) and, behind this option, the nRF5340 build.
+#
+# Distinct from WOZ_ALIRO in modules/woz_uwb, which names the CCC/STS *ranging*
+# engine below this layer and is unrelated.
+
+config WOZ_ALIRO_STACK
+	bool "Woz Aliro credential-auth stack (open libaliro replacement)"
+	help
+	  Compile the open Aliro reader core: the credential-auth key schedule
+	  (X9.63/HKDF -> session keys, URSK, BleSK), the AES-256-GCM secure
+	  channel, the BER-TLV/ISO7816 wire codec, and the reader trust store.
+
+	  This builds the platform-agnostic core only. It provides no BLE
+	  transport and does not displace libaliro on its own; the nRF5340 build
+	  still links the closed archive.
+
+module = WOZ_ALIRO
+module-str = woz_aliro
+source "subsys/logging/Kconfig.template.log_config"

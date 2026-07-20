@@ -8,7 +8,7 @@ the wakeup path can hold CS low ~500us. Each DW3000 command is one CS-low
 full-duplex transfer: header + body assembled in a DMA-capable, word-aligned
 bounce buffer; on reads the body slice of the RX buffer is copied back.
 
-**depends on** [`ports/esp32-idf/components/woz_uwb/port/board_pins.h`](board_pins.h.md)  ·  **discussed in** [`ports/esp32-idf/README.md`](../../../ports/esp32-idf/README.md)
+**depends on** [`ports/esp32-idf/components/woz_uwb/port/board_pins.h`](board_pins.h.md)  ·  **discussed in** [`ports/esp32-idf/README.md`](../../../ports/esp32-idf/README.md), [`ports/esp32-idf/components/woz_uwb/README.md`](../../../ports/esp32-idf/components/woz_uwb/README.md)
 
 ## API
 

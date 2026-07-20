@@ -9,7 +9,7 @@ drives the DS-TWR exchange (an Aliro Wallet, or a second board as initiator).
 The demo responder lifecycle + interactive console live in app_shell.c.
 Ported from ports/esp32s3/sample/src/main.c (the Zephyr scaffold).
 
-**depends on** [`ports/esp32-idf/components/aliro_reader/include/aliro_reader.h`](../ports.esp32-idf.components.aliro_reader.include/aliro_reader.h.md), [`ports/esp32-idf/main/app_shell.h`](app_shell.h.md)
+**depends on** [`ports/esp32-idf/main/app_shell.h`](app_shell.h.md)
 
 ## API
 

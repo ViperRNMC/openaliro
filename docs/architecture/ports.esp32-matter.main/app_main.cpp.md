@@ -8,7 +8,7 @@ Owns the Aliro reader background task (started once on commissioning-complete or
 already commissioned) and the Matter attribute/identify/device-event callbacks required by
 esp-matter's node/cluster framework.
 
-**depends on** [`ports/esp32-idf/components/aliro_reader/include/aliro_reader.h`](../ports.esp32-idf.components.aliro_reader.include/aliro_reader.h.md), [`ports/esp32-matter/main/app_priv.h`](app_priv.h.md), [`ports/esp32-matter/main/app_shell.h`](app_shell.h.md), [`ports/esp32-matter/main/lock/aliro_reader_delegate.h`](../ports.esp32-matter.main.lock/aliro_reader_delegate.h.md), [`ports/esp32-matter/main/lock/door_lock_manager.h`](../ports.esp32-matter.main.lock/door_lock_manager.h.md)
+**depends on** [`ports/esp32-matter/main/app_priv.h`](app_priv.h.md), [`ports/esp32-matter/main/app_shell.h`](app_shell.h.md), [`ports/esp32-matter/main/lock/aliro_reader_delegate.h`](../ports.esp32-matter.main.lock/aliro_reader_delegate.h.md), [`ports/esp32-matter/main/lock/door_lock_manager.h`](../ports.esp32-matter.main.lock/door_lock_manager.h.md)
 
 ## API
 

@@ -22,22 +22,22 @@ cc -std=c11 -O1 -Wall -Wextra \
 
 echo
 echo "== host: aliro_crypto key-schedule KAT =="
-CRYPTO="$HERE/../components/aliro_crypto"
+# The Aliro core is shared with the nRF build; it lives in modules/woz_aliro.
+ALIRO="$HERE/../../../modules/woz_aliro"
 CBIN="$(mktemp -t aliro_crypto_kat.XXXXXX)"
 cc -std=c11 -O1 -Wall -Wextra \
-   -I "$CRYPTO/include" -I "$CRYPTO/src" \
+   -I "$ALIRO/include" -I "$ALIRO/src" \
    "$HERE/test_aliro_crypto.c" \
-   "$CRYPTO/src/aliro_hash.c" "$CRYPTO/src/aliro_crypto.c" \
+   "$ALIRO/src/aliro_hash.c" "$ALIRO/src/aliro_crypto.c" \
    "$HERE/aliro_prim_host.c" -o "$CBIN"
 "$CBIN"
 
 echo
 echo "== host: aliro_apdu wire-codec KAT =="
-READER="$HERE/../components/aliro_reader"
 ABIN="$(mktemp -t aliro_apdu_kat.XXXXXX)"
 cc -std=c11 -O1 -Wall -Wextra \
-   -I "$READER" \
-   "$HERE/test_aliro_apdu.c" "$READER/aliro_apdu.c" -o "$ABIN"
+   -I "$ALIRO/include" -I "$ALIRO/src" \
+   "$HERE/test_aliro_apdu.c" "$ALIRO/src/aliro_apdu.c" -o "$ABIN"
 "$ABIN"
 rm -f "$ABIN"
 
@@ -45,8 +45,8 @@ echo
 echo "== host: aliro_prov identity/trust KAT =="
 PBIN="$(mktemp -t aliro_prov_kat.XXXXXX)"
 cc -std=c11 -O1 -Wall -Wextra \
-   -I "$READER" \
-   "$HERE/test_aliro_prov.c" "$READER/aliro_prov.c" -o "$PBIN"
+   -I "$ALIRO/include" -I "$ALIRO/src" \
+   "$HERE/test_aliro_prov.c" "$ALIRO/src/aliro_prov.c" -o "$PBIN"
 "$PBIN"
 rm -f "$PBIN"
 

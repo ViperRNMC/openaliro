@@ -18,7 +18,7 @@
 #include <stdint.h>
 #include <string.h>
 
-#include "esp_log.h"
+#include <zephyr/logging/log.h>
 
 #include "aliro_ble.h"
 #include "aliro_crypto.h"
@@ -31,7 +31,7 @@
 
 #include "aliro_ranging.h"
 
-static const char *TAG = "aliro_ranging";
+LOG_MODULE_REGISTER(aliro_ranging, CONFIG_WOZ_ALIRO_LOG_LEVEL);
 
 #define ALIRO_VERSION        0x0100u
 /* Upper bound on an inbound ranging SDU (mirrors the reference kMaxBleMessage). */
@@ -91,10 +91,10 @@ static void uwb_tx_cb(struct aliro_uwb_message *message,
 				   &wl) == 0) {
 			int rc = aliro_ble_send(conn, wire, wl);
 
-			ESP_LOGI(TAG, "[conn %u] ranging TX proto=0x%02x id=0x%02x (%u B, rc=%d)",
+			LOG_INF("[conn %u] ranging TX proto=0x%02x id=0x%02x (%u B, rc=%d)",
 				 conn, message->data[0], message->data[1], (unsigned)wl, rc);
 		} else {
-			ESP_LOGE(TAG, "[conn %u] ranging TX seal failed (%u B)", conn,
+			LOG_ERR("[conn %u] ranging TX seal failed (%u B)", conn,
 				 (unsigned)message->len);
 		}
 	}
@@ -112,14 +112,14 @@ static void uwb_ev_cb(struct aliro_uwb_session_event *event, void *user_data)
 	    event->data.status != NULL) {
 		switch (event->data.status->session_state) {
 		case CHERRY_CCC_SESSION_STATE_ACTIVE:
-			ESP_LOGI(TAG, "[conn %u] UWB ranging ACTIVE (negotiated "
+			LOG_INF("[conn %u] UWB ranging ACTIVE (negotiated "
 				      "params live)", conn);
 			break;
 		case CHERRY_CCC_SESSION_STATE_IDLE:
-			ESP_LOGI(TAG, "[conn %u] UWB session IDLE", conn);
+			LOG_INF("[conn %u] UWB session IDLE", conn);
 			break;
 		case CHERRY_CCC_SESSION_STATE_DEINIT:
-			ESP_LOGI(TAG, "[conn %u] UWB session DEINIT (freed)", conn);
+			LOG_INF("[conn %u] UWB session DEINIT (freed)", conn);
 			if (s_sess_conn == conn) {
 				s_sess = NULL;
 				s_sess_active = false;
@@ -129,7 +129,7 @@ static void uwb_ev_cb(struct aliro_uwb_session_event *event, void *user_data)
 			break;
 		}
 	} else if (event->type == ALIRO_UWB_SESSION_EVENT_TYPE_SESSION_ERROR) {
-		ESP_LOGW(TAG, "[conn %u] UWB session ERROR", conn);
+		LOG_WRN("[conn %u] UWB session ERROR", conn);
 	}
 	aliro_uwb_session_event_free(event);
 }
@@ -143,7 +143,7 @@ int aliro_ranging_init(void)
 	}
 	s_cherry = cherry_create("dw3000-fira", NULL, NULL);
 	if (s_cherry == NULL) {
-		ESP_LOGE(TAG, "cherry_create failed");
+		LOG_ERR("cherry_create failed");
 		return -1;
 	}
 
@@ -175,12 +175,12 @@ int aliro_ranging_init(void)
 
 	s_adapter = aliro_uwb_adapter_create_reader(s_cherry, &caps, &s_reader_cfg);
 	if (s_adapter == NULL) {
-		ESP_LOGE(TAG, "aliro_uwb_adapter_create_reader failed");
+		LOG_ERR("aliro_uwb_adapter_create_reader failed");
 		cherry_destroy_sync(s_cherry);
 		s_cherry = NULL;
 		return -1;
 	}
-	ESP_LOGI(TAG, "UWB ranging adapter ready");
+	LOG_INF("UWB ranging adapter ready");
 
 	/* Prove + initialise the DW3000 here, in the clean reader-startup task, so the
 	 * heavy dwt_probe/dwt_initialise never runs from the BLE-host callback at M4.
@@ -201,9 +201,9 @@ int aliro_ranging_init(void)
 	};
 	if (woz_uwb_start_aliro(&probe_cfg) == 0) {
 		woz_uwb_stop(); /* release RX; the radio stays probed */
-		ESP_LOGI(TAG, "DW3000 radio probed at init (M4 will reuse it)");
+		LOG_INF("DW3000 radio probed at init (M4 will reuse it)");
 	} else {
-		ESP_LOGW(TAG, "DW3000 probe at init failed; M4 handoff may not range");
+		LOG_WRN("DW3000 probe at init failed; M4 handoff may not range");
 	}
 	return 0;
 }
@@ -212,11 +212,11 @@ int aliro_ranging_start(uint16_t conn_handle, uint32_t session_id, const uint8_t
 			struct aliro_secchan *sc_ble)
 {
 	if (s_adapter == NULL || ursk == NULL || sc_ble == NULL) {
-		ESP_LOGW(TAG, "[conn %u] ranging start: adapter/keys not ready", conn_handle);
+		LOG_WRN("[conn %u] ranging start: adapter/keys not ready", conn_handle);
 		return -1;
 	}
 	if (s_sess_active) {
-		ESP_LOGW(TAG, "[conn %u] ranging busy (active on conn %u); DW3000 is "
+		LOG_WRN("[conn %u] ranging busy (active on conn %u); DW3000 is "
 			      "single-session", conn_handle, s_sess_conn);
 		return -1;
 	}
@@ -230,11 +230,11 @@ int aliro_ranging_start(uint16_t conn_handle, uint32_t session_id, const uint8_t
 		(void *)(uintptr_t)conn_handle);
 
 	if (sess == NULL) {
-		ESP_LOGE(TAG, "[conn %u] session_create failed", conn_handle);
+		LOG_ERR("[conn %u] session_create failed", conn_handle);
 		return -1;
 	}
 	if (aliro_uwb_session_set_ursk(sess, ursk) != ALIRO_UWB_ERR_NONE) {
-		ESP_LOGE(TAG, "[conn %u] set_ursk failed", conn_handle);
+		LOG_ERR("[conn %u] set_ursk failed", conn_handle);
 		aliro_uwb_session_destroy(sess);
 		return -1;
 	}
@@ -247,7 +247,7 @@ int aliro_ranging_start(uint16_t conn_handle, uint32_t session_id, const uint8_t
 
 	/* No eager M1: the engine emits it (via uwb_tx_cb, BleSK-sealed) when the
 	 * device sends its Initiate-Ranging-Session (proto-2 id-1). */
-	ESP_LOGI(TAG, "[conn %u] ranging armed (session id 0x%08x); awaiting "
+	LOG_INF("[conn %u] ranging armed (session id 0x%08x); awaiting "
 		      "Initiate-Ranging-Session", conn_handle, (unsigned)session_id);
 	return 0;
 }
@@ -258,7 +258,7 @@ int aliro_ranging_feed(uint16_t conn_handle, const uint8_t *data, size_t len)
 		return -1;
 	}
 	if (len < 4u || len > ALIRO_RANGING_MSG_MAX) {
-		ESP_LOGW(TAG, "[conn %u] ranging SDU size %u out of range", conn_handle,
+		LOG_WRN("[conn %u] ranging SDU size %u out of range", conn_handle,
 			 (unsigned)len);
 		return -1;
 	}
@@ -277,7 +277,7 @@ int aliro_ranging_feed(uint16_t conn_handle, const uint8_t *data, size_t len)
 	enum aliro_uwb_err e = aliro_uwb_session_message_handle(s_sess, msg);
 
 	if (e != ALIRO_UWB_ERR_NONE) {
-		ESP_LOGW(TAG, "[conn %u] message_handle err %d", conn_handle, (int)e);
+		LOG_WRN("[conn %u] message_handle err %d", conn_handle, (int)e);
 		return -1;
 	}
 	return 0;
@@ -295,6 +295,6 @@ void aliro_ranging_stop(uint16_t conn_handle)
 	s_sess = NULL;
 	s_sess_active = false;
 	s_sc_ble = NULL; /* borrowed from the reader session; drop before it is freed */
-	ESP_LOGI(TAG, "[conn %u] tearing down UWB ranging session", conn_handle);
+	LOG_INF("[conn %u] tearing down UWB ranging session", conn_handle);
 	aliro_uwb_session_destroy(sess);
 }

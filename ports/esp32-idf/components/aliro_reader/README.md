@@ -21,11 +21,15 @@ phone connects (aliro_ble)
 
 | File | Role |
 |---|---|
-| `aliro_reader.c` | The state machine above, plus connection lifecycle and the console-facing provisioning entry points. |
-| `aliro_apdu.c` | Pure bytes: BER-TLV, the command builders, the signed-data transcripts, the response parsers, and the L2CAP envelope. No crypto, so it is fully host-testable. |
-| `aliro_prov.c` | Reader identity and credential trust store — portable logic, host-tested. |
-| `aliro_prov_nvs.c` | The NVS load/store behind it. Target-only. |
-| `aliro_ranging.c` | Post-auth M1-M4: creates a reader session bound to the derived key, emits M1, routes replies into the engine, and lets the engine start the responder. |
+| `modules/woz_aliro/src/aliro_reader.c` | The state machine above, plus connection lifecycle and the console-facing provisioning entry points. |
+| `modules/woz_aliro/src/aliro_apdu.c` | Pure bytes: BER-TLV, the command builders, the signed-data transcripts, the response parsers, and the L2CAP envelope. No crypto, so it is fully host-testable. |
+| `modules/woz_aliro/src/aliro_prov.c` | Reader identity and credential trust store — portable logic, host-tested. |
+| `modules/woz_aliro/src/aliro_ranging.c` | Post-auth M1-M4: creates a reader session bound to the derived key, emits M1, routes replies into the engine, and lets the engine start the responder. |
+| `aliro_prov_nvs.c` | The NVS load/store behind `aliro_prov.c`. Target-only, so it stays here. |
+
+Everything but the NVS backend is platform-agnostic and lives in `modules/woz_aliro`,
+shared with the nRF build. `aliro_reader.c` and `aliro_ranging.c` still reach for
+`esp_log.h`/FreeRTOS, so the Zephyr side does not compile them yet.
 
 ## Two things that are easy to get wrong
 

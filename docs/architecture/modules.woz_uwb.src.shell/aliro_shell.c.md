@@ -3,7 +3,7 @@
 
 @file aliro_shell.c — `aliro` UART shell command: colored console over the UWB engine.
 
-**depends on** [`modules/woz_uwb/src/ccc/ccc_shim.h`](../modules.woz_uwb.src.ccc/ccc_shim.h.md), [`modules/woz_uwb/src/driver/uwb_min.h`](../modules.woz_uwb.src.driver/uwb_min.h.md), [`modules/woz_uwb/src/driver/uwb_rxdiag.h`](../modules.woz_uwb.src.driver/uwb_rxdiag.h.md), [`modules/woz_uwb/src/fira/fira_session.h`](../modules.woz_uwb.src.fira/fira_session.h.md), [`ports/esp32-idf/components/woz_uwb/compat/zephyr/kernel.h`](../ports.esp32-idf.components.woz_uwb.compat.zephyr/kernel.h.md)  ·  **discussed in** [`ports/esp32-idf/README.md`](../../../ports/esp32-idf/README.md)
+**depends on** [`modules/woz_uwb/src/ccc/ccc_shim.h`](../modules.woz_uwb.src.ccc/ccc_shim.h.md), [`modules/woz_uwb/src/driver/uwb_min.h`](../modules.woz_uwb.src.driver/uwb_min.h.md), [`modules/woz_uwb/src/driver/uwb_rxdiag.h`](../modules.woz_uwb.src.driver/uwb_rxdiag.h.md), [`modules/woz_uwb/src/fira/fira_session.h`](../modules.woz_uwb.src.fira/fira_session.h.md), [`ports/esp32-idf/components/woz_uwb/compat/zephyr/kernel.h`](../ports.esp32-idf.components.woz_uwb.compat.zephyr/kernel.h.md)
 
 ## API
 

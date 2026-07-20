@@ -7,7 +7,7 @@ commands and persisting the provisioned reader identity via aliro_reader_provisi
 Bridges Matter cluster commands to the underlying aliro_reader NVS-backed identity/trust store
 and to the BLE advertising layer (refreshed when the group resolving key changes).
 
-**depends on** [`ports/esp32-idf/components/aliro_reader/include/aliro_reader.h`](../ports.esp32-idf.components.aliro_reader.include/aliro_reader.h.md), [`ports/esp32-matter/main/lock/aliro_reader_delegate.h`](aliro_reader_delegate.h.md)
+**depends on** [`ports/esp32-matter/main/lock/aliro_reader_delegate.h`](aliro_reader_delegate.h.md)
 
 ## API
 

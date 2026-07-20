@@ -3,7 +3,7 @@
 
 @file woz_logfmt.c — PRETTY-gated high-res timestamp + compact colored log line.
 
-**depends on** [`ports/esp32-idf/components/woz_uwb/compat/zephyr/kernel.h`](../ports.esp32-idf.components.woz_uwb.compat.zephyr/kernel.h.md), [`ports/esp32-idf/components/woz_uwb/compat/zephyr/logging/log.h`](../ports.esp32-idf.components.woz_uwb.compat.zephyr.logging/log.h.md)  ·  **discussed in** [`docs/porting-esp32.md`](../../porting-esp32.md), [`ports/esp32-idf/README.md`](../../../ports/esp32-idf/README.md)
+**depends on** [`ports/esp32-idf/components/woz_uwb/compat/zephyr/kernel.h`](../ports.esp32-idf.components.woz_uwb.compat.zephyr/kernel.h.md), [`ports/esp32-idf/components/woz_uwb/compat/zephyr/logging/log.h`](../ports.esp32-idf.components.woz_uwb.compat.zephyr.logging/log.h.md)  ·  **discussed in** [`docs/porting-esp32.md`](../../porting-esp32.md)
 
 ## API
 

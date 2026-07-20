@@ -3,7 +3,7 @@
 
 @file uwb_selftest.c — Kconfig-gated one-shot UWB init self-test (no iPhone).
 
-**depends on** [`modules/woz_uwb/src/ccc/ccc_shim.h`](../modules.woz_uwb.src.ccc/ccc_shim.h.md), [`modules/woz_uwb/src/facade/woz_uwb_facade.h`](../modules.woz_uwb.src.facade/woz_uwb_facade.h.md), [`ports/esp32-idf/components/woz_uwb/compat/zephyr/kernel.h`](../ports.esp32-idf.components.woz_uwb.compat.zephyr/kernel.h.md), [`ports/esp32-idf/components/woz_uwb/compat/zephyr/logging/log.h`](../ports.esp32-idf.components.woz_uwb.compat.zephyr.logging/log.h.md)  ·  **discussed in** [`docs/porting-esp32.md`](../../porting-esp32.md), [`ports/esp32-idf/README.md`](../../../ports/esp32-idf/README.md)
+**depends on** [`modules/woz_uwb/src/ccc/ccc_shim.h`](../modules.woz_uwb.src.ccc/ccc_shim.h.md), [`modules/woz_uwb/src/facade/woz_uwb_facade.h`](../modules.woz_uwb.src.facade/woz_uwb_facade.h.md), [`ports/esp32-idf/components/woz_uwb/compat/zephyr/kernel.h`](../ports.esp32-idf.components.woz_uwb.compat.zephyr/kernel.h.md), [`ports/esp32-idf/components/woz_uwb/compat/zephyr/logging/log.h`](../ports.esp32-idf.components.woz_uwb.compat.zephyr.logging/log.h.md)  ·  **discussed in** [`docs/porting-esp32.md`](../../porting-esp32.md)
 
 ## API
 

@@ -5,7 +5,7 @@ NVS-backed persistence for Aliro reader provisioning: loads and stores the seria
 identity and trust store built by aliro_prov.c.
 Lazily initializes NVS on first use; safe to call alongside aliro_ble's own nvs_flash_init.
 
-**depends on** [`ports/esp32-idf/components/aliro_reader/aliro_prov.h`](aliro_prov.h.md)  ·  **discussed in** [`docs/porting-esp32-phase3.md`](../../porting-esp32-phase3.md)
+**discussed in** [`docs/porting-esp32-phase3.md`](../../porting-esp32-phase3.md), [`ports/esp32-idf/components/aliro_reader/README.md`](../../../ports/esp32-idf/components/aliro_reader/README.md)
 
 ```mermaid
 flowchart TD

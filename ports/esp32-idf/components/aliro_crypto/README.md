@@ -13,10 +13,14 @@ The split is deliberate and it is what makes the tests meaningful:
 
 | File | Role |
 |---|---|
-| `src/aliro_hash.c` | SHA-256, HMAC, HKDF, and the X9.63 KDF, in portable C11 with no dependencies. Compiles **identically on host and target**. |
-| `src/aliro_crypto.c` | The schedule built on those primitives: the key block, the split, the secure channels, the salt transcripts. Also portable. |
-| `src/aliro_prim_psa.c` | The target backend — AES-256-GCM, P-256 ECDH/ECDSA, and randomness via mbedTLS-PSA. |
+| `modules/woz_aliro/src/aliro_hash.c` | SHA-256, HMAC, HKDF, and the X9.63 KDF, in portable C11 with no dependencies. Compiles **identically on host and target**. |
+| `modules/woz_aliro/src/aliro_crypto.c` | The schedule built on those primitives: the key block, the split, the secure channels, the salt transcripts. Also portable. |
+| `modules/woz_aliro/src/aliro_prim_psa.c` | The AEAD/EC backend — AES-256-GCM, P-256 ECDH/ECDSA, and randomness over the PSA Crypto API (mbedTLS-PSA here, nrf_security on the nRF). |
 | `../../test/aliro_prim_host.c` | A compact host double of the same interface, so the KATs run without PSA. |
+
+None of these are ESP32-specific, so they live in `modules/woz_aliro` and are shared with
+the nRF build rather than duplicated. This component is only the ESP-IDF build wiring
+around them.
 
 Because the first two are host-identical to target, a passing host KAT is a statement
 about what the firmware actually computes, not an approximation of it. The backend is the

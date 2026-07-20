@@ -5,7 +5,7 @@ Matter DoorLock cluster plugin callbacks: wires the ESP32 port's BoltLockManager
 Matter DoorLock cluster's lock/unlock commands, user and credential storage, schedule
 storage, cluster init, and auto-relock notification hooks.
 
-**depends on** [`ports/esp32-idf/components/aliro_reader/include/aliro_reader.h`](../ports.esp32-idf.components.aliro_reader.include/aliro_reader.h.md), [`ports/esp32-matter/main/lock/door_lock_manager.h`](door_lock_manager.h.md)
+**depends on** [`ports/esp32-matter/main/lock/door_lock_manager.h`](door_lock_manager.h.md)
 
 ## API
 

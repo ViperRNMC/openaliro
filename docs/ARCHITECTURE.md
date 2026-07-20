@@ -5,6 +5,12 @@ Every subsystem on one page, in reading order: entry points (nothing imports the
 
 ```mermaid
 flowchart LR
+  modules.woz_aliro.src --> modules.woz_aliro.include
+  modules.woz_aliro.src --> modules.woz_uwb.src.aliro.include.aliro_uwb_adapter
+  modules.woz_aliro.src --> modules.woz_uwb.src.aliro.include.cherry
+  modules.woz_aliro.src --> modules.woz_uwb.src.facade
+  modules.woz_aliro.src --> ports.esp32-idf.components.woz_uwb.compat.zephyr
+  modules.woz_aliro.src --> ports.esp32-idf.components.woz_uwb.compat.zephyr.logging
   modules.woz_aliro_ecp.src --> ports.esp32-idf.components.woz_uwb.compat.zephyr.logging
   modules.woz_uwb.src.aliro --> modules.woz_uwb.src.aliro.include.aliro_uwb_adapter
   modules.woz_uwb.src.aliro --> modules.woz_uwb.src.aliro.include.cherry
@@ -36,17 +42,7 @@ flowchart LR
   modules.woz_uwb.src.shell --> modules.woz_uwb.src.driver
   modules.woz_uwb.src.shell --> modules.woz_uwb.src.fira
   modules.woz_uwb.src.shell --> ports.esp32-idf.components.woz_uwb.compat.zephyr
-  ports.esp32-idf.components.aliro_ble --> ports.esp32-idf.components.aliro_ble.include
-  ports.esp32-idf.components.aliro_crypto.src --> ports.esp32-idf.components.aliro_crypto.include
-  ports.esp32-idf.components.aliro_reader --> modules.woz_uwb.src.aliro.include.aliro_uwb_adapter
-  ports.esp32-idf.components.aliro_reader --> modules.woz_uwb.src.aliro.include.cherry
-  ports.esp32-idf.components.aliro_reader --> ports.esp32-idf.components.aliro_ble.include
-  ports.esp32-idf.components.aliro_reader --> ports.esp32-idf.components.aliro_crypto.include
-  ports.esp32-idf.components.aliro_reader --> ports.esp32-idf.components.aliro_reader.include
-  ports.esp32-idf.main --> ports.esp32-idf.components.aliro_reader.include
-  ports.esp32-matter.main --> ports.esp32-idf.components.aliro_reader.include
   ports.esp32-matter.main --> ports.esp32-matter.main.lock
-  ports.esp32-matter.main.lock --> ports.esp32-idf.components.aliro_reader.include
   ports.esp32s3.sample.src --> ports.esp32-idf.components.woz_uwb.compat.zephyr
   ports.esp32s3.sample.src --> ports.esp32-idf.components.woz_uwb.compat.zephyr.logging
 ```
@@ -226,6 +222,97 @@ ccc_ran_params.
 
 **depends on** [`modules/woz_uwb/src/ccc/ccc_kdf.h`](architecture/modules.woz_uwb.src.ccc/ccc_kdf.h.md)  ·  **used by** [`modules/woz_uwb/src/ccc/ccc_sts.c`](architecture/modules.woz_uwb.src.ccc/ccc_sts.c.md)
 
+## `modules/woz_aliro/src/`
+
+### [`modules/woz_aliro/src/aliro_ranging.c`](architecture/modules.woz_aliro.src/aliro_ranging.c.md)
+
+UWB ranging bring-up and lifecycle for the Aliro reader: initializes the reader's UWB
+adapter and Cherry CCC context once, then arms, feeds, and tears down per-connection ranging
+sessions driven by the M1-M4 setup exchanged over the peer's L2CAP channel.
+Maintains process-wide singletons for the Cherry context and adapter (set up once via
+aliro_ranging_init) and for the single active ranging session (the DW3000 supports only one
+session at a time), tracking its owning secure channel for send/receive framing.
+
+**depends on** [`modules/woz_aliro/include/aliro_ble.h`](architecture/modules.woz_aliro.include/aliro_ble.h.md), [`modules/woz_aliro/include/aliro_crypto.h`](architecture/modules.woz_aliro.include/aliro_crypto.h.md), [`modules/woz_aliro/src/aliro_ranging.h`](architecture/modules.woz_aliro.src/aliro_ranging.h.md), [`modules/woz_uwb/src/aliro/include/aliro_uwb_adapter/aliro_uwb_adapter.h`](architecture/modules.woz_uwb.src.aliro.include.aliro_uwb_adapter/aliro_uwb_adapter.h.md), [`modules/woz_uwb/src/aliro/include/aliro_uwb_adapter/aliro_uwb_session.h`](architecture/modules.woz_uwb.src.aliro.include.aliro_uwb_adapter/aliro_uwb_session.h.md), [`modules/woz_uwb/src/aliro/include/cherry/cherry.h`](architecture/modules.woz_uwb.src.aliro.include.cherry/cherry.h.md), [`modules/woz_uwb/src/aliro/include/cherry/cherry_ccc.h`](architecture/modules.woz_uwb.src.aliro.include.cherry/cherry_ccc.h.md), [`modules/woz_uwb/src/facade/woz_uwb_facade.h`](architecture/modules.woz_uwb.src.facade/woz_uwb_facade.h.md), [`ports/esp32-idf/components/woz_uwb/compat/zephyr/logging/log.h`](architecture/ports.esp32-idf.components.woz_uwb.compat.zephyr.logging/log.h.md)
+
+### [`modules/woz_aliro/src/aliro_reader.c`](architecture/modules.woz_aliro.src/aliro_reader.c.md)
+
+Aliro reader engine: drives the Access Protocol (AUTH0/AUTH1/EXCHANGE) handshake over BLE,
+manages reader identity and credential trust provisioning in NVS, and arms UWB ranging once
+a session is authenticated. Maintains a fixed-size table of per-connection sessions tracking
+transaction phase and secure-channel state, and exposes start/attach entry points for both
+standalone and Matter-attached BLE transports, plus provisioning and diagnostic APIs used by
+Matter commissioning and the bench console.
+
+**depends on** [`modules/woz_aliro/include/aliro_ble.h`](architecture/modules.woz_aliro.include/aliro_ble.h.md), [`modules/woz_aliro/include/aliro_crypto.h`](architecture/modules.woz_aliro.include/aliro_crypto.h.md), [`modules/woz_aliro/include/aliro_prim.h`](architecture/modules.woz_aliro.include/aliro_prim.h.md), [`modules/woz_aliro/include/aliro_prov.h`](architecture/modules.woz_aliro.include/aliro_prov.h.md), [`modules/woz_aliro/include/aliro_reader.h`](architecture/modules.woz_aliro.include/aliro_reader.h.md), [`modules/woz_aliro/src/aliro_apdu.h`](architecture/modules.woz_aliro.src/aliro_apdu.h.md), [`modules/woz_aliro/src/aliro_ranging.h`](architecture/modules.woz_aliro.src/aliro_ranging.h.md), [`ports/esp32-idf/components/woz_uwb/compat/zephyr/kernel.h`](architecture/ports.esp32-idf.components.woz_uwb.compat.zephyr/kernel.h.md), [`ports/esp32-idf/components/woz_uwb/compat/zephyr/logging/log.h`](architecture/ports.esp32-idf.components.woz_uwb.compat.zephyr.logging/log.h.md)
+
+### [`modules/woz_aliro/src/aliro_crypto.c`](architecture/modules.woz_aliro.src/aliro_crypto.c.md)
+
+Aliro cryptographic primitives: key derivation (KDF/HKDF), key-block splitting, AES-GCM secure
+channels, and wire message framing built on a pluggable crypto backend (aliro_prim_*).
+Implements the Aliro key-derivation chain (ECDH shared secret -> z -> 160-byte key block -> split
+session keys / URSK / BLE ranging keys), per-direction AES-256-GCM secure channels with monotonic
+message counters, and the seal/open framing used to carry engine plaintext over the wire.
+
+**depends on** [`modules/woz_aliro/include/aliro_crypto.h`](architecture/modules.woz_aliro.include/aliro_crypto.h.md), [`modules/woz_aliro/include/aliro_prim.h`](architecture/modules.woz_aliro.include/aliro_prim.h.md), [`modules/woz_aliro/src/aliro_hash.h`](architecture/modules.woz_aliro.src/aliro_hash.h.md)
+
+### [`modules/woz_aliro/src/aliro_apdu.c`](architecture/modules.woz_aliro.src/aliro_apdu.c.md)
+
+Aliro APDU TLV codec: builds command payloads (AUTH0, AUTH1, AuthData, EXCHANGE) and parses
+response APDUs, plus BLE envelope framing/unframing and ISO7816 APDU wrap/status-word stripping.
+Provides a minimal BER-TLV writer (aliro_tlv_w_init/put/finish) used to assemble command payloads,
+and TLV/APDU parsing helpers used to extract fields from device responses.
+
+**depends on** [`modules/woz_aliro/src/aliro_apdu.h`](architecture/modules.woz_aliro.src/aliro_apdu.h.md)
+
+### [`modules/woz_aliro/src/aliro_hash.c`](architecture/modules.woz_aliro.src/aliro_hash.c.md)
+
+Self-contained SHA-256, HMAC-SHA256, HKDF, and ANSI-X9.63 KDF implementation for the ESP32-IDF Aliro crypto port, with no external crypto library dependency.
+
+**depends on** [`modules/woz_aliro/src/aliro_hash.h`](architecture/modules.woz_aliro.src/aliro_hash.h.md)
+
+### [`modules/woz_aliro/src/aliro_prim_psa.c`](architecture/modules.woz_aliro.src/aliro_prim_psa.c.md)
+
+Aliro crypto primitive backend implemented on Arm PSA Crypto: random generation, AES-256-GCM
+encrypt/decrypt, and NIST P-256 key generation, ECDH, and ECDSA sign/verify.
+Provides the aliro_prim_* / aliro_* primitive functions consumed by the higher-level Aliro KDF
+and secure-channel code in aliro_crypto.c; callers must call aliro_prim_init before using any
+other function in this file.
+
+**depends on** [`modules/woz_aliro/include/aliro_prim.h`](architecture/modules.woz_aliro.include/aliro_prim.h.md)
+
+### [`modules/woz_aliro/src/aliro_prov.c`](architecture/modules.woz_aliro.src/aliro_prov.c.md)
+
+Aliro reader provisioning state: default dev identity, and serialization/deserialization of the
+reader identity plus trusted-credential store to/from a self-describing binary blob.
+Also implements the trust-store membership check and add-with-dedup operations used to decide
+whether a presented credential public key is trusted.
+
+**depends on** [`modules/woz_aliro/include/aliro_prov.h`](architecture/modules.woz_aliro.include/aliro_prov.h.md)
+
+### [`modules/woz_aliro/src/aliro_ranging.h`](architecture/modules.woz_aliro.src/aliro_ranging.h.md)
+
+Aliro M1-M4 ranging-setup interface: negotiates UWB ranging parameters with the device and
+produces the BLE ranging-control secure channel used to carry the M1-M4 exchange.
+
+**used by** [`modules/woz_aliro/src/aliro_ranging.c`](architecture/modules.woz_aliro.src/aliro_ranging.c.md), [`modules/woz_aliro/src/aliro_reader.c`](architecture/modules.woz_aliro.src/aliro_reader.c.md)
+
+### [`modules/woz_aliro/src/aliro_apdu.h`](architecture/modules.woz_aliro.src/aliro_apdu.h.md)
+
+APDU framing and parsing for the Aliro Access Protocol: builds outbound command APDUs via a
+TLV writer and parses the AUTH0/AUTH1 response APDUs exchanged during the reader-device
+handshake.
+
+**used by** [`modules/woz_aliro/src/aliro_apdu.c`](architecture/modules.woz_aliro.src/aliro_apdu.c.md), [`modules/woz_aliro/src/aliro_reader.c`](architecture/modules.woz_aliro.src/aliro_reader.c.md)
+
+### [`modules/woz_aliro/src/aliro_hash.h`](architecture/modules.woz_aliro.src/aliro_hash.h.md)
+
+Streaming SHA-256 (FIPS 180-4) implementation used by the Aliro crypto layer.
+Declares struct aliro_sha256, the incremental hash context used across init/update/finish
+calls.
+
+**used by** [`modules/woz_aliro/src/aliro_crypto.c`](architecture/modules.woz_aliro.src/aliro_crypto.c.md), [`modules/woz_aliro/src/aliro_hash.c`](architecture/modules.woz_aliro.src/aliro_hash.c.md)
+
 ## `modules/woz_uwb/src/driver/`
 
 ### [`modules/woz_uwb/src/driver/uwb_rxdiag.c`](architecture/modules.woz_uwb.src.driver/uwb_rxdiag.c.md)
@@ -269,81 +356,6 @@ ccc_ran_params.
 @file uwb_isr.h — DW3000 interrupt-callback registration (public surface).
 
 **used by** [`modules/woz_uwb/src/driver/uwb_isr.c`](architecture/modules.woz_uwb.src.driver/uwb_isr.c.md)
-
-## `ports/esp32-idf/components/aliro_reader/`
-
-### [`ports/esp32-idf/components/aliro_reader/aliro_ranging.c`](architecture/ports.esp32-idf.components.aliro_reader/aliro_ranging.c.md)
-
-UWB ranging bring-up and lifecycle for the Aliro reader: initializes the reader's UWB
-adapter and Cherry CCC context once, then arms, feeds, and tears down per-connection ranging
-sessions driven by the M1-M4 setup exchanged over the peer's L2CAP channel.
-Maintains process-wide singletons for the Cherry context and adapter (set up once via
-aliro_ranging_init) and for the single active ranging session (the DW3000 supports only one
-session at a time), tracking its owning secure channel for send/receive framing.
-
-**depends on** [`modules/woz_uwb/src/aliro/include/aliro_uwb_adapter/aliro_uwb_adapter.h`](architecture/modules.woz_uwb.src.aliro.include.aliro_uwb_adapter/aliro_uwb_adapter.h.md), [`modules/woz_uwb/src/aliro/include/aliro_uwb_adapter/aliro_uwb_session.h`](architecture/modules.woz_uwb.src.aliro.include.aliro_uwb_adapter/aliro_uwb_session.h.md), [`modules/woz_uwb/src/aliro/include/cherry/cherry.h`](architecture/modules.woz_uwb.src.aliro.include.cherry/cherry.h.md), [`modules/woz_uwb/src/aliro/include/cherry/cherry_ccc.h`](architecture/modules.woz_uwb.src.aliro.include.cherry/cherry_ccc.h.md), [`ports/esp32-idf/components/aliro_ble/include/aliro_ble.h`](architecture/ports.esp32-idf.components.aliro_ble.include/aliro_ble.h.md), [`ports/esp32-idf/components/aliro_crypto/include/aliro_crypto.h`](architecture/ports.esp32-idf.components.aliro_crypto.include/aliro_crypto.h.md), [`ports/esp32-idf/components/aliro_reader/aliro_ranging.h`](architecture/ports.esp32-idf.components.aliro_reader/aliro_ranging.h.md)
-
-### [`ports/esp32-idf/components/aliro_reader/aliro_reader.c`](architecture/ports.esp32-idf.components.aliro_reader/aliro_reader.c.md)
-
-Aliro reader engine: drives the Access Protocol (AUTH0/AUTH1/EXCHANGE) handshake over BLE,
-manages reader identity and credential trust provisioning in NVS, and arms UWB ranging once
-a session is authenticated. Maintains a fixed-size table of per-connection sessions tracking
-transaction phase and secure-channel state, and exposes start/attach entry points for both
-standalone and Matter-attached BLE transports, plus provisioning and diagnostic APIs used by
-Matter commissioning and the bench console.
-
-**depends on** [`ports/esp32-idf/components/aliro_ble/include/aliro_ble.h`](architecture/ports.esp32-idf.components.aliro_ble.include/aliro_ble.h.md), [`ports/esp32-idf/components/aliro_crypto/include/aliro_crypto.h`](architecture/ports.esp32-idf.components.aliro_crypto.include/aliro_crypto.h.md), [`ports/esp32-idf/components/aliro_crypto/include/aliro_prim.h`](architecture/ports.esp32-idf.components.aliro_crypto.include/aliro_prim.h.md), [`ports/esp32-idf/components/aliro_reader/aliro_apdu.h`](architecture/ports.esp32-idf.components.aliro_reader/aliro_apdu.h.md), [`ports/esp32-idf/components/aliro_reader/aliro_prov.h`](architecture/ports.esp32-idf.components.aliro_reader/aliro_prov.h.md), [`ports/esp32-idf/components/aliro_reader/aliro_ranging.h`](architecture/ports.esp32-idf.components.aliro_reader/aliro_ranging.h.md), [`ports/esp32-idf/components/aliro_reader/include/aliro_reader.h`](architecture/ports.esp32-idf.components.aliro_reader.include/aliro_reader.h.md)
-
-### [`ports/esp32-idf/components/aliro_reader/aliro_apdu.c`](architecture/ports.esp32-idf.components.aliro_reader/aliro_apdu.c.md)
-
-Aliro APDU TLV codec: builds command payloads (AUTH0, AUTH1, AuthData, EXCHANGE) and parses
-response APDUs, plus BLE envelope framing/unframing and ISO7816 APDU wrap/status-word stripping.
-Provides a minimal BER-TLV writer (aliro_tlv_w_init/put/finish) used to assemble command payloads,
-and TLV/APDU parsing helpers used to extract fields from device responses.
-
-**depends on** [`ports/esp32-idf/components/aliro_reader/aliro_apdu.h`](architecture/ports.esp32-idf.components.aliro_reader/aliro_apdu.h.md)
-
-### [`ports/esp32-idf/components/aliro_reader/aliro_prov.c`](architecture/ports.esp32-idf.components.aliro_reader/aliro_prov.c.md)
-
-Aliro reader provisioning state: default dev identity, and serialization/deserialization of the
-reader identity plus trusted-credential store to/from a self-describing binary blob.
-Also implements the trust-store membership check and add-with-dedup operations used to decide
-whether a presented credential public key is trusted.
-
-**depends on** [`ports/esp32-idf/components/aliro_reader/aliro_prov.h`](architecture/ports.esp32-idf.components.aliro_reader/aliro_prov.h.md)
-
-### [`ports/esp32-idf/components/aliro_reader/aliro_prov_nvs.c`](architecture/ports.esp32-idf.components.aliro_reader/aliro_prov_nvs.c.md)
-
-NVS-backed persistence for Aliro reader provisioning: loads and stores the serialized reader
-identity and trust store built by aliro_prov.c.
-Lazily initializes NVS on first use; safe to call alongside aliro_ble's own nvs_flash_init.
-
-**depends on** [`ports/esp32-idf/components/aliro_reader/aliro_prov.h`](architecture/ports.esp32-idf.components.aliro_reader/aliro_prov.h.md)
-
-### [`ports/esp32-idf/components/aliro_reader/aliro_ranging.h`](architecture/ports.esp32-idf.components.aliro_reader/aliro_ranging.h.md)
-
-Aliro M1-M4 ranging-setup interface: negotiates UWB ranging parameters with the device and
-produces the BLE ranging-control secure channel used to carry the M1-M4 exchange.
-
-**used by** [`ports/esp32-idf/components/aliro_reader/aliro_ranging.c`](architecture/ports.esp32-idf.components.aliro_reader/aliro_ranging.c.md), [`ports/esp32-idf/components/aliro_reader/aliro_reader.c`](architecture/ports.esp32-idf.components.aliro_reader/aliro_reader.c.md)
-
-### [`ports/esp32-idf/components/aliro_reader/aliro_apdu.h`](architecture/ports.esp32-idf.components.aliro_reader/aliro_apdu.h.md)
-
-APDU framing and parsing for the Aliro Access Protocol: builds outbound command APDUs via a
-TLV writer and parses the AUTH0/AUTH1 response APDUs exchanged during the reader-device
-handshake.
-
-**used by** [`ports/esp32-idf/components/aliro_reader/aliro_apdu.c`](architecture/ports.esp32-idf.components.aliro_reader/aliro_apdu.c.md), [`ports/esp32-idf/components/aliro_reader/aliro_reader.c`](architecture/ports.esp32-idf.components.aliro_reader/aliro_reader.c.md)
-
-### [`ports/esp32-idf/components/aliro_reader/aliro_prov.h`](architecture/ports.esp32-idf.components.aliro_reader/aliro_prov.h.md)
-
-Persistent reader provisioning storage: identity and credential trust anchors saved to and
-loaded from NVS.
-Declares aliro_prov_store for committing an identity/trust pair to NVS, and struct
-aliro_trust_store, the set of trusted credential public keys against which a presented
-credential is authenticated.
-
-**used by** [`ports/esp32-idf/components/aliro_reader/aliro_prov.c`](architecture/ports.esp32-idf.components.aliro_reader/aliro_prov.c.md), [`ports/esp32-idf/components/aliro_reader/aliro_prov_nvs.c`](architecture/ports.esp32-idf.components.aliro_reader/aliro_prov_nvs.c.md), [`ports/esp32-idf/components/aliro_reader/aliro_reader.c`](architecture/ports.esp32-idf.components.aliro_reader/aliro_reader.c.md)
 
 ## `modules/woz_uwb/src/shell/`
 
@@ -407,7 +419,7 @@ qrtc_get_us returns monotonic microseconds since boot.
 Public header for UWB facade: exposes Aliro DS-TWR responder lifecycle and range query; the CCC
 engine is bound and unbound via internal ursk and stop calls.
 
-**used by** [`modules/woz_uwb/src/ccc/cherry_ccc_shim.c`](architecture/modules.woz_uwb.src.ccc/cherry_ccc_shim.c.md), [`modules/woz_uwb/src/driver/uwb_selftest.c`](architecture/modules.woz_uwb.src.driver/uwb_selftest.c.md), [`modules/woz_uwb/src/facade/woz_uwb_facade.c`](architecture/modules.woz_uwb.src.facade/woz_uwb_facade.c.md)
+**used by** [`modules/woz_aliro/src/aliro_ranging.c`](architecture/modules.woz_aliro.src/aliro_ranging.c.md), [`modules/woz_uwb/src/ccc/cherry_ccc_shim.c`](architecture/modules.woz_uwb.src.ccc/cherry_ccc_shim.c.md), [`modules/woz_uwb/src/driver/uwb_selftest.c`](architecture/modules.woz_uwb.src.driver/uwb_selftest.c.md), [`modules/woz_uwb/src/facade/woz_uwb_facade.c`](architecture/modules.woz_uwb.src.facade/woz_uwb_facade.c.md)
 
 ### [`modules/woz_uwb/src/facade/trace.h`](architecture/modules.woz_uwb.src.facade/trace.h.md)
 
@@ -426,13 +438,7 @@ Owns the Aliro reader background task (started once on commissioning-complete or
 already commissioned) and the Matter attribute/identify/device-event callbacks required by
 esp-matter's node/cluster framework.
 
-**depends on** [`ports/esp32-idf/components/aliro_reader/include/aliro_reader.h`](architecture/ports.esp32-idf.components.aliro_reader.include/aliro_reader.h.md), [`ports/esp32-matter/main/app_priv.h`](architecture/ports.esp32-matter.main/app_priv.h.md), [`ports/esp32-matter/main/app_shell.h`](architecture/ports.esp32-matter.main/app_shell.h.md), [`ports/esp32-matter/main/lock/aliro_reader_delegate.h`](architecture/ports.esp32-matter.main.lock/aliro_reader_delegate.h.md), [`ports/esp32-matter/main/lock/door_lock_manager.h`](architecture/ports.esp32-matter.main.lock/door_lock_manager.h.md)
-
-### [`ports/esp32-matter/main/app_shell.cpp`](architecture/ports.esp32-matter.main/app_shell.cpp.md)
-
-ESP32-IDF console shell for the Aliro Matter door lock app: registers status, range, aliro, lock/unlock, codes, factoryreset, and clear commands and runs the REPL.
-
-**depends on** [`ports/esp32-idf/components/aliro_reader/include/aliro_reader.h`](architecture/ports.esp32-idf.components.aliro_reader.include/aliro_reader.h.md), [`ports/esp32-matter/main/app_shell.h`](architecture/ports.esp32-matter.main/app_shell.h.md), [`ports/esp32-matter/main/lock/door_lock_manager.h`](architecture/ports.esp32-matter.main.lock/door_lock_manager.h.md)
+**depends on** [`ports/esp32-matter/main/app_priv.h`](architecture/ports.esp32-matter.main/app_priv.h.md), [`ports/esp32-matter/main/app_shell.h`](architecture/ports.esp32-matter.main/app_shell.h.md), [`ports/esp32-matter/main/lock/aliro_reader_delegate.h`](architecture/ports.esp32-matter.main.lock/aliro_reader_delegate.h.md), [`ports/esp32-matter/main/lock/door_lock_manager.h`](architecture/ports.esp32-matter.main.lock/door_lock_manager.h.md)
 
 ### [`ports/esp32-matter/main/app_driver.cpp`](architecture/ports.esp32-matter.main/app_driver.cpp.md)
 
@@ -440,6 +446,12 @@ Board driver glue for the ESP32 Matter port: button input, WS2812 lock-status LE
 Matter attribute-update hook wired into the app's driver layer.
 
 **depends on** [`ports/esp32-matter/main/app_priv.h`](architecture/ports.esp32-matter.main/app_priv.h.md), [`ports/esp32-matter/main/lock_led.h`](architecture/ports.esp32-matter.main/lock_led.h.md)
+
+### [`ports/esp32-matter/main/app_shell.cpp`](architecture/ports.esp32-matter.main/app_shell.cpp.md)
+
+ESP32-IDF console shell for the Aliro Matter door lock app: registers status, range, aliro, lock/unlock, codes, factoryreset, and clear commands and runs the REPL.
+
+**depends on** [`ports/esp32-matter/main/app_shell.h`](architecture/ports.esp32-matter.main/app_shell.h.md), [`ports/esp32-matter/main/lock/door_lock_manager.h`](architecture/ports.esp32-matter.main.lock/door_lock_manager.h.md)
 
 ### [`ports/esp32-matter/main/lock_led.c`](architecture/ports.esp32-matter.main/lock_led.c.md)
 
@@ -488,112 +500,6 @@ current locked and Aliro-ranging state.
 @file fira_device_config.h — FiRa DS-TWR device/session parameter bag consumed by
 fira_session.c.
 
-## `ports/esp32-idf/components/aliro_crypto/src/`
-
-### [`ports/esp32-idf/components/aliro_crypto/src/aliro_crypto.c`](architecture/ports.esp32-idf.components.aliro_crypto.src/aliro_crypto.c.md)
-
-Aliro cryptographic primitives: key derivation (KDF/HKDF), key-block splitting, AES-GCM secure
-channels, and wire message framing built on a pluggable crypto backend (aliro_prim_*).
-Implements the Aliro key-derivation chain (ECDH shared secret -> z -> 160-byte key block -> split
-session keys / URSK / BLE ranging keys), per-direction AES-256-GCM secure channels with monotonic
-message counters, and the seal/open framing used to carry engine plaintext over the wire.
-
-**depends on** [`ports/esp32-idf/components/aliro_crypto/include/aliro_crypto.h`](architecture/ports.esp32-idf.components.aliro_crypto.include/aliro_crypto.h.md), [`ports/esp32-idf/components/aliro_crypto/include/aliro_prim.h`](architecture/ports.esp32-idf.components.aliro_crypto.include/aliro_prim.h.md), [`ports/esp32-idf/components/aliro_crypto/src/aliro_hash.h`](architecture/ports.esp32-idf.components.aliro_crypto.src/aliro_hash.h.md)
-
-### [`ports/esp32-idf/components/aliro_crypto/src/aliro_hash.c`](architecture/ports.esp32-idf.components.aliro_crypto.src/aliro_hash.c.md)
-
-Self-contained SHA-256, HMAC-SHA256, HKDF, and ANSI-X9.63 KDF implementation for the ESP32-IDF Aliro crypto port, with no external crypto library dependency.
-
-**depends on** [`ports/esp32-idf/components/aliro_crypto/src/aliro_hash.h`](architecture/ports.esp32-idf.components.aliro_crypto.src/aliro_hash.h.md)
-
-### [`ports/esp32-idf/components/aliro_crypto/src/aliro_prim_psa.c`](architecture/ports.esp32-idf.components.aliro_crypto.src/aliro_prim_psa.c.md)
-
-Aliro crypto primitive backend implemented on Arm PSA Crypto: random generation, AES-256-GCM
-encrypt/decrypt, and NIST P-256 key generation, ECDH, and ECDSA sign/verify.
-Provides the aliro_prim_* / aliro_* primitive functions consumed by the higher-level Aliro KDF
-and secure-channel code in aliro_crypto.c; callers must call aliro_prim_init before using any
-other function in this file.
-
-**depends on** [`ports/esp32-idf/components/aliro_crypto/include/aliro_prim.h`](architecture/ports.esp32-idf.components.aliro_crypto.include/aliro_prim.h.md)
-
-### [`ports/esp32-idf/components/aliro_crypto/src/aliro_hash.h`](architecture/ports.esp32-idf.components.aliro_crypto.src/aliro_hash.h.md)
-
-Streaming SHA-256 (FIPS 180-4) implementation used by the Aliro crypto layer.
-Declares struct aliro_sha256, the incremental hash context used across init/update/finish
-calls.
-
-**used by** [`ports/esp32-idf/components/aliro_crypto/src/aliro_crypto.c`](architecture/ports.esp32-idf.components.aliro_crypto.src/aliro_crypto.c.md), [`ports/esp32-idf/components/aliro_crypto/src/aliro_hash.c`](architecture/ports.esp32-idf.components.aliro_crypto.src/aliro_hash.c.md)
-
-## `ports/esp32-idf/main/`
-
-### [`ports/esp32-idf/main/app_shell.c`](architecture/ports.esp32-idf.main/app_shell.c.md)
-
-ESP32-IDF console shell for the standalone Aliro UWB responder bench app: registers status, range, aliro-start/stop, provisioning, trust, and clear commands and runs the linenoise-based REPL.
-
-**depends on** [`ports/esp32-idf/components/aliro_reader/include/aliro_reader.h`](architecture/ports.esp32-idf.components.aliro_reader.include/aliro_reader.h.md), [`ports/esp32-idf/main/app_shell.h`](architecture/ports.esp32-idf.main/app_shell.h.md)
-
-### [`ports/esp32-idf/main/main.c`](architecture/ports.esp32-idf.main/main.c.md)
-
-Woz UWB ranging engine on ESP32-S3 (ESP-IDF) — minimal bring-up app.
-Binds a canned URSK and starts the CCC DS-TWR responder on the DW3000, then
-polls for a range. With no iPhone/initiator present this proves the SPI +
-DW3000 + CCC init path comes up on ESP32-S3; a live range needs a peer that
-drives the DS-TWR exchange (an Aliro Wallet, or a second board as initiator).
-The demo responder lifecycle + interactive console live in app_shell.c.
-Ported from ports/esp32s3/sample/src/main.c (the Zephyr scaffold).
-
-**depends on** [`ports/esp32-idf/components/aliro_reader/include/aliro_reader.h`](architecture/ports.esp32-idf.components.aliro_reader.include/aliro_reader.h.md), [`ports/esp32-idf/main/app_shell.h`](architecture/ports.esp32-idf.main/app_shell.h.md)
-
-### [`ports/esp32-idf/main/app_shell.h`](architecture/ports.esp32-idf.main/app_shell.h.md)
-
-*No module docstring. First commit: "add(esp32): interactive esp_console shell (status/range/aliro-start/stop)".*
-
-**used by** [`ports/esp32-idf/main/app_shell.c`](architecture/ports.esp32-idf.main/app_shell.c.md), [`ports/esp32-idf/main/main.c`](architecture/ports.esp32-idf.main/main.c.md)
-
-## `ports/esp32-matter/main/lock/`
-
-### [`ports/esp32-matter/main/lock/aliro_reader_delegate.cpp`](architecture/ports.esp32-matter.main.lock/aliro_reader_delegate.cpp.md)
-
-AliroReaderDelegate: implements the Aliro reader-provisioning and BLE-UWB portions of the Matter
-DoorLock::Delegate interface, backing the controller-facing GetAliro*/SetAliroReaderConfig
-commands and persisting the provisioned reader identity via aliro_reader_provision_identity.
-Bridges Matter cluster commands to the underlying aliro_reader NVS-backed identity/trust store
-and to the BLE advertising layer (refreshed when the group resolving key changes).
-
-**depends on** [`ports/esp32-idf/components/aliro_reader/include/aliro_reader.h`](architecture/ports.esp32-idf.components.aliro_reader.include/aliro_reader.h.md), [`ports/esp32-matter/main/lock/aliro_reader_delegate.h`](architecture/ports.esp32-matter.main.lock/aliro_reader_delegate.h.md)
-
-### [`ports/esp32-matter/main/lock/door_lock_callbacks.cpp`](architecture/ports.esp32-matter.main.lock/door_lock_callbacks.cpp.md)
-
-Matter DoorLock cluster plugin callbacks: wires the ESP32 port's BoltLockManager into the
-Matter DoorLock cluster's lock/unlock commands, user and credential storage, schedule
-storage, cluster init, and auto-relock notification hooks.
-
-**depends on** [`ports/esp32-idf/components/aliro_reader/include/aliro_reader.h`](architecture/ports.esp32-idf.components.aliro_reader.include/aliro_reader.h.md), [`ports/esp32-matter/main/lock/door_lock_manager.h`](architecture/ports.esp32-matter.main.lock/door_lock_manager.h.md)
-
-### [`ports/esp32-matter/main/lock/door_lock_manager.cpp`](architecture/ports.esp32-matter.main.lock/door_lock_manager.cpp.md)
-
-BoltLockManager: Matter door lock cluster backing store for the ESP32 port. Implements the DoorLock cluster's user, credential, and weekday/yearday/holiday schedule get/set callbacks over fixed-size in-memory tables mirrored to NVM (ESP32Config blobs), plus lock/unlock actuation and PIN validation. Cluster indices are one-indexed by Matter and decremented internally before bounds-checking against this platform's fixed capacity limits.
-
-**depends on** [`ports/esp32-matter/main/lock/door_lock_manager.h`](architecture/ports.esp32-matter.main.lock/door_lock_manager.h.md)
-
-### [`ports/esp32-matter/main/lock/aliro_reader_delegate.h`](architecture/ports.esp32-matter.main.lock/aliro_reader_delegate.h.md)
-
-Declares AliroReaderDelegate, the Aliro (Apple Home Key) reader-provisioning and BLE-UWB half of
-the Matter DoorLock cluster delegate, bridging controller commands to the on-device reader
-identity, trust store, and BLE advertising state.
-
-**used by** [`ports/esp32-matter/main/app_main.cpp`](architecture/ports.esp32-matter.main/app_main.cpp.md), [`ports/esp32-matter/main/lock/aliro_reader_delegate.cpp`](architecture/ports.esp32-matter.main.lock/aliro_reader_delegate.cpp.md)
-
-### [`ports/esp32-matter/main/lock/door_lock_manager.h`](architecture/ports.esp32-matter.main.lock/door_lock_manager.h.md)
-
-Door lock manager for the Matter DoorLock cluster: owns bolt lock state plus the users,
-credentials, and weekday/yearday/holiday schedules backing the cluster's server attributes.
-Declares BoltLockManager (accessed via the BoltLockMgr() singleton) and the
-LockInitParams::LockParam/ParamBuilder types used to configure it from zap-derived capacity
-attributes at init time.
-
-**used by** [`ports/esp32-matter/main/app_main.cpp`](architecture/ports.esp32-matter.main/app_main.cpp.md), [`ports/esp32-matter/main/app_shell.cpp`](architecture/ports.esp32-matter.main/app_shell.cpp.md), [`ports/esp32-matter/main/lock/door_lock_callbacks.cpp`](architecture/ports.esp32-matter.main.lock/door_lock_callbacks.cpp.md), [`ports/esp32-matter/main/lock/door_lock_manager.cpp`](architecture/ports.esp32-matter.main.lock/door_lock_manager.cpp.md)
-
 ## `ports/esp32s3/sample/src/`
 
 ### [`ports/esp32s3/sample/src/main.c`](architecture/ports.esp32s3.sample.src/main.c.md)
@@ -615,20 +521,6 @@ NFC Type A proprietary callback implementation for Aliro Express unlock (tap-to-
 Face ID). Emits a CRC_A–checksummed ECP frame carrying the reader identifier.
 
 **depends on** [`ports/esp32-idf/components/woz_uwb/compat/zephyr/logging/log.h`](architecture/ports.esp32-idf.components.woz_uwb.compat.zephyr.logging/log.h.md)
-
-## `ports/esp32-idf/components/aliro_ble/`
-
-### [`ports/esp32-idf/components/aliro_ble/aliro_ble.c`](architecture/ports.esp32-idf.components.aliro_ble/aliro_ble.c.md)
-
-NimBLE-backed BLE transport for the Aliro reader: GAP advertising, the Aliro GATT service,
-and an L2CAP connection-oriented channel (CoC) used to carry Aliro protocol messages.
-Supports two bring-up modes: a standalone NimBLE host (aliro_ble_start) and attachment to a
-host already owned and synced by another stack such as esp-matter (aliro_ble_prepare +
-aliro_ble_start_attached). Tracks CoC channels per connection handle in a fixed-size table
-and exposes send/receive plus reader-status notification helpers to the rest of the Aliro
-reader.
-
-**depends on** [`ports/esp32-idf/components/aliro_ble/include/aliro_ble.h`](architecture/ports.esp32-idf.components.aliro_ble.include/aliro_ble.h.md)
 
 ## `ports/esp32-idf/components/woz_uwb/port/`
 
@@ -678,19 +570,89 @@ g_warm_valid stays false, and the responder receives Pre-POLLs but never
 replies.  Re-create only the essential chain here (no k_work, no diagnostics).
 Also keeps the dwt_configurestsmode pass-through the essential RX path needs.
 
+## `ports/esp32-idf/main/`
+
+### [`ports/esp32-idf/main/app_shell.c`](architecture/ports.esp32-idf.main/app_shell.c.md)
+
+ESP32-IDF console shell for the standalone Aliro UWB responder bench app: registers status, range, aliro-start/stop, provisioning, trust, and clear commands and runs the linenoise-based REPL.
+
+**depends on** [`ports/esp32-idf/main/app_shell.h`](architecture/ports.esp32-idf.main/app_shell.h.md)
+
+### [`ports/esp32-idf/main/main.c`](architecture/ports.esp32-idf.main/main.c.md)
+
+Woz UWB ranging engine on ESP32-S3 (ESP-IDF) — minimal bring-up app.
+Binds a canned URSK and starts the CCC DS-TWR responder on the DW3000, then
+polls for a range. With no iPhone/initiator present this proves the SPI +
+DW3000 + CCC init path comes up on ESP32-S3; a live range needs a peer that
+drives the DS-TWR exchange (an Aliro Wallet, or a second board as initiator).
+The demo responder lifecycle + interactive console live in app_shell.c.
+Ported from ports/esp32s3/sample/src/main.c (the Zephyr scaffold).
+
+**depends on** [`ports/esp32-idf/main/app_shell.h`](architecture/ports.esp32-idf.main/app_shell.h.md)
+
+### [`ports/esp32-idf/main/app_shell.h`](architecture/ports.esp32-idf.main/app_shell.h.md)
+
+*No module docstring. First commit: "add(esp32): interactive esp_console shell (status/range/aliro-start/stop)".*
+
+**used by** [`ports/esp32-idf/main/app_shell.c`](architecture/ports.esp32-idf.main/app_shell.c.md), [`ports/esp32-idf/main/main.c`](architecture/ports.esp32-idf.main/main.c.md)
+
+## `ports/esp32-matter/main/lock/`
+
+### [`ports/esp32-matter/main/lock/aliro_reader_delegate.cpp`](architecture/ports.esp32-matter.main.lock/aliro_reader_delegate.cpp.md)
+
+AliroReaderDelegate: implements the Aliro reader-provisioning and BLE-UWB portions of the Matter
+DoorLock::Delegate interface, backing the controller-facing GetAliro*/SetAliroReaderConfig
+commands and persisting the provisioned reader identity via aliro_reader_provision_identity.
+Bridges Matter cluster commands to the underlying aliro_reader NVS-backed identity/trust store
+and to the BLE advertising layer (refreshed when the group resolving key changes).
+
+**depends on** [`ports/esp32-matter/main/lock/aliro_reader_delegate.h`](architecture/ports.esp32-matter.main.lock/aliro_reader_delegate.h.md)
+
+### [`ports/esp32-matter/main/lock/door_lock_callbacks.cpp`](architecture/ports.esp32-matter.main.lock/door_lock_callbacks.cpp.md)
+
+Matter DoorLock cluster plugin callbacks: wires the ESP32 port's BoltLockManager into the
+Matter DoorLock cluster's lock/unlock commands, user and credential storage, schedule
+storage, cluster init, and auto-relock notification hooks.
+
+**depends on** [`ports/esp32-matter/main/lock/door_lock_manager.h`](architecture/ports.esp32-matter.main.lock/door_lock_manager.h.md)
+
+### [`ports/esp32-matter/main/lock/door_lock_manager.cpp`](architecture/ports.esp32-matter.main.lock/door_lock_manager.cpp.md)
+
+BoltLockManager: Matter door lock cluster backing store for the ESP32 port. Implements the DoorLock cluster's user, credential, and weekday/yearday/holiday schedule get/set callbacks over fixed-size in-memory tables mirrored to NVM (ESP32Config blobs), plus lock/unlock actuation and PIN validation. Cluster indices are one-indexed by Matter and decremented internally before bounds-checking against this platform's fixed capacity limits.
+
+**depends on** [`ports/esp32-matter/main/lock/door_lock_manager.h`](architecture/ports.esp32-matter.main.lock/door_lock_manager.h.md)
+
+### [`ports/esp32-matter/main/lock/aliro_reader_delegate.h`](architecture/ports.esp32-matter.main.lock/aliro_reader_delegate.h.md)
+
+Declares AliroReaderDelegate, the Aliro (Apple Home Key) reader-provisioning and BLE-UWB half of
+the Matter DoorLock cluster delegate, bridging controller commands to the on-device reader
+identity, trust store, and BLE advertising state.
+
+**used by** [`ports/esp32-matter/main/app_main.cpp`](architecture/ports.esp32-matter.main/app_main.cpp.md), [`ports/esp32-matter/main/lock/aliro_reader_delegate.cpp`](architecture/ports.esp32-matter.main.lock/aliro_reader_delegate.cpp.md)
+
+### [`ports/esp32-matter/main/lock/door_lock_manager.h`](architecture/ports.esp32-matter.main.lock/door_lock_manager.h.md)
+
+Door lock manager for the Matter DoorLock cluster: owns bolt lock state plus the users,
+credentials, and weekday/yearday/holiday schedules backing the cluster's server attributes.
+Declares BoltLockManager (accessed via the BoltLockMgr() singleton) and the
+LockInitParams::LockParam/ParamBuilder types used to configure it from zap-derived capacity
+attributes at init time.
+
+**used by** [`ports/esp32-matter/main/app_main.cpp`](architecture/ports.esp32-matter.main/app_main.cpp.md), [`ports/esp32-matter/main/app_shell.cpp`](architecture/ports.esp32-matter.main/app_shell.cpp.md), [`ports/esp32-matter/main/lock/door_lock_callbacks.cpp`](architecture/ports.esp32-matter.main.lock/door_lock_callbacks.cpp.md), [`ports/esp32-matter/main/lock/door_lock_manager.cpp`](architecture/ports.esp32-matter.main.lock/door_lock_manager.cpp.md)
+
 ## `modules/woz_uwb/src/aliro/include/aliro_uwb_adapter/`
 
 ### [`modules/woz_uwb/src/aliro/include/aliro_uwb_adapter/aliro_uwb_adapter.h`](architecture/modules.woz_uwb.src.aliro.include.aliro_uwb_adapter/aliro_uwb_adapter.h.md)
 
 @file aliro_uwb_adapter.h — reader-device public interface.
 
-**depends on** [`modules/woz_uwb/src/aliro/include/cherry/cherry.h`](architecture/modules.woz_uwb.src.aliro.include.cherry/cherry.h.md), [`modules/woz_uwb/src/aliro/include/cherry/cherry_ccc.h`](architecture/modules.woz_uwb.src.aliro.include.cherry/cherry_ccc.h.md)  ·  **used by** [`modules/woz_uwb/src/aliro/aliro_uwb_adapter.c`](architecture/modules.woz_uwb.src.aliro/aliro_uwb_adapter.c.md), [`modules/woz_uwb/src/aliro/aliro_uwb_internal.h`](architecture/modules.woz_uwb.src.aliro/aliro_uwb_internal.h.md), [`modules/woz_uwb/src/aliro/aliro_uwb_msg.c`](architecture/modules.woz_uwb.src.aliro/aliro_uwb_msg.c.md), [`ports/esp32-idf/components/aliro_reader/aliro_ranging.c`](architecture/ports.esp32-idf.components.aliro_reader/aliro_ranging.c.md)
+**depends on** [`modules/woz_uwb/src/aliro/include/cherry/cherry.h`](architecture/modules.woz_uwb.src.aliro.include.cherry/cherry.h.md), [`modules/woz_uwb/src/aliro/include/cherry/cherry_ccc.h`](architecture/modules.woz_uwb.src.aliro.include.cherry/cherry_ccc.h.md)  ·  **used by** [`modules/woz_aliro/src/aliro_ranging.c`](architecture/modules.woz_aliro.src/aliro_ranging.c.md), [`modules/woz_uwb/src/aliro/aliro_uwb_adapter.c`](architecture/modules.woz_uwb.src.aliro/aliro_uwb_adapter.c.md), [`modules/woz_uwb/src/aliro/aliro_uwb_internal.h`](architecture/modules.woz_uwb.src.aliro/aliro_uwb_internal.h.md), [`modules/woz_uwb/src/aliro/aliro_uwb_msg.c`](architecture/modules.woz_uwb.src.aliro/aliro_uwb_msg.c.md)
 
 ### [`modules/woz_uwb/src/aliro/include/aliro_uwb_adapter/aliro_uwb_session.h`](architecture/modules.woz_uwb.src.aliro.include.aliro_uwb_adapter/aliro_uwb_session.h.md)
 
 @file aliro_uwb_session.h — per-session public interface.
 
-**depends on** [`modules/woz_uwb/src/aliro/include/cherry/cherry.h`](architecture/modules.woz_uwb.src.aliro.include.cherry/cherry.h.md), [`modules/woz_uwb/src/aliro/include/cherry/cherry_ccc.h`](architecture/modules.woz_uwb.src.aliro.include.cherry/cherry_ccc.h.md)  ·  **used by** [`modules/woz_uwb/src/aliro/aliro_uwb_internal.h`](architecture/modules.woz_uwb.src.aliro/aliro_uwb_internal.h.md), [`modules/woz_uwb/src/aliro/aliro_uwb_msg.h`](architecture/modules.woz_uwb.src.aliro/aliro_uwb_msg.h.md), [`modules/woz_uwb/src/aliro/aliro_uwb_msg_builder.h`](architecture/modules.woz_uwb.src.aliro/aliro_uwb_msg_builder.h.md), [`modules/woz_uwb/src/aliro/aliro_uwb_msg_parser.h`](architecture/modules.woz_uwb.src.aliro/aliro_uwb_msg_parser.h.md), [`modules/woz_uwb/src/aliro/aliro_uwb_session.c`](architecture/modules.woz_uwb.src.aliro/aliro_uwb_session.c.md), [`ports/esp32-idf/components/aliro_reader/aliro_ranging.c`](architecture/ports.esp32-idf.components.aliro_reader/aliro_ranging.c.md)
+**depends on** [`modules/woz_uwb/src/aliro/include/cherry/cherry.h`](architecture/modules.woz_uwb.src.aliro.include.cherry/cherry.h.md), [`modules/woz_uwb/src/aliro/include/cherry/cherry_ccc.h`](architecture/modules.woz_uwb.src.aliro.include.cherry/cherry_ccc.h.md)  ·  **used by** [`modules/woz_aliro/src/aliro_ranging.c`](architecture/modules.woz_aliro.src/aliro_ranging.c.md), [`modules/woz_uwb/src/aliro/aliro_uwb_internal.h`](architecture/modules.woz_uwb.src.aliro/aliro_uwb_internal.h.md), [`modules/woz_uwb/src/aliro/aliro_uwb_msg.h`](architecture/modules.woz_uwb.src.aliro/aliro_uwb_msg.h.md), [`modules/woz_uwb/src/aliro/aliro_uwb_msg_builder.h`](architecture/modules.woz_uwb.src.aliro/aliro_uwb_msg_builder.h.md), [`modules/woz_uwb/src/aliro/aliro_uwb_msg_parser.h`](architecture/modules.woz_uwb.src.aliro/aliro_uwb_msg_parser.h.md), [`modules/woz_uwb/src/aliro/aliro_uwb_session.c`](architecture/modules.woz_uwb.src.aliro/aliro_uwb_session.c.md)
 
 ## `ports/esp32-idf/components/woz_uwb/compat/zephyr/logging/`
 
@@ -699,7 +661,7 @@ Also keeps the dwt_configurestsmode pass-through the essential RX path needs.
 ESP-IDF compat for <zephyr/logging/log.h> — Zephyr LOG_* mapped onto esp_log.
 Each module's LOG_MODULE_REGISTER/DECLARE(name, ...) fixes a per-file TAG.
 
-**used by** [`modules/woz_aliro_ecp/src/nfc_prop_ecp.cpp`](architecture/modules.woz_aliro_ecp.src/nfc_prop_ecp.cpp.md), [`modules/woz_uwb/src/aliro/aliro_uwb_adapter.c`](architecture/modules.woz_uwb.src.aliro/aliro_uwb_adapter.c.md), [`modules/woz_uwb/src/aliro/aliro_uwb_msg.c`](architecture/modules.woz_uwb.src.aliro/aliro_uwb_msg.c.md), [`modules/woz_uwb/src/aliro/aliro_uwb_msg_parser.c`](architecture/modules.woz_uwb.src.aliro/aliro_uwb_msg_parser.c.md), [`modules/woz_uwb/src/aliro/aliro_uwb_session.c`](architecture/modules.woz_uwb.src.aliro/aliro_uwb_session.c.md), [`modules/woz_uwb/src/ccc/ccc_shim_rx.c`](architecture/modules.woz_uwb.src.ccc/ccc_shim_rx.c.md), [`modules/woz_uwb/src/ccc/ccc_shim_wrap.c`](architecture/modules.woz_uwb.src.ccc/ccc_shim_wrap.c.md), [`modules/woz_uwb/src/ccc/cherry_ccc_shim.c`](architecture/modules.woz_uwb.src.ccc/cherry_ccc_shim.c.md), [`modules/woz_uwb/src/driver/uwb_isr.c`](architecture/modules.woz_uwb.src.driver/uwb_isr.c.md), [`modules/woz_uwb/src/driver/uwb_min.c`](architecture/modules.woz_uwb.src.driver/uwb_min.c.md), [`modules/woz_uwb/src/driver/uwb_rxdiag.c`](architecture/modules.woz_uwb.src.driver/uwb_rxdiag.c.md), [`modules/woz_uwb/src/driver/uwb_selftest.c`](architecture/modules.woz_uwb.src.driver/uwb_selftest.c.md), [`modules/woz_uwb/src/facade/trace.h`](architecture/modules.woz_uwb.src.facade/trace.h.md), [`modules/woz_uwb/src/facade/woz_logfmt.c`](architecture/modules.woz_uwb.src.facade/woz_logfmt.c.md), [`modules/woz_uwb/src/facade/woz_logquiet.c`](architecture/modules.woz_uwb.src.facade/woz_logquiet.c.md), [`ports/esp32s3/sample/src/main.c`](architecture/ports.esp32s3.sample.src/main.c.md)
+**used by** [`modules/woz_aliro/src/aliro_ranging.c`](architecture/modules.woz_aliro.src/aliro_ranging.c.md), [`modules/woz_aliro/src/aliro_reader.c`](architecture/modules.woz_aliro.src/aliro_reader.c.md), [`modules/woz_aliro_ecp/src/nfc_prop_ecp.cpp`](architecture/modules.woz_aliro_ecp.src/nfc_prop_ecp.cpp.md), [`modules/woz_uwb/src/aliro/aliro_uwb_adapter.c`](architecture/modules.woz_uwb.src.aliro/aliro_uwb_adapter.c.md), [`modules/woz_uwb/src/aliro/aliro_uwb_msg.c`](architecture/modules.woz_uwb.src.aliro/aliro_uwb_msg.c.md), [`modules/woz_uwb/src/aliro/aliro_uwb_msg_parser.c`](architecture/modules.woz_uwb.src.aliro/aliro_uwb_msg_parser.c.md), [`modules/woz_uwb/src/aliro/aliro_uwb_session.c`](architecture/modules.woz_uwb.src.aliro/aliro_uwb_session.c.md), [`modules/woz_uwb/src/ccc/ccc_shim_rx.c`](architecture/modules.woz_uwb.src.ccc/ccc_shim_rx.c.md), [`modules/woz_uwb/src/ccc/ccc_shim_wrap.c`](architecture/modules.woz_uwb.src.ccc/ccc_shim_wrap.c.md), [`modules/woz_uwb/src/ccc/cherry_ccc_shim.c`](architecture/modules.woz_uwb.src.ccc/cherry_ccc_shim.c.md), [`modules/woz_uwb/src/driver/uwb_isr.c`](architecture/modules.woz_uwb.src.driver/uwb_isr.c.md), [`modules/woz_uwb/src/driver/uwb_min.c`](architecture/modules.woz_uwb.src.driver/uwb_min.c.md), [`modules/woz_uwb/src/driver/uwb_rxdiag.c`](architecture/modules.woz_uwb.src.driver/uwb_rxdiag.c.md), [`modules/woz_uwb/src/driver/uwb_selftest.c`](architecture/modules.woz_uwb.src.driver/uwb_selftest.c.md), [`modules/woz_uwb/src/facade/trace.h`](architecture/modules.woz_uwb.src.facade/trace.h.md), [`modules/woz_uwb/src/facade/woz_logfmt.c`](architecture/modules.woz_uwb.src.facade/woz_logfmt.c.md), [`modules/woz_uwb/src/facade/woz_logquiet.c`](architecture/modules.woz_uwb.src.facade/woz_logquiet.c.md), [`ports/esp32s3/sample/src/main.c`](architecture/ports.esp32s3.sample.src/main.c.md)
 
 ## `ports/esp32-idf/components/woz_uwb/compat/zephyr/sys/`
 
@@ -732,13 +694,13 @@ ESP-IDF compat for <zephyr/sys/printk.h> — map printk/snprintk onto stdio.
 
 @file cherry_ccc.h — CCC/Aliro-session interface (seam the adapter drives).
 
-**depends on** [`modules/woz_uwb/src/aliro/include/cherry/cherry.h`](architecture/modules.woz_uwb.src.aliro.include.cherry/cherry.h.md), [`modules/woz_uwb/src/aliro/include/cherry/cherry_common.h`](architecture/modules.woz_uwb.src.aliro.include.cherry/cherry_common.h.md), [`modules/woz_uwb/src/aliro/include/cherry/cherry_session.h`](architecture/modules.woz_uwb.src.aliro.include.cherry/cherry_session.h.md)  ·  **used by** [`modules/woz_uwb/src/aliro/aliro_uwb_adapter.c`](architecture/modules.woz_uwb.src.aliro/aliro_uwb_adapter.c.md), [`modules/woz_uwb/src/aliro/aliro_uwb_internal.h`](architecture/modules.woz_uwb.src.aliro/aliro_uwb_internal.h.md), [`modules/woz_uwb/src/aliro/aliro_uwb_session.c`](architecture/modules.woz_uwb.src.aliro/aliro_uwb_session.c.md), [`modules/woz_uwb/src/aliro/include/aliro_uwb_adapter/aliro_uwb_adapter.h`](architecture/modules.woz_uwb.src.aliro.include.aliro_uwb_adapter/aliro_uwb_adapter.h.md), [`modules/woz_uwb/src/aliro/include/aliro_uwb_adapter/aliro_uwb_session.h`](architecture/modules.woz_uwb.src.aliro.include.aliro_uwb_adapter/aliro_uwb_session.h.md), [`modules/woz_uwb/src/ccc/cherry_ccc_shim.c`](architecture/modules.woz_uwb.src.ccc/cherry_ccc_shim.c.md), [`ports/esp32-idf/components/aliro_reader/aliro_ranging.c`](architecture/ports.esp32-idf.components.aliro_reader/aliro_ranging.c.md)
+**depends on** [`modules/woz_uwb/src/aliro/include/cherry/cherry.h`](architecture/modules.woz_uwb.src.aliro.include.cherry/cherry.h.md), [`modules/woz_uwb/src/aliro/include/cherry/cherry_common.h`](architecture/modules.woz_uwb.src.aliro.include.cherry/cherry_common.h.md), [`modules/woz_uwb/src/aliro/include/cherry/cherry_session.h`](architecture/modules.woz_uwb.src.aliro.include.cherry/cherry_session.h.md)  ·  **used by** [`modules/woz_aliro/src/aliro_ranging.c`](architecture/modules.woz_aliro.src/aliro_ranging.c.md), [`modules/woz_uwb/src/aliro/aliro_uwb_adapter.c`](architecture/modules.woz_uwb.src.aliro/aliro_uwb_adapter.c.md), [`modules/woz_uwb/src/aliro/aliro_uwb_internal.h`](architecture/modules.woz_uwb.src.aliro/aliro_uwb_internal.h.md), [`modules/woz_uwb/src/aliro/aliro_uwb_session.c`](architecture/modules.woz_uwb.src.aliro/aliro_uwb_session.c.md), [`modules/woz_uwb/src/aliro/include/aliro_uwb_adapter/aliro_uwb_adapter.h`](architecture/modules.woz_uwb.src.aliro.include.aliro_uwb_adapter/aliro_uwb_adapter.h.md), [`modules/woz_uwb/src/aliro/include/aliro_uwb_adapter/aliro_uwb_session.h`](architecture/modules.woz_uwb.src.aliro.include.aliro_uwb_adapter/aliro_uwb_session.h.md), [`modules/woz_uwb/src/ccc/cherry_ccc_shim.c`](architecture/modules.woz_uwb.src.ccc/cherry_ccc_shim.c.md)
 
 ### [`modules/woz_uwb/src/aliro/include/cherry/cherry.h`](architecture/modules.woz_uwb.src.aliro.include.cherry/cherry.h.md)
 
 @file cherry.h — Cherry core (context + device-capabilities) interface.
 
-**depends on** [`modules/woz_uwb/src/aliro/include/cherry/cherry_common.h`](architecture/modules.woz_uwb.src.aliro.include.cherry/cherry_common.h.md)  ·  **used by** [`modules/woz_uwb/src/aliro/aliro_uwb_internal.h`](architecture/modules.woz_uwb.src.aliro/aliro_uwb_internal.h.md), [`modules/woz_uwb/src/aliro/include/aliro_uwb_adapter/aliro_uwb_adapter.h`](architecture/modules.woz_uwb.src.aliro.include.aliro_uwb_adapter/aliro_uwb_adapter.h.md), [`modules/woz_uwb/src/aliro/include/aliro_uwb_adapter/aliro_uwb_session.h`](architecture/modules.woz_uwb.src.aliro.include.aliro_uwb_adapter/aliro_uwb_session.h.md), [`modules/woz_uwb/src/aliro/include/cherry/cherry_ccc.h`](architecture/modules.woz_uwb.src.aliro.include.cherry/cherry_ccc.h.md), [`modules/woz_uwb/src/aliro/include/cherry/cherry_session.h`](architecture/modules.woz_uwb.src.aliro.include.cherry/cherry_session.h.md), [`modules/woz_uwb/src/ccc/cherry_ccc_shim.c`](architecture/modules.woz_uwb.src.ccc/cherry_ccc_shim.c.md), [`ports/esp32-idf/components/aliro_reader/aliro_ranging.c`](architecture/ports.esp32-idf.components.aliro_reader/aliro_ranging.c.md)
+**depends on** [`modules/woz_uwb/src/aliro/include/cherry/cherry_common.h`](architecture/modules.woz_uwb.src.aliro.include.cherry/cherry_common.h.md)  ·  **used by** [`modules/woz_aliro/src/aliro_ranging.c`](architecture/modules.woz_aliro.src/aliro_ranging.c.md), [`modules/woz_uwb/src/aliro/aliro_uwb_internal.h`](architecture/modules.woz_uwb.src.aliro/aliro_uwb_internal.h.md), [`modules/woz_uwb/src/aliro/include/aliro_uwb_adapter/aliro_uwb_adapter.h`](architecture/modules.woz_uwb.src.aliro.include.aliro_uwb_adapter/aliro_uwb_adapter.h.md), [`modules/woz_uwb/src/aliro/include/aliro_uwb_adapter/aliro_uwb_session.h`](architecture/modules.woz_uwb.src.aliro.include.aliro_uwb_adapter/aliro_uwb_session.h.md), [`modules/woz_uwb/src/aliro/include/cherry/cherry_ccc.h`](architecture/modules.woz_uwb.src.aliro.include.cherry/cherry_ccc.h.md), [`modules/woz_uwb/src/aliro/include/cherry/cherry_session.h`](architecture/modules.woz_uwb.src.aliro.include.cherry/cherry_session.h.md), [`modules/woz_uwb/src/ccc/cherry_ccc_shim.c`](architecture/modules.woz_uwb.src.ccc/cherry_ccc_shim.c.md)
 
 ### [`modules/woz_uwb/src/aliro/include/cherry/cherry_session.h`](architecture/modules.woz_uwb.src.aliro.include.cherry/cherry_session.h.md)
 
@@ -762,42 +724,44 @@ of tests/host/shim/zephyr/kernel.h (which is libc-backed for host tests).
 Additive: the shared engine .c files compile unmodified because this resolves
 first on the include path. See ports/esp32-idf/README.md.
 
-**used by** [`modules/woz_uwb/src/ccc/ccc_shim_rx.c`](architecture/modules.woz_uwb.src.ccc/ccc_shim_rx.c.md), [`modules/woz_uwb/src/driver/uwb_isr.c`](architecture/modules.woz_uwb.src.driver/uwb_isr.c.md), [`modules/woz_uwb/src/driver/uwb_min.c`](architecture/modules.woz_uwb.src.driver/uwb_min.c.md), [`modules/woz_uwb/src/driver/uwb_rxdiag.c`](architecture/modules.woz_uwb.src.driver/uwb_rxdiag.c.md), [`modules/woz_uwb/src/driver/uwb_selftest.c`](architecture/modules.woz_uwb.src.driver/uwb_selftest.c.md), [`modules/woz_uwb/src/facade/woz_alloc.h`](architecture/modules.woz_uwb.src.facade/woz_alloc.h.md), [`modules/woz_uwb/src/facade/woz_logfmt.c`](architecture/modules.woz_uwb.src.facade/woz_logfmt.c.md), [`modules/woz_uwb/src/fira/fira_session.c`](architecture/modules.woz_uwb.src.fira/fira_session.c.md), [`modules/woz_uwb/src/shell/aliro_shell.c`](architecture/modules.woz_uwb.src.shell/aliro_shell.c.md), [`ports/esp32s3/sample/src/main.c`](architecture/ports.esp32s3.sample.src/main.c.md)
+**used by** [`modules/woz_aliro/src/aliro_reader.c`](architecture/modules.woz_aliro.src/aliro_reader.c.md), [`modules/woz_uwb/src/ccc/ccc_shim_rx.c`](architecture/modules.woz_uwb.src.ccc/ccc_shim_rx.c.md), [`modules/woz_uwb/src/driver/uwb_isr.c`](architecture/modules.woz_uwb.src.driver/uwb_isr.c.md), [`modules/woz_uwb/src/driver/uwb_min.c`](architecture/modules.woz_uwb.src.driver/uwb_min.c.md), [`modules/woz_uwb/src/driver/uwb_rxdiag.c`](architecture/modules.woz_uwb.src.driver/uwb_rxdiag.c.md), [`modules/woz_uwb/src/driver/uwb_selftest.c`](architecture/modules.woz_uwb.src.driver/uwb_selftest.c.md), [`modules/woz_uwb/src/facade/woz_alloc.h`](architecture/modules.woz_uwb.src.facade/woz_alloc.h.md), [`modules/woz_uwb/src/facade/woz_logfmt.c`](architecture/modules.woz_uwb.src.facade/woz_logfmt.c.md), [`modules/woz_uwb/src/fira/fira_session.c`](architecture/modules.woz_uwb.src.fira/fira_session.c.md), [`modules/woz_uwb/src/shell/aliro_shell.c`](architecture/modules.woz_uwb.src.shell/aliro_shell.c.md), [`ports/esp32s3/sample/src/main.c`](architecture/ports.esp32s3.sample.src/main.c.md)
 
-## `ports/esp32-idf/components/aliro_ble/include/`
+## `modules/woz_aliro/include/`
 
-### [`ports/esp32-idf/components/aliro_ble/include/aliro_ble.h`](architecture/ports.esp32-idf.components.aliro_ble.include/aliro_ble.h.md)
+### [`modules/woz_aliro/include/aliro_ble.h`](architecture/modules.woz_aliro.include/aliro_ble.h.md)
 
 Aliro BLE-UWB reader transport: GATT service definition, advertised feature flags, and transport
-callbacks connecting the BLE peripheral role to the Phase-3 Aliro protocol handler.
+callbacks connecting the BLE peripheral role to the Aliro protocol handler in aliro_reader.
 Callers configure the transport via aliro_ble_prepare (which builds the READ characteristic
 payload without touching NimBLE), then register the GATT service returned by
 aliro_ble_service_def with the host's combined service table.
 
-**used by** [`ports/esp32-idf/components/aliro_ble/aliro_ble.c`](architecture/ports.esp32-idf.components.aliro_ble/aliro_ble.c.md), [`ports/esp32-idf/components/aliro_reader/aliro_ranging.c`](architecture/ports.esp32-idf.components.aliro_reader/aliro_ranging.c.md), [`ports/esp32-idf/components/aliro_reader/aliro_reader.c`](architecture/ports.esp32-idf.components.aliro_reader/aliro_reader.c.md)
+**used by** [`modules/woz_aliro/src/aliro_ranging.c`](architecture/modules.woz_aliro.src/aliro_ranging.c.md), [`modules/woz_aliro/src/aliro_reader.c`](architecture/modules.woz_aliro.src/aliro_reader.c.md)
 
-## `ports/esp32-idf/components/aliro_crypto/include/`
-
-### [`ports/esp32-idf/components/aliro_crypto/include/aliro_crypto.h`](architecture/ports.esp32-idf.components.aliro_crypto.include/aliro_crypto.h.md)
+### [`modules/woz_aliro/include/aliro_crypto.h`](architecture/modules.woz_aliro.include/aliro_crypto.h.md)
 
 Aliro crypto public API: key derivation, AES-GCM secure channels, and wire message
 seal/open framing shared by the reader and device sides of an Aliro session.
 
-**used by** [`ports/esp32-idf/components/aliro_crypto/src/aliro_crypto.c`](architecture/ports.esp32-idf.components.aliro_crypto.src/aliro_crypto.c.md), [`ports/esp32-idf/components/aliro_reader/aliro_ranging.c`](architecture/ports.esp32-idf.components.aliro_reader/aliro_ranging.c.md), [`ports/esp32-idf/components/aliro_reader/aliro_reader.c`](architecture/ports.esp32-idf.components.aliro_reader/aliro_reader.c.md)
+**used by** [`modules/woz_aliro/src/aliro_crypto.c`](architecture/modules.woz_aliro.src/aliro_crypto.c.md), [`modules/woz_aliro/src/aliro_ranging.c`](architecture/modules.woz_aliro.src/aliro_ranging.c.md), [`modules/woz_aliro/src/aliro_reader.c`](architecture/modules.woz_aliro.src/aliro_reader.c.md)
 
-### [`ports/esp32-idf/components/aliro_crypto/include/aliro_prim.h`](architecture/ports.esp32-idf.components.aliro_crypto.include/aliro_prim.h.md)
+### [`modules/woz_aliro/include/aliro_prim.h`](architecture/modules.woz_aliro.include/aliro_prim.h.md)
 
-*No module docstring. First commit: "add(esp32): Phase 3.2/3.3 Aliro auth transaction + URSK->UWB handoff".*
+**used by** [`modules/woz_aliro/src/aliro_crypto.c`](architecture/modules.woz_aliro.src/aliro_crypto.c.md), [`modules/woz_aliro/src/aliro_prim_psa.c`](architecture/modules.woz_aliro.src/aliro_prim_psa.c.md), [`modules/woz_aliro/src/aliro_reader.c`](architecture/modules.woz_aliro.src/aliro_reader.c.md)
 
-**used by** [`ports/esp32-idf/components/aliro_crypto/src/aliro_crypto.c`](architecture/ports.esp32-idf.components.aliro_crypto.src/aliro_crypto.c.md), [`ports/esp32-idf/components/aliro_crypto/src/aliro_prim_psa.c`](architecture/ports.esp32-idf.components.aliro_crypto.src/aliro_prim_psa.c.md), [`ports/esp32-idf/components/aliro_reader/aliro_reader.c`](architecture/ports.esp32-idf.components.aliro_reader/aliro_reader.c.md)
+### [`modules/woz_aliro/include/aliro_prov.h`](architecture/modules.woz_aliro.include/aliro_prov.h.md)
 
-## `ports/esp32-idf/components/aliro_reader/include/`
+Persistent reader provisioning storage: identity and credential trust anchors saved to and
+loaded from NVS.
+Declares aliro_prov_store for committing an identity/trust pair to NVS, and struct
+aliro_trust_store, the set of trusted credential public keys against which a presented
+credential is authenticated.
 
-### [`ports/esp32-idf/components/aliro_reader/include/aliro_reader.h`](architecture/ports.esp32-idf.components.aliro_reader.include/aliro_reader.h.md)
+**used by** [`modules/woz_aliro/src/aliro_prov.c`](architecture/modules.woz_aliro.src/aliro_prov.c.md), [`modules/woz_aliro/src/aliro_reader.c`](architecture/modules.woz_aliro.src/aliro_reader.c.md)
 
-*No module docstring. First commit: "add(esp32): Phase 2.3 Aliro reader session/transaction layer".*
+### [`modules/woz_aliro/include/aliro_reader.h`](architecture/modules.woz_aliro.include/aliro_reader.h.md)
 
-**used by** [`ports/esp32-idf/components/aliro_reader/aliro_reader.c`](architecture/ports.esp32-idf.components.aliro_reader/aliro_reader.c.md), [`ports/esp32-idf/main/app_shell.c`](architecture/ports.esp32-idf.main/app_shell.c.md), [`ports/esp32-idf/main/main.c`](architecture/ports.esp32-idf.main/main.c.md), [`ports/esp32-matter/main/app_main.cpp`](architecture/ports.esp32-matter.main/app_main.cpp.md), [`ports/esp32-matter/main/app_shell.cpp`](architecture/ports.esp32-matter.main/app_shell.cpp.md), [`ports/esp32-matter/main/lock/aliro_reader_delegate.cpp`](architecture/ports.esp32-matter.main.lock/aliro_reader_delegate.cpp.md), [`ports/esp32-matter/main/lock/door_lock_callbacks.cpp`](architecture/ports.esp32-matter.main.lock/door_lock_callbacks.cpp.md)
+**used by** [`modules/woz_aliro/src/aliro_reader.c`](architecture/modules.woz_aliro.src/aliro_reader.c.md)
 
 ## `./`
 
@@ -843,3 +807,23 @@ Cheap because it uses an APFS copy-on-write clone (cp -c): the clone shares
 every block with the primary and costs ~0 extra disk until a patched file
 diverges. Cleanup is automatic — the workspace lives inside the worktree, so
 deleting the worktree deletes it (see `make ws-clean`).
+
+## `ports/esp32-idf/components/aliro_ble/`
+
+### [`ports/esp32-idf/components/aliro_ble/aliro_ble.c`](architecture/ports.esp32-idf.components.aliro_ble/aliro_ble.c.md)
+
+NimBLE-backed BLE transport for the Aliro reader: GAP advertising, the Aliro GATT service,
+and an L2CAP connection-oriented channel (CoC) used to carry Aliro protocol messages.
+Supports two bring-up modes: a standalone NimBLE host (aliro_ble_start) and attachment to a
+host already owned and synced by another stack such as esp-matter (aliro_ble_prepare +
+aliro_ble_start_attached). Tracks CoC channels per connection handle in a fixed-size table
+and exposes send/receive plus reader-status notification helpers to the rest of the Aliro
+reader.
+
+## `ports/esp32-idf/components/aliro_reader/`
+
+### [`ports/esp32-idf/components/aliro_reader/aliro_prov_nvs.c`](architecture/ports.esp32-idf.components.aliro_reader/aliro_prov_nvs.c.md)
+
+NVS-backed persistence for Aliro reader provisioning: loads and stores the serialized reader
+identity and trust store built by aliro_prov.c.
+Lazily initializes NVS on first use; safe to call alongside aliro_ble's own nvs_flash_init.

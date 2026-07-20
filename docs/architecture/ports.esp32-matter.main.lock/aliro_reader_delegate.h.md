@@ -10,7 +10,7 @@ identity, trust store, and BLE advertising state.
 ## API
 
 ### `class AliroReaderDelegate: public chip::app::Clusters::DoorLock::Delegate`
-`ports/esp32-matter/main/lock/aliro_reader_delegate.h:51`
+`ports/esp32-matter/main/lock/aliro_reader_delegate.h:50`
 
 AliroReaderDelegate — the Aliro (Apple Home Key) reader-provisioning half of
 the Door Lock cluster Delegate, for a BLE + UWB ("Express") reader.
@@ -26,8 +26,7 @@ emberAfPluginDoorLockSet/GetCredential path and are stored by BoltLockManager
 this class implements only the reader-config attributes plus the
 "number of keys supported" getters the server consults to validate those
 credential writes.
-State is in-memory only: Apple provisions the reader within one setup session,
-so a read-back within that session sees the values written. Persisting the
-provisioned identity across reboot (so a Wallet key stays valid, and the UWB
-reader can start after a power cycle) is wired into aliro_prov when the reader
-components are merged in.
+The provisioned identity is persisted, not in-memory only: SetAliroReaderConfig
+hands it to aliro_reader_provision_identity, which stores it through aliro_prov
+in NVS and refreshes advertising. That is what keeps a Wallet key valid and lets
+the UWB reader start after a power cycle.

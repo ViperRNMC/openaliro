@@ -3,7 +3,7 @@
 
 ESP32-IDF console shell for the Aliro Matter door lock app: registers status, range, aliro, lock/unlock, codes, factoryreset, and clear commands and runs the REPL.
 
-**depends on** [`ports/esp32-idf/components/aliro_reader/include/aliro_reader.h`](../ports.esp32-idf.components.aliro_reader.include/aliro_reader.h.md), [`ports/esp32-matter/main/app_shell.h`](app_shell.h.md), [`ports/esp32-matter/main/lock/door_lock_manager.h`](../ports.esp32-matter.main.lock/door_lock_manager.h.md)
+**depends on** [`ports/esp32-matter/main/app_shell.h`](app_shell.h.md), [`ports/esp32-matter/main/lock/door_lock_manager.h`](../ports.esp32-matter.main.lock/door_lock_manager.h.md)
 
 ```mermaid
 flowchart TD

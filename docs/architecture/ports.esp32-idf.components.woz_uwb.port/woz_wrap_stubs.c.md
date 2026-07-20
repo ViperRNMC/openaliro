@@ -14,7 +14,7 @@ g_warm_valid stays false, and the responder receives Pre-POLLs but never
 replies.  Re-create only the essential chain here (no k_work, no diagnostics).
 Also keeps the dwt_configurestsmode pass-through the essential RX path needs.
 
-**discussed in** [`ports/esp32-idf/README.md`](../../../ports/esp32-idf/README.md)
+**discussed in** [`ports/esp32-idf/README.md`](../../../ports/esp32-idf/README.md), [`ports/esp32-idf/components/woz_uwb/README.md`](../../../ports/esp32-idf/components/woz_uwb/README.md)
 
 ## API
 

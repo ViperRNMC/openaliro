@@ -94,7 +94,7 @@ silicon against a live phone.
   BLE from NFC. See the gotchas log §4.3. The AUTH1 tag does not decrypt until the salt
   is byte-exact, so a green AUTH1 is the proof.
 - **3.2 — the wire codec.** `aliro_apdu`
-  (`ports/esp32-idf/components/aliro_reader/aliro_apdu.{c,h}`): single-byte-tag
+  (`modules/woz_aliro/src/aliro_apdu.{c,h}`): single-byte-tag
   BER-TLV plus the AUTH0/AUTH1 command builders, the ECDSA authentication-data
   transcript (the exact signed bytes, with the reader/device usage domain
   separators), the AUTH0/AUTH1 response parsers, the EXCHANGE command + the
@@ -108,7 +108,8 @@ silicon against a live phone.
   (`woz_uwb_start_aliro`). 3.5 replaces that canned hand-off with the real M1-M4
   negotiation, so the params are now negotiated with the peer rather than fixed.
 - **3.4 — the provisioning seam.** The provisioning seam
-  (`ports/esp32-idf/components/aliro_reader/aliro_prov.{c,h}` + `aliro_prov_nvs.c`):
+  (`modules/woz_aliro/src/aliro_prov.c` + `modules/woz_aliro/include/aliro_prov.h`,
+  with the storage backend in `ports/esp32-idf/components/aliro_reader/aliro_prov_nvs.c`):
   the reader identity (a stable reader identifier + P-256 signing key) and a
   credential **trust store**, NVS-backed with a clearly-marked, fixed **dev
   identity** fallback so the transaction is drivable at bench before Phase-4 Matter
@@ -128,7 +129,7 @@ silicon against a live phone.
   ranging-setup (**M1-M4**), wiring the reader to the engine's reader adapter/session
   (`modules/woz_uwb/src/aliro` `aliro_uwb_adapter` + `aliro_uwb_session`), which were
   compiled into the ESP32 image but had **no caller**. New
-  `ports/esp32-idf/components/aliro_reader/aliro_ranging.{c,h}`: on a completed
+  `modules/woz_aliro/src/aliro_ranging.{c,h}`: on a completed
   credential-auth it creates a reader session bound to the derived URSK, emits **M1**
   over the L2CAP channel, routes inbound **M2/M4** into `aliro_uwb_session_message_handle`,
   and lets the engine negotiate the parameters and start the DW3000 responder itself
