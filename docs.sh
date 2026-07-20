@@ -17,22 +17,37 @@ set -euo pipefail
 REPO_ROOT="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 cd "$REPO_ROOT"
 
-# A linked worktree builds the same site as the main checkout: tools/docs_title.py
-# repairs the one thing that differs (the generator titles pages after the
-# checkout directory). The freshness gate is the exception — it regenerates
-# internally and would see the repaired titles as drift — so it is skipped here
-# and left to the main checkout and to CI, which both run on a plain clone.
-IN_WORKTREE=0
-if [ "$(git rev-parse --git-dir)" != "$(git rev-parse --git-common-dir)" ]; then
-	IN_WORKTREE=1
+# Regenerating from a checkout that is behind origin/main would commit a site
+# that silently reverts newer docs. Compare against the local origin/main ref
+# (no fetch — run `git fetch origin` first if it might be stale).
+if git rev-parse --verify -q origin/main >/dev/null; then
+	BEHIND="$(git rev-list --count HEAD..origin/main)"
+	if [ "$BEHIND" -gt 0 ]; then
+		echo "docs.sh: HEAD is $BEHIND commit(s) behind origin/main — refusing to regenerate." >&2
+		echo "docs.sh: merge or rebase onto origin/main first (git fetch origin && git merge origin/main)." >&2
+		exit 1
+	fi
 fi
 
 # The subsystem tree, the guide rendering and the site shell come from a page
-# generator that lives outside this repo. Point PAGE_GEN at an executable that
-# takes one argument, `build` or `check`, and maps it onto that tool; the default
-# path is gitignored so the hook stays out of tree. Without it, `make docs` still
-# builds the reference tree and the link pass over the committed docs/.
-PAGE_GEN="${PAGE_GEN:-$REPO_ROOT/tools/docs_generate.local}"
+# generator that lives outside this repo. The hook is an executable taking one
+# argument, `build` or `check`, that maps it onto whatever tool this machine has.
+# Without one, `make docs` still builds the reference tree and the link pass over
+# the committed docs/.
+#
+# Searched in order. The per-checkout path is gitignored, which also means it does
+# not follow a clone or a new worktree — so the config path is what a maintainer
+# should actually use: one file, found from every checkout of every repo.
+for candidate in \
+	"${PAGE_GEN:-}" \
+	"$REPO_ROOT/tools/docs_generate.local" \
+	"${XDG_CONFIG_HOME:-$HOME/.config}/openaliro/docs-generate"; do
+	if [ -n "$candidate" ] && [ -x "$candidate" ]; then
+		PAGE_GEN="$candidate"
+		break
+	fi
+done
+PAGE_GEN="${PAGE_GEN:-}"
 SKIPPED_GEN=0
 
 for tool in doxygen dot; do
@@ -65,9 +80,12 @@ python3 tools/docs_links.py
 
 if [ "$SKIPPED_GEN" -eq 1 ]; then
 	echo "==> freshness gate (skipped: no page generator configured)"
-elif [ "$IN_WORKTREE" -eq 1 ]; then
-	echo "==> freshness gate (skipped: linked worktree — CI and the main checkout run it)"
 else
+	# Runs in a linked worktree too. It used to be skipped there, because the
+	# title pass rewrote the checkout's name out of the generated pages and the
+	# gate regenerates internally, so it saw the repair as drift. Nothing is
+	# rewritten any more, so a worktree gets the same gate as anywhere else —
+	# and if it ever does trip here, that is a real difference worth seeing.
 	echo "==> freshness gate"
 	"$PAGE_GEN" check
 fi
