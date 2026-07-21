@@ -75,6 +75,9 @@ fi
 echo "==> titles"
 python3 tools/docs_title.py
 
+echo "==> media"
+python3 tools/docs_media.py
+
 echo "==> link pass"
 python3 tools/docs_links.py
 

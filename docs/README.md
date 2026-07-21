@@ -61,9 +61,9 @@ flowchart LR
 
 ## Hotspots
 
-*Mined from git history as of `10f48d2`.*
+*Mined from git history as of `ffa4a3f`.*
 
-**Most-changed:** [`modules/woz_uwb/src/ccc/ccc_shim_rx.c`](architecture/modules.woz_uwb.src.ccc/ccc_shim_rx.c.md) (13 commits), [`ports/esp32-matter/main/app_main.cpp`](architecture/ports.esp32-matter.main/app_main.cpp.md) (11 commits), [`build.sh`](architecture/root/build.sh.md) (8 commits), [`bootstrap.sh`](architecture/root/bootstrap.sh.md) (7 commits), [`ports/esp32-idf/components/aliro_ble/aliro_ble.c`](architecture/ports.esp32-idf.components.aliro_ble/aliro_ble.c.md) (7 commits).
+**Most-changed:** [`modules/woz_uwb/src/ccc/ccc_shim_rx.c`](architecture/modules.woz_uwb.src.ccc/ccc_shim_rx.c.md) (13 commits), [`ports/esp32-matter/main/app_main.cpp`](architecture/ports.esp32-matter.main/app_main.cpp.md) (11 commits), [`bootstrap.sh`](architecture/root/bootstrap.sh.md) (8 commits), [`build.sh`](architecture/root/build.sh.md) (8 commits), [`ports/esp32-idf/components/aliro_ble/aliro_ble.c`](architecture/ports.esp32-idf.components.aliro_ble/aliro_ble.c.md) (7 commits).
 
 **Change together without importing each other:**
 
