@@ -42,7 +42,7 @@ ENV := $(strip \
   $(if $(STRICT),STRICT=$(STRICT)) \
   $(if $(HA),HA=$(HA)))
 
-.PHONY: help bootstrap ws-seed ws-clean build rebuild pretty selftest test test-san coverage test-ws docs docs-publish fuzz cbmc verify flash flash-erase term clean
+.PHONY: help bootstrap ws-seed ws-clean build rebuild pretty selftest test test-san coverage test-port test-ws docs docs-publish fuzz cbmc verify flash flash-erase term clean
 
 ##@ Setup
 ## bootstrap: fetch NCS v3.3.0 + add-on (~6.5 GB), apply patches  ·  first run only
@@ -115,6 +115,11 @@ verify:
 	@$(MAKE) --no-print-directory fuzz
 	@$(MAKE) --no-print-directory cbmc
 	@printf '\n  ✓ all host gates passed\n'
+
+## test-port: host-runnable ESP32 port tests (port headers, crypto KATs, codec)
+##   No ESP-IDF needed; the on-target build check inside skips cleanly without it.
+test-port:
+	@$(REPO_ROOT)/ports/esp32/test/run.sh
 
 ## test-ws: hermetic tests for per-worktree workspace auto-seeding
 ##   Runs in a temp dir with a stub bootstrap — no west, no hardware, and it
