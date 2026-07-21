@@ -15,7 +15,7 @@ UWB_SELFTEST=1 scripts/build.sh build   # one-shot boot self-test, no iPhone (di
 PRETTY=1 scripts/build.sh build         # curated/clean console (reversible; default verbose)
 UWB_CHIP=dw3720 scripts/build.sh build  # select the plugged-in UWB chip (default: dw3000)
 
-**discussed in** [`docs/porting.md`](../../porting.md), [`ports/nrf5340dk/README.md`](../../../ports/nrf5340dk/README.md)
+**discussed in** [`docs/configuring.md`](../../configuring.md), [`docs/porting.md`](../../porting.md), [`ports/nrf5340dk/README.md`](../../../ports/nrf5340dk/README.md)
 
 ## API
 

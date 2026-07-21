@@ -121,7 +121,10 @@ def main_html(gh: str) -> str:
     tracks = []
     tracks.append(("chip", "Hardware", "Boards, wiring, and the UWB radio", (
         '<ul class="rows">'
-        + row("esp32-bringup.html", "Wiring checklist",
+        + row("nrf5340-bringup.html", "nRF5340 bring-up",
+              "The primary target: DK + shields, first flash, and what a "
+              "healthy boot looks like.")
+        + row("esp32-bringup.html", "ESP32-S3 wiring checklist",
               "DWM3000EVB to ESP32-S3, pin by pin — the table CI keeps in "
               "sync with <code>board_pins.h</code>.")
         + row("hardware-validation.html", "Hardware validation checklist",
