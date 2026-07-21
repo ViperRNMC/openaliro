@@ -37,6 +37,9 @@ a{color:inherit;text-decoration:none}
   font-size:.82rem;outline:none}
 .bar input::placeholder{color:var(--faint)}
 .bar input:focus{border-color:var(--accent)}
+.fitb{padding:.4rem .8rem;border-radius:99px;border:1px solid var(--line);background:var(--card);
+  color:var(--muted);font-size:.8rem;font-family:var(--sans);cursor:pointer}
+.fitb:hover{border-color:var(--accent);color:var(--strong)}
 
 .legend{position:fixed;left:1.1rem;bottom:1.1rem;z-index:20;display:flex;flex-wrap:wrap;
   gap:.4rem;max-width:min(46rem,70vw)}
@@ -54,7 +57,9 @@ a{color:inherit;text-decoration:none}
 .lab{position:absolute;left:0;top:0;font-family:var(--mono);font-size:10.5px;
   letter-spacing:.02em;color:#eceade;white-space:nowrap;opacity:0;
   transition:opacity .18s linear;will-change:transform,opacity;
+  pointer-events:auto;cursor:pointer;
   text-shadow:0 1px 3px rgba(0,0,0,.95),0 0 16px rgba(0,0,0,.75)}
+.lab:hover{opacity:1!important}
 .scene-nav-info{display:none!important}
 .scene-tooltip{font-family:var(--mono)!important;font-size:.72rem!important;
   color:#faf9f5!important;background:rgba(20,19,18,.92)!important;padding:.35rem .6rem!important;
@@ -101,12 +106,13 @@ a{color:inherit;text-decoration:none}
 <a class="back" href="architecture.html">&#8592; Architecture</a>
 <h1>The whole surface</h1>
 <div class="sp"></div>
-<input id="q" type="search" placeholder="Filter files&hellip;" autocomplete="off">
+<input id="q" type="search" placeholder="Filter files &mdash; &#9166; jumps&hellip;" autocomplete="off">
+<button id="fit" class="fitb" title="Frame everything (F)">Fit</button>
 </header>
 <div id="stage"></div>
 <div id="labels"></div>
 <div class="legend" id="legend"></div>
-<div class="hint">drag to orbit &middot; scroll to zoom &middot; click a node</div>
+<div class="hint">drag to orbit &middot; right-drag to pan &middot; scroll to zoom &middot; F fits &middot; click a name</div>
 <aside class="panel" id="panel">
 <div class="p-head">
 <button class="p-x" id="px" aria-label="Close">&#215;</button>
@@ -157,7 +163,7 @@ function linkColor(l){
   var c=rgbOf[l.source.grp]||[150,150,150];
   return "rgba("+c[0]+","+c[1]+","+c[2]+",0.16)";
 }
-var Graph=ForceGraph3D()(document.getElementById("stage"))
+var Graph=ForceGraph3D({controlType:"orbit"})(document.getElementById("stage"))
   .graphData({nodes:D.nodes,links:D.links})
   .backgroundColor("rgba(0,0,0,0)")
   .nodeVal(function(n){return 1.6+deg[n.id]*0.55})
@@ -177,6 +183,22 @@ var Graph=ForceGraph3D()(document.getElementById("stage"))
   .onNodeHover(function(n){hov=n})
   .onNodeClick(function(n){select(n,true)})
   .onBackgroundClick(function(){select(null)});
+
+/* steering: orbit controls with inertia — drag to orbit, right-drag to pan,
+   the wheel zooms toward the cursor; F or the Fit button reframes everything.
+   A slow auto-orbit runs until the first touch or flight */
+var ctr=Graph.controls();
+ctr.enableDamping=true;ctr.dampingFactor=0.085;
+ctr.screenSpacePanning=true;
+if("zoomToCursor" in ctr)ctr.zoomToCursor=true;
+ctr.zoomSpeed=1.3;ctr.rotateSpeed=0.85;
+ctr.autoRotate=true;ctr.autoRotateSpeed=0.4;
+function wake(){ctr.autoRotate=false}
+["pointerdown","wheel"].forEach(function(ev){
+  document.getElementById("stage").addEventListener(ev,wake,{once:true,passive:true});
+});
+function fitAll(){wake();Graph.zoomToFit(700,130)}
+document.getElementById("fit").addEventListener("click",fitAll);
 
 /* physics: gentle repulsion, short in-cluster links, cluster cohesion, and a
    containment sphere so leaf files hang near their constellation instead of
@@ -269,8 +291,15 @@ function ensureLab(id){
   if(labs[id])return;
   var el=document.createElement("div");
   el.className="lab";el.textContent=byId[id].name;
+  el.addEventListener("click",function(){select(byId[id],true)});
   labWrap.appendChild(el);labs[id]=el;
 }
+labWrap.addEventListener("wheel",function(e){
+  try{
+    var cv=document.querySelector("#stage canvas");
+    if(cv)cv.dispatchEvent(new WheelEvent("wheel",e));
+  }catch(x){}
+},{passive:true});
 function syncLabs(){
   var want={};
   Object.keys(important).forEach(function(k){want[k]=1});
@@ -285,6 +314,7 @@ var camDirV=null;
 (function tick(){
   requestAnimationFrame(tick);
   glaze();
+  if(ctr.update)ctr.update();
   var cam=Graph.camera();
   if(!camDirV)camDirV=cam.position.clone();
   cam.getWorldDirection(camDirV);
@@ -335,6 +365,7 @@ function select(n,fly){
   syncLabs();
   refresh();
   if(fly&&typeof n.x==="number"){
+    wake();
     var d=70+Math.sqrt(deg[n.id])*8,r=Math.hypot(n.x,n.y,n.z)||1,k=1+d/r;
     Graph.cameraPosition({x:n.x*k,y:n.y*k,z:n.z*k},n,900);
   }
@@ -344,7 +375,10 @@ document.getElementById("pbody").addEventListener("click",function(e){
   if(go&&byId[go])select(byId[go],true);
 });
 document.getElementById("px").addEventListener("click",function(){select(null)});
-addEventListener("keydown",function(e){if(e.key==="Escape")select(null)});
+addEventListener("keydown",function(e){
+  if(e.key==="Escape")select(null);
+  else if((e.key==="f"||e.key==="F")&&!/INPUT|TEXTAREA/.test(e.target.tagName))fitAll();
+});
 
 var legend=document.getElementById("legend");
 Object.keys(D.slots).sort().forEach(function(g){
@@ -356,32 +390,34 @@ Object.keys(D.slots).sort().forEach(function(g){
     Array.prototype.forEach.call(legend.children,function(c){c.classList.remove("on")});
     if(iso)el.classList.add("on");
     refresh();
+    if(iso){wake();Graph.zoomToFit(700,110,function(n){return n.grp===g})}
+    else fitAll();
   });
   legend.appendChild(el);
 });
 document.getElementById("q").addEventListener("input",function(){
   q=this.value.trim().toLowerCase();refresh();
 });
-
-/* settle, frame the whole constellation from a step further back, then a
-   slow orbit until the first touch */
-var spun=false,fitted=false;
-["pointerdown","wheel"].forEach(function(ev){
-  document.getElementById("stage").addEventListener(ev,function(){spun=true},{once:true,passive:true});
+document.getElementById("q").addEventListener("keydown",function(e){
+  if(e.key!=="Enter")return;
+  var s=this.value.trim().toLowerCase();
+  if(!s)return;
+  var best=null,bs=0;
+  D.nodes.forEach(function(n){
+    if(!visible(n))return;
+    var nm=n.name.toLowerCase(),sc=
+      nm===s?4:nm.indexOf(s)===0?3:nm.indexOf(s)>=0?2:n.id.toLowerCase().indexOf(s)>=0?1:0;
+    if(sc>bs){bs=sc;best=n}
+  });
+  if(best)select(best,true);
 });
+
+/* once the layout settles, frame the whole constellation from a step
+   further back; the auto-orbit carries on until the first touch */
+var fitted=false;
 Graph.onEngineStop(function(){
   if(fitted)return;fitted=true;
   Graph.zoomToFit(800,130);
-  setTimeout(function(){
-    if(spun)return;
-    var c=Graph.cameraPosition();
-    var r=Math.hypot(c.x,c.z)||600,y=c.y,a=Math.atan2(c.x,c.z);
-    var spin=setInterval(function(){
-      if(spun)return clearInterval(spin);
-      a+=0.0012;
-      Graph.cameraPosition({x:r*Math.sin(a),y:y,z:r*Math.cos(a)});
-    },30);
-  },950);
 });
 addEventListener("resize",function(){Graph.width(innerWidth).height(innerHeight)});
 })();
