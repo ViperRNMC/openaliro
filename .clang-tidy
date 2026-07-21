@@ -8,6 +8,10 @@
 #  - reserved-identifier (+ its cert aliases dcl37-c/dcl51-cpp): the CCC shim's
 #    __wrap_/__real_ symbols are the linker's --wrap contract and IS_ENABLED's
 #    _XXXX1 is the Zephyr token-paste idiom; those names are required, not chosen.
+#  - insecureAPI.DeprecatedOrUnsafeBufferHandling: flags every fixed-length
+#    memcpy/memset and prescribes Annex K memcpy_s, which none of this code's
+#    libcs (glibc, Darwin, Zephyr minimal) implement. Fires target-dependently
+#    (Linux yes, Darwin no), so keep it explicit or CI and local runs disagree.
 Checks: >
   -*,
   bugprone-*,
@@ -16,5 +20,6 @@ Checks: >
   -bugprone-easily-swappable-parameters,
   -bugprone-reserved-identifier,
   -cert-dcl37-c,
-  -cert-dcl51-cpp
+  -cert-dcl51-cpp,
+  -clang-analyzer-security.insecureAPI.DeprecatedOrUnsafeBufferHandling
 WarningsAsErrors: "*"
