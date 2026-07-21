@@ -37,7 +37,7 @@ flowchart TD
 ## API
 
 ### `theme(sheet: Path, css: str) -> str`
-`tools/docs_theme.py:155`
+`tools/docs_theme.py:212`
 
 Prepend the font import and append the overrides; report what happened.
 

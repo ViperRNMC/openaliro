@@ -12,14 +12,14 @@ credential is authenticated.
 ## API
 
 ### `struct aliro_reader_identity`
-`modules/woz_aliro/include/aliro_prov.h:42`
+`modules/woz_aliro/include/aliro_prov.h:43`
 
 The reader's provisioned identity. reader_id rides AUTH0 and both ECDSA
 transcripts (tag 0x4D); sign_priv signs the reader-usage transcript. is_dev
 marks the built-in bench identity, never a real deployment.
 
 ### `struct aliro_trust_store`
-`modules/woz_aliro/include/aliro_prov.h:55`
+`modules/woz_aliro/include/aliro_prov.h:56`
 
 Trusted credential public keys. A presented credential authenticates only if
 its key is in here (or the store is empty and dev policy allows it). A raw-key
