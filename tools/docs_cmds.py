@@ -27,7 +27,7 @@ from pathlib import Path
 SITE = Path("site")
 BLOCK_RE = re.compile(r"<pre><code>(.*?)</code></pre>", re.S)
 LINE_RE = re.compile(
-    r"^(?:[A-Za-z_][A-Za-z0-9_]*=\S+\s+)*(?:make|cd|nrfutil|brew|idf\.py)(?:\s|$)"
+    r"^(?:[A-Za-z_][A-Za-z0-9_]*=\S+\s+)*(?:make|cd|git|nrfutil|brew|idf\.py)(?:\s|$)"
 )
 
 CSS = """<style id="gv-cmds-css">

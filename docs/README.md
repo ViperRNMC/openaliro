@@ -66,9 +66,9 @@ flowchart LR
 
 ## Hotspots
 
-*Mined from git history as of `e4d988e`.*
+*Mined from git history as of `6003376`.*
 
-**Most-changed:** [`modules/woz_uwb/src/ccc/ccc_shim_rx.c`](architecture/modules.woz_uwb.src.ccc/ccc_shim_rx.c.md) (14 commits), [`tools/docs_graph.py`](architecture/tools/docs_graph.md) (6 commits), [`tools/docs_start.py`](architecture/tools/docs_start.md) (5 commits), [`modules/woz_uwb/src/aliro/aliro_uwb_msg.c`](architecture/modules.woz_uwb.src.aliro/aliro_uwb_msg.c.md) (4 commits), [`modules/woz_uwb/src/fira/fira_session.h`](architecture/modules.woz_uwb.src.fira/fira_session.h.md) (4 commits).
+**Most-changed:** [`modules/woz_uwb/src/ccc/ccc_shim_rx.c`](architecture/modules.woz_uwb.src.ccc/ccc_shim_rx.c.md) (14 commits), [`tools/docs_graph.py`](architecture/tools/docs_graph.md) (6 commits), [`tools/docs_start.py`](architecture/tools/docs_start.md) (6 commits), [`modules/woz_uwb/src/aliro/aliro_uwb_msg.c`](architecture/modules.woz_uwb.src.aliro/aliro_uwb_msg.c.md) (4 commits), [`modules/woz_uwb/src/fira/fira_session.h`](architecture/modules.woz_uwb.src.fira/fira_session.h.md) (4 commits).
 
 **Change together without importing each other:**
 

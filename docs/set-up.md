@@ -3,6 +3,15 @@
 The nRF5340 DK is the primary target; the ESP32-S3 apps port the same engine.
 No hardware needed until you flash.
 
+## Get the code
+
+```bash
+git clone https://github.com/asxeem/openaliro.git
+cd openaliro
+```
+
+Every command below runs from this directory.
+
 ## nRF5340 DK (primary target)
 
 Two commands: the first once per machine, the second once per checkout.

@@ -139,6 +139,7 @@ def main_html(gh: str) -> str:
     tracks.append(("dl", "Software &amp; toolchain", "Everything to install, per target", (
         '<details class="p-sub" open><summary>nRF5340 — the primary target</summary>'
         '<div class="s-body">'
+        + (chip(f"git clone {gh}.git") + chip("cd openaliro") if gh else "")
         + chip("nrfutil sdk-manager toolchain install --ncs-version v3.3.0")
         + chip("make bootstrap")
         + "<p>The first command runs once per machine; bootstrap pulls "
