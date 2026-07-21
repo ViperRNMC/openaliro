@@ -42,7 +42,7 @@ ENV := $(strip \
   $(if $(STRICT),STRICT=$(STRICT)) \
   $(if $(HA),HA=$(HA)))
 
-.PHONY: help bootstrap ws-seed ws-clean build rebuild pretty selftest test test-san coverage test-port test-ws docs docs-publish fuzz cbmc verify flash flash-erase term clean
+.PHONY: help bootstrap ws-seed ws-clean build rebuild pretty selftest test test-san coverage test-port test-ws test-web docs docs-publish fuzz cbmc verify flash flash-erase term clean
 
 ##@ Setup
 ## bootstrap: fetch NCS v3.3.0 + add-on (~6.5 GB), apply patches  ·  first run only
@@ -106,10 +106,12 @@ cbmc:
 	@$(REPO_ROOT)/tests/host/cbmc.sh
 
 ## verify: run every host gate in one shot  ·  pre-PR sweep
-##   test -> test-san -> fuzz -> cbmc, sequential + fail-fast. The last two need
-##   clang / cbmc; plain `make test` stays sub-second for the edit loop, so this
-##   is the full sweep, not the inner-loop gate.
+##   test-web -> test -> test-san -> fuzz -> cbmc, sequential + fail-fast. The
+##   cheap drift gate runs first; the last two need clang / cbmc. Plain
+##   `make test` stays sub-second for the edit loop, so this is the full sweep,
+##   not the inner-loop gate.
 verify:
+	@$(MAKE) --no-print-directory test-web
 	@$(MAKE) --no-print-directory test
 	@$(MAKE) --no-print-directory test-san
 	@$(MAKE) --no-print-directory fuzz
@@ -126,6 +128,13 @@ test-port:
 ##   never touches this repo's own workspace/ or build/.
 test-ws:
 	@$(REPO_ROOT)/tests/tooling/ws_seed_test.sh
+
+## test-web: drift-gate the web-twin page against the firmware it cites
+##   Re-reads every constant web-twin/index.html cites (file:line) from the C
+##   tree and fails if a value moved, so the firmware stays the single source
+##   of truth for the twin. Python 3 only; no toolchain / hardware.
+test-web:
+	@python3 $(REPO_ROOT)/web-twin/check_constants.py
 
 ##@ Docs
 ## docs: build the documentation site  ->  site/index.html

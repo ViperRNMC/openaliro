@@ -1,0 +1,42 @@
+# Drift gate for the walk-up digital twin web page: web-twin/index.html cites
+# every decision constant it uses back to a firmware file:line, and this check
+# re-reads each cited line from the C tree and fails if a value moved — so the
+# firmware stays the single source of truth for the twin. Python 3 only; no
+# NCS toolchain, no hardware.
+name: twin-web
+
+on:
+  push:
+    branches: [main]
+    paths:
+      - web-twin/**
+      # The files the page cites: a constant moving here must re-run the gate.
+      - modules/woz_uwb/**
+      - ports/esp32/apps/matter-lock/**
+      - tests/host/test_twin.c
+      - Makefile
+      - .github/workflows/twin-web.yml
+  # No path filter on PRs: matches the other host gates so a mixed PR always
+  # reports (a path-skipped required check would stick at "Expected"). The
+  # check is a sub-second script, so always running is cheap.
+  pull_request:
+  workflow_dispatch:
+
+# CI only reads the repo: no token write scopes.
+permissions:
+  contents: read
+
+# Superseded runs on the same ref are wasted work — cancel them.
+concurrency:
+  group: ${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: ${{ github.event_name == 'pull_request' }}
+
+jobs:
+  drift-gate:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          persist-credentials: false
+      - name: twin constants match the firmware
+        run: make test-web
