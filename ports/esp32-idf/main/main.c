@@ -7,8 +7,6 @@
  * drives the DS-TWR exchange (an Aliro Wallet, or a second board as initiator).
  *
  * The demo responder lifecycle + interactive console live in app_shell.c.
- *
- * Ported from ports/esp32s3/sample/src/main.c (the Zephyr scaffold).
  */
 #include "freertos/FreeRTOS.h"
 #include "freertos/task.h"

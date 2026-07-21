@@ -1,6 +1,6 @@
-/* DW3000 (DWM3000EVB) wiring on ESP32-S3, SPI2/FSPI. Mirrors the pin choices in
- * ports/esp32s3/dw3000.overlay (the Zephyr reference). Change to match how the
- * DWM3000EVB is soldered to your board. */
+/* DW3000 (DWM3000EVB) wiring on ESP32-S3, SPI2/FSPI. Source of truth for the
+ * wiring table in docs/esp32-bringup.md. Change to match how the DWM3000EVB is
+ * soldered to your board. */
 #ifndef WOZ_ESP_BOARD_PINS_H
 #define WOZ_ESP_BOARD_PINS_H
 

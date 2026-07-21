@@ -14,7 +14,10 @@ what each costs.
 |---|---|---|
 | [`esp32-matter/`](esp32-matter/) | The complete ESP32-S3 lock: a Matter door lock that commissions into a home, provisions a key into the phone's wallet, and unlocks on approach over BLE + UWB | **Hardware-validated.** Approach unlock driven end to end against a live iPhone, Wallet animation and all |
 | [`esp32-idf/`](esp32-idf/) | The reader stack the Matter app is built from — BLE transport, credential auth, ranging setup, and the shared UWB engine as ESP-IDF components — plus a bench app to drive them without Matter | **Hardware-validated.** Credential auth, M1-M4 setup, and live DS-TWR distance on silicon |
-| [`esp32s3/`](esp32s3/) | An early Zephyr-based ESP32-S3 spike (devicetree overlay + sample app) | **Superseded** by `esp32-idf/`; kept only as a pin-mapping reference, never run on silicon |
+
+An early Zephyr-based ESP32-S3 spike (`ports/esp32s3/`, never run on silicon) was
+removed; its pin map lives on in [`docs/esp32-bringup.md`](../docs/esp32-bringup.md).
+For archaeology, the last commit carrying it is `b11549d`.
 
 ## The ESP32-S3 port
 

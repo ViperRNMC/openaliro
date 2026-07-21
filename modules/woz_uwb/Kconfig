@@ -44,7 +44,7 @@ config WOZ_CRYPTO_MBEDTLS
 	help
 	  ccc_crypto_mbedtls.c over mbedtls_aes_crypt_ecb — no PSA dependency, for
 	  SoCs without nrf_security's PSA backend (e.g. ESP32-S3, which has
-	  hardware-accelerated AES via mbedTLS). See ports/esp32s3/.
+	  hardware-accelerated AES via mbedTLS). See ports/esp32-idf/.
 endchoice
 
 config WOZ_UWB_SELFTEST
