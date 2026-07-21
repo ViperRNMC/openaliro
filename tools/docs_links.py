@@ -148,8 +148,20 @@ def main() -> int:
                 continue
             rel = os.path.relpath(api, page.parent)
             link = b'<a href="' + rel.encode() + b'"><code>site/api/index.html</code></a>'
-            page.write_bytes(raw.replace(span, link))
-            rewritten += raw.count(span)
+            out, pos = bytearray(), 0
+            while (i := raw.find(span, pos)) != -1:
+                out += raw[pos:i]
+                head = raw[:i]
+                # a mention already inside an anchor stays plain text: nesting an
+                # <a> in an <a> is invalid and splits the outer link in the browser
+                if head.rfind(b"<a ") > head.rfind(b"</a>"):
+                    out += span
+                else:
+                    out += link
+                    rewritten += 1
+                pos = i + len(span)
+            out += raw[pos:]
+            page.write_bytes(bytes(out))
 
     # Verify: every remaining relative link must resolve inside site/.
     for page in pages:
