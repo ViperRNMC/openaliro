@@ -22,6 +22,7 @@
 
 #include "aliro_ble.h"
 #include "aliro_crypto.h"
+#include "aliro_lat.h"
 #include "woz_uwb_facade.h"
 
 #include "cherry/cherry.h"
@@ -90,8 +91,9 @@ static void uwb_tx_cb(struct aliro_uwb_message *message, struct aliro_uwb_sessio
 						       sizeof(wire), &wl) == 0) {
 			int rc = aliro_ble_send(conn, wire, wl);
 
-			LOG_INF("[conn %u] ranging TX proto=0x%02x id=0x%02x (%u B, rc=%d)", conn,
+			LOG_DBG("[conn %u] ranging TX proto=0x%02x id=0x%02x (%u B, rc=%d)", conn,
 				message->data[0], message->data[1], (unsigned)wl, rc);
+			(void)rc;
 		} else {
 			LOG_ERR("[conn %u] ranging TX seal failed (%u B)", conn,
 				(unsigned)message->len);
@@ -111,6 +113,7 @@ static void uwb_ev_cb(struct aliro_uwb_session_event *event, void *user_data)
 	    event->data.status != NULL) {
 		switch (event->data.status->session_state) {
 		case CHERRY_CCC_SESSION_STATE_ACTIVE:
+			aliro_lat_mark(ALIRO_LAT_M4_DONE);
 			LOG_INF("[conn %u] UWB ranging ACTIVE (negotiated "
 				"params live)",
 				conn);

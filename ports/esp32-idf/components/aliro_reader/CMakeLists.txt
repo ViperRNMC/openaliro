@@ -12,6 +12,7 @@ idf_component_register(
 		"${ALIRO}/src/aliro_apdu.c"
 		"${ALIRO}/src/aliro_prov.c"
 		"${ALIRO}/src/aliro_ranging.c"
+		"${ALIRO}/src/aliro_lat.c"
 		"aliro_prov_nvs.c"
 	INCLUDE_DIRS "${ALIRO}/include"
 	PRIV_INCLUDE_DIRS "${ALIRO}/src"

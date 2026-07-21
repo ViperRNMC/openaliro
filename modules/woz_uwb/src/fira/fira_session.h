@@ -67,6 +67,10 @@ bool fira_session_sts_quality_ok(int32_t driver_verdict, int16_t quality_index);
 /** @brief Layer 4: true once >= K consecutive plausible, mutually consistent
  *  ranges have been latched. Cleared by any implausible or outlier block. */
 bool fira_session_range_trusted(void);
+
+/** @brief Register a callback fired after each accepted range latch (NULL to
+ *  clear). Runs on the UWB RX path — keep it to a task wake, nothing heavier. */
+void fira_session_set_range_listener(void (*cb)(void));
 #endif /* CONFIG_WOZ_ALIRO */
 
 #endif /* WOZ_UWB_FIRA_SESSION_H_ */

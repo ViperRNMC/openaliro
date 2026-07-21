@@ -32,6 +32,7 @@
 #include "aliro_ble.h"
 #include "aliro_apdu.h"
 #include "aliro_crypto.h"
+#include "aliro_lat.h"
 #include "aliro_prim.h"
 #include "aliro_prov.h"
 #include "aliro_ranging.h"
@@ -248,11 +249,37 @@ static int send_ap_command(uint16_t conn, uint8_t ins, const uint8_t *tlv, size_
 	return rc;
 }
 
+/* Spare ephemeral keypair + txid, generated off the walk-up's critical path.
+ * They depend on nothing from the peer, yet the software P-256 keygen used to
+ * run inside the first-message callback; consuming a precomputed pair there
+ * removes about a quarter of the per-session scalar mults. Refilled at reader
+ * start and on disconnect; every touch point runs on the BLE-host task except
+ * the boot-time init (which precedes the transport), so no lock is needed. */
+static struct {
+	bool valid;
+	uint8_t priv[ALIRO_P256_SCALAR];
+	uint8_t pub[ALIRO_P256_POINT];
+	uint8_t txid[ALIRO_TXID_LEN];
+} s_spare_eph;
+
+static void spare_eph_refill(void)
+{
+	s_spare_eph.valid = aliro_ec_p256_keygen(s_spare_eph.priv, s_spare_eph.pub) == 0 &&
+			    aliro_random(s_spare_eph.txid, sizeof(s_spare_eph.txid)) == 0;
+}
+
 /* Kick the reader-driven access protocol: ephemeral keys + txid -> AUTH0. */
 static void start_auth(struct aliro_session *s)
 {
-	if (aliro_ec_p256_keygen(s->reader_eph_priv, s->reader_eph_pub) != 0 ||
-	    aliro_random(s->txid, sizeof(s->txid)) != 0) {
+	if (s_spare_eph.valid) {
+		memcpy(s->reader_eph_priv, s_spare_eph.priv, sizeof(s->reader_eph_priv));
+		memcpy(s->reader_eph_pub, s_spare_eph.pub, sizeof(s->reader_eph_pub));
+		memcpy(s->txid, s_spare_eph.txid, sizeof(s->txid));
+		s_spare_eph.valid = false;
+		memset(s_spare_eph.priv, 0, sizeof(s_spare_eph.priv));
+		memset(s_spare_eph.txid, 0, sizeof(s_spare_eph.txid));
+	} else if (aliro_ec_p256_keygen(s->reader_eph_priv, s->reader_eph_pub) != 0 ||
+		   aliro_random(s->txid, sizeof(s->txid)) != 0) {
 		LOG_ERR("[conn %u] ephemeral keygen/txid failed", s->conn_handle);
 		s->phase = PH_FAILED;
 		return;
@@ -271,6 +298,7 @@ static void start_auth(struct aliro_session *s)
 		return;
 	}
 	send_ap_command(s->conn_handle, ALIRO_INS_AUTH0, apdu, n);
+	aliro_lat_mark(ALIRO_LAT_AUTH0_TX);
 	s->phase = PH_SENT_AUTH0;
 }
 
@@ -439,9 +467,9 @@ static void on_auth1_response(struct aliro_session *s, const uint8_t *pl, size_t
 		s->phase = PH_FAILED;
 		return;
 	}
-	LOG_INF("[conn %u] AUTH1Response DECRYPTED (%u B plaintext):", s->conn_handle,
+	LOG_DBG("[conn %u] AUTH1Response DECRYPTED (%u B plaintext):", s->conn_handle,
 		(unsigned)ctlen);
-	LOG_HEXDUMP_INF(ptbuf, ctlen, "");
+	LOG_HEXDUMP_DBG(ptbuf, ctlen, "");
 
 	if (aliro_apdu_parse_auth1_response(ptbuf, ctlen, &r) != 0) {
 		LOG_ERR("[conn %u] AUTH1Response (decrypted) parse failed", s->conn_handle);
@@ -519,8 +547,9 @@ static void on_auth1_response(struct aliro_session *s, const uint8_t *pl, size_t
 	 * (BleSK-sealed) after EXCHANGE succeeds, otherwise the device stalls and drops
 	 * (URSK_Unavailable). on_exchange_response drives that + ranging. */
 	s->phase = PH_SENT_EXCHANGE;
+	aliro_lat_mark(ALIRO_LAT_AUTH1_DONE);
 	LOG_INF("[conn %u] URSK derived; EXCHANGE sent, awaiting response", s->conn_handle);
-	LOG_HEXDUMP_INF(s->ursk, ALIRO_URSK_LEN, "");
+	LOG_HEXDUMP_DBG(s->ursk, ALIRO_URSK_LEN, "");
 }
 
 /* Reader-Status-Access-Protocol-Completed (§11.1.1 / §11.7.3.4.1): a proto-2
@@ -558,11 +587,12 @@ static void on_exchange_response(struct aliro_session *s, const uint8_t *pl, siz
 
 	LOG_INF("[conn %u] EXCHANGE response: %s", s->conn_handle,
 		ok ? "success (URSK armed)" : "ERROR");
-	LOG_HEXDUMP_INF(body, bodylen, "");
+	LOG_HEXDUMP_DBG(body, bodylen, "");
 	if (!ok) {
 		s->phase = PH_FAILED;
 		return;
 	}
+	aliro_lat_mark(ALIRO_LAT_EXCHANGE_DONE);
 
 	/* Reader-Status-AP-Completed, BleSK-sealed on the ranging channel (counter 1). */
 	uint8_t wire[64];
@@ -576,6 +606,7 @@ static void on_exchange_response(struct aliro_session *s, const uint8_t *pl, siz
 	}
 	int rc = aliro_ble_send(s->conn_handle, wire, wl);
 
+	aliro_lat_mark(ALIRO_LAT_AP_COMPLETED);
 	LOG_INF("[conn %u] Reader-Status-AP-Completed sent (%u B, rc=%d)", s->conn_handle,
 		(unsigned)wl, rc);
 
@@ -696,7 +727,7 @@ static void transaction_feed(struct aliro_session *s, const uint8_t *data, uint1
 	if (aliro_ble_unframe(data, len, &type, &opcode, &pl, &pl_len) != 0) {
 		LOG_WRN("[conn %u] msg #%u (%u B): not a valid envelope", s->conn_handle,
 			(unsigned)s->msgs_rx, (unsigned)len);
-		LOG_HEXDUMP_INF(data, len, "");
+		LOG_HEXDUMP_DBG(data, len, "");
 		pl = data;
 		pl_len = len;
 		type = 0xff;
@@ -722,6 +753,7 @@ static void transaction_feed(struct aliro_session *s, const uint8_t *data, uint1
 
 	switch (s->phase) {
 	case PH_IDLE:
+		aliro_lat_mark(ALIRO_LAT_OP05_RX);
 		/* First peer message = op-0x05 Initiate Access Protocol, carrying the
 		 * phone's 0xA5 proprietary-info TLV. Capture that TLV for the session-key
 		 * salt (§8.3.1.13 trailing field) before driving AUTH0; fall back to the
@@ -759,12 +791,12 @@ static void transaction_feed(struct aliro_session *s, const uint8_t *data, uint1
 			LOG_WRN("[conn %u] ranging SDU open FAILED (proto=0x%02x id=0x%02x, %u B); "
 				"raw:",
 				s->conn_handle, type, opcode, (unsigned)pl_len);
-			LOG_HEXDUMP_INF(pl, pl_len, "");
+			LOG_HEXDUMP_DBG(pl, pl_len, "");
 			break;
 		}
-		LOG_INF("[conn %u] ranging SDU (proto=0x%02x id=0x%02x, %u B plaintext):",
+		LOG_DBG("[conn %u] ranging SDU (proto=0x%02x id=0x%02x, %u B plaintext):",
 			s->conn_handle, plain[0], plain[1], (unsigned)plen);
-		LOG_HEXDUMP_INF(plain, plen, "");
+		LOG_HEXDUMP_DBG(plain, plen, "");
 		aliro_ranging_feed(s->conn_handle, plain, plen);
 		break;
 	}
@@ -803,6 +835,11 @@ static void on_disconnected(uint16_t conn_handle)
 		s->active = false;
 	}
 	aliro_ranging_stop(conn_handle);
+	/* The peer is gone: cheapest moment to regenerate the spare ephemeral pair
+	 * the next walk-up's start_auth will consume. */
+	if (!s_spare_eph.valid) {
+		spare_eph_refill();
+	}
 }
 
 // BLE data-received callback: looks up the session for conn_handle and feeds the data into its
@@ -855,6 +892,7 @@ static int reader_engine_init(void)
 		LOG_WRN("UWB ranging adapter unavailable; auth will run but "
 			"ranging setup won't start");
 	}
+	spare_eph_refill(); /* first walk-up's ephemeral pair, off the callback path */
 	return 0;
 }
 

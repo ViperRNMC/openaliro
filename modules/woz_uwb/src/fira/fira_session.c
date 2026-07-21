@@ -47,6 +47,11 @@ static uint32_t g_last_range_block;
 static int64_t g_last_range_ms;
 /* Layer 4: run length of consecutive plausible, mutually consistent blocks. */
 static uint8_t g_range_trust;
+#if defined(CONFIG_WOZ_ALIRO)
+/* Fired (from the UWB RX path) after each accepted latch, so the unlock seam
+ * can wake on fresh ranges instead of polling. Keep the callback tiny. */
+static void (*g_range_listener)(void);
+#endif
 
 /** @brief Fetch the most recent valid DS-TWR range; out-params optional (NULL to skip). */
 bool fira_session_last_range(int32_t *cm_out, uint16_t *addr_out, uint8_t *nlos_out,
@@ -89,6 +94,11 @@ bool fira_session_range_trusted(void)
 	return g_range_trust >= FIRA_RANGE_TRUST_K;
 }
 
+void fira_session_set_range_listener(void (*cb)(void))
+{
+	g_range_listener = cb;
+}
+
 void fira_session_set_ccc_range_cm(int32_t cm, uint32_t block)
 {
 	int32_t delta;
@@ -123,5 +133,10 @@ void fira_session_set_ccc_range_cm(int32_t cm, uint32_t block)
 	g_last_range_nlos = 0u;
 	g_last_range_block = block;
 	g_last_range_ms = woz_uptime_ms();
+
+	/* Accepted latches only: a rejected block must never wake the unlock seam. */
+	if (g_range_listener != NULL) {
+		g_range_listener();
+	}
 }
 #endif /* CONFIG_WOZ_ALIRO */

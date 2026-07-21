@@ -91,3 +91,25 @@ CONFIG_ENABLE_ALIRO_BLE_UWB=y
 # Aliro reader to coexist on Matter's NimBLE host; also, reclaiming BLE makes any
 # later nimble_port_init() crash the controller (btdm_controller_init fault).
 CONFIG_USE_BLE_ONLY_FOR_COMMISSIONING=n
+
+# --- walk-up latency -----------------------------------------------------------
+
+# The console UART is installed with a zero-length TX buffer, so every log write
+# blocks the calling task at 115200 baud. A walk-up used to emit ~5-7 KB of INFO
+# logs from inside the NimBLE-host protocol callbacks (~500 ms of UART stall,
+# contending with the UWB responder's ~1.8 ms slot deadline). Default to WARN;
+# keep the compile-time ceiling at DEBUG so the shell's `log <tag> <level>`
+# command can bring diagnostics back at runtime without a reflash.
+CONFIG_LOG_DEFAULT_LEVEL_WARN=y
+CONFIG_LOG_MAXIMUM_LEVEL_DEBUG=y
+
+# 1 ms tick (the sibling esp32-idf port already runs 1000 Hz): the default
+# 100 Hz rounds every vTaskDelay/timeout up to 10 ms steps, which is real
+# latency in the notify-timeout unlock path and BLE glue.
+CONFIG_FREERTOS_HZ=1000
+
+# The S3 has no P-256 accelerator, so all four per-session scalar mults are
+# software: 240 MHz over the 160 MHz default is ~50% faster auth crypto.
+# Fixed-point optimisation speeds the base-point mults (keygen/sign) further.
+CONFIG_ESP_DEFAULT_CPU_FREQ_MHZ_240=y
+CONFIG_MBEDTLS_ECP_FIXED_POINT_OPTIM=y

@@ -35,11 +35,14 @@
 #ifdef CONFIG_ENABLE_ALIRO_BLE_UWB
 #include <aliro_reader_delegate.h>
 #include <aliro_reader.h>
+#include <aliro_lat.h>
 #include <woz_uwb_facade.h>
 #include "door_lock_manager.h"
 #include <platform/PlatformManager.h>
 #include <vector>
 #include "host/ble_gatt.h"                 // struct ble_gatt_svc_def (NimBLE)
+#include "host/ble_gap.h"                  // ble_gap_adv_active()
+#include "host/ble_hs.h"                   // ble_hs_synced()
 #include <platform/ESP32/BLEManagerImpl.h> // BLEMgrImpl().ConfigureExtraServices()
 #include "freertos/FreeRTOS.h"
 #include "freertos/task.h"
@@ -136,20 +139,54 @@ static app::DataModel::Nullable<uint16_t> aliro_operating_user(void)
 	return app::DataModel::MakeNullable(user_index);
 }
 
+// Range-latch listener: runs on the UWB RX path, so it only stamps the latency
+// trace and wakes the reader task; the unlock decision itself stays on the task.
+static void on_uwb_range(void)
+{
+	aliro_lat_mark(ALIRO_LAT_FIRST_RANGE);
+
+	int32_t cm;
+	if (woz_uwb_trusted_range_cm(&cm)) {
+		aliro_lat_mark(ALIRO_LAT_TRUSTED_RANGE);
+	}
+	if (aliro_reader_task_handle == nullptr) {
+		return;
+	}
+	if (xPortInIsrContext()) {
+		BaseType_t woken = pdFALSE;
+		vTaskNotifyGiveFromISR(aliro_reader_task_handle, &woken);
+		portYIELD_FROM_ISR(woken);
+	} else {
+		xTaskNotifyGive(aliro_reader_task_handle);
+	}
+}
+
 // Background task that starts the Aliro reader and drives approach-based lock/unlock from UWB range.
-// Delays 1 s at startup to let Matter's BLE host finish syncing before the reader takes over the
-// shared legacy advertiser, then calls aliro_reader_start_attached().
+// Waits for the shared NimBLE host to be usable (host synced, Matter's advertiser released) before
+// calling aliro_reader_start_attached(), instead of sleeping a flat second.
 // Runs forever as the sole auto-lock driver (the fixed Matter auto-relock is disabled): unlocks when
 // a trusted peer's range is within ALIRO_UNLOCK_RANGE_CM, holds while present, and relocks when the
 // peer moves past ALIRO_RELOCK_RANGE_CM or disconnects. Uses hysteresis (relock band wider than
 // unlock band) to avoid chatter on range jitter. Sends the phone a "Reader Status Changed" BLE
 // notification on each transition so the Wallet unlock animation fires; the notification is a no-op
-// if the ranging session has already dropped. Polls every 200 ms.
+// if the ranging session has already dropped. Blocks on a task notification from the range-latch
+// listener so an unlock fires on the very block that built trust; the 200 ms timeout only covers
+// departure (ranges stop arriving, so no notification would ever come).
 static void aliro_reader_task(void *arg)
 {
-	// Give Matter's host time to finish syncing and stop advertising before we
-	// take over the (single, shared) legacy advertiser.
-	vTaskDelay(pdMS_TO_TICKS(1000));
+	// The reader can only take the (single, shared) legacy advertiser once the
+	// host is synced and Matter has released it — Matter stops advertising on
+	// commissioning-complete and never starts when already commissioned. Wait on
+	// that condition, capped so a stuck advertiser still lets the start attempt
+	// run (and log its failure) rather than hanging the reader forever.
+	for (int waited_ms = 0; waited_ms < 5000; waited_ms += 50) {
+		if (ble_hs_synced() && ble_gap_adv_active() == 0) {
+			break;
+		}
+		vTaskDelay(pdMS_TO_TICKS(50));
+	}
+
+	woz_uwb_set_range_listener(on_uwb_range);
 
 	int rc = aliro_reader_start_attached();
 	ESP_LOGI(TAG, "aliro_reader_start_attached() = %d (%s)", rc,
@@ -161,6 +198,9 @@ static void aliro_reader_task(void *arg)
 	// and relock when it leaves (moved past the relock band, or disconnected).
 	bool locked = true;
 	while (true) {
+		// Wake on a fresh range latch, or after 200 ms of silence (departure).
+		ulTaskNotifyTake(pdTRUE, pdMS_TO_TICKS(200));
+
 		int32_t cm = 0;
 		bool have = woz_uwb_trusted_range_cm(&cm);
 
@@ -179,6 +219,8 @@ static void aliro_reader_task(void *arg)
 			// ranging session already dropped.
 			aliro_reader_notify_unlock(true);
 			locked = false;
+			aliro_lat_mark(ALIRO_LAT_BOLT_DRIVEN);
+			aliro_lat_report(); // the walk-up budget line, off the protocol path
 		} else if (!locked && (!have || cm > ALIRO_RELOCK_RANGE_CM)) {
 			// Hysteresis (RELOCK > UNLOCK) keeps the door open across range jitter
 			// while the peer stays near; no trusted range means it disconnected.
@@ -193,7 +235,6 @@ static void aliro_reader_task(void *arg)
 			aliro_reader_notify_unlock(false); // Reader Status Changed -> Secured
 			locked = true;
 		}
-		vTaskDelay(pdMS_TO_TICKS(200));
 	}
 }
 
@@ -454,6 +495,13 @@ extern "C" void app_main()
 	/* Matter start */
 	err = esp_matter::start(app_event_cb);
 	ABORT_APP_ON_FAILURE(err == ESP_OK, ESP_LOGE(TAG, "Failed to start Matter, err:%d", err));
+
+	/* The default log level is WARN (blocking UART writes in the protocol
+	 * callbacks cost walk-up latency; see sdkconfig.defaults), but the
+	 * onboarding codes print at INFO under chip[SVR] and are useless
+	 * suppressed. Keep just that tag audible; the shell's `log` command
+	 * raises anything else on demand. */
+	esp_log_level_set("chip[SVR]", ESP_LOG_INFO);
 
 	/* Print the commissioning QR-code URL + manual pairing code at boot so it is
 	 * always in the log (Apple Home / chip-tool). BLE is the initial transport. */

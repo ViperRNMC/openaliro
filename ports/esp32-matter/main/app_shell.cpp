@@ -9,6 +9,7 @@
 
 #include <esp_console.h>
 #include <esp_app_desc.h>
+#include <esp_log.h>
 #include <esp_idf_version.h>
 #include <linenoise/linenoise.h>
 
@@ -227,6 +228,35 @@ static int cmd_factoryreset(int argc, char **argv)
 	return 0;
 }
 
+/* Runtime log knob: the boot default is WARN (blocking UART writes in the
+ * protocol callbacks cost walk-up latency), so bench diagnostics need a way
+ * back up without a reflash. The compile-time ceiling is DEBUG
+ * (CONFIG_LOG_MAXIMUM_LEVEL); note the shared woz_aliro/woz_uwb sources log
+ * under their module tags (aliro_reader, aliro_ranging, ...). */
+static int cmd_log(int argc, char **argv)
+{
+	static const struct {
+		const char *name;
+		esp_log_level_t level;
+	} levels[] = {
+		{"none", ESP_LOG_NONE},   {"error", ESP_LOG_ERROR}, {"warn", ESP_LOG_WARN},
+		{"info", ESP_LOG_INFO},   {"debug", ESP_LOG_DEBUG}, {"verbose", ESP_LOG_VERBOSE},
+	};
+
+	if (argc == 3) {
+		for (size_t i = 0; i < sizeof(levels) / sizeof(levels[0]); i++) {
+			if (strcmp(argv[2], levels[i].name) == 0) {
+				esp_log_level_set(argv[1], levels[i].level);
+				printf("log: %s -> %s\n", argv[1], levels[i].name);
+				return 0;
+			}
+		}
+	}
+	printf("usage: log <tag|*> <none|error|warn|info|debug|verbose>\n"
+	       "boot default warn; compile-time ceiling debug\n");
+	return 0;
+}
+
 // Shell handler for the "clear" command; clears the terminal screen. Always returns 0.
 static int cmd_clear(int argc, char **argv)
 {
@@ -284,6 +314,10 @@ void app_shell_start(void)
 		 .hint = NULL,
 		 .func = cmd_aliro},
 #endif
+		{.command = "log",
+		 .help = "log <tag|*> <level>: runtime log level (boot default warn)",
+		 .hint = NULL,
+		 .func = cmd_log},
 		{.command = "factoryreset",
 		 .help = "erase all Matter state and reboot",
 		 .hint = NULL,

@@ -5,6 +5,13 @@
 #include "fira_session.h"
 #include "test.h"
 
+static int s_listener_hits;
+
+static void range_listener(void)
+{
+	s_listener_hits++;
+}
+
 void test_fira(void)
 {
 	uint8_t ursk[ALIRO_URSK_LEN];
@@ -118,4 +125,17 @@ void test_fira(void)
 	T_OK("sat.one_after_jump_insufficient", !fira_session_range_trusted());
 	fira_session_set_ccc_range_cm(401, 47u); /* 3 -> K reached again */
 	T_OK("sat.full_rebuild_trusted", fira_session_range_trusted());
+
+	t_group("range listener fires on accepted latches only");
+	s_listener_hits = 0;
+	fira_session_set_range_listener(range_listener);
+	fira_session_set_ccc_range_cm(100, 50u); /* accepted */
+	T_EQ("listener.accepted", s_listener_hits, 1);
+	fira_session_set_ccc_range_cm(-500, 51u); /* rejected (implausible) */
+	T_EQ("listener.rejected_silent", s_listener_hits, 1);
+	fira_session_set_ccc_range_cm(102, 52u); /* accepted again */
+	T_EQ("listener.accepted_again", s_listener_hits, 2);
+	fira_session_set_range_listener(NULL); /* cleared: latches stay silent */
+	fira_session_set_ccc_range_cm(103, 53u);
+	T_EQ("listener.cleared", s_listener_hits, 2);
 }

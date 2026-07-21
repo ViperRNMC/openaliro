@@ -112,6 +112,20 @@ bool woz_uwb_last_range_cm(int32_t *cm_out)
  * gate; false if no valid range exists or the range is not yet trusted. When CONFIG_WOZ_ALIRO is
  * not defined, behaves identically to woz_uwb_last_range_cm().
  */
+/**
+ * @brief Register a callback fired after each accepted DS-TWR range latch.
+ * @param cb Callback invoked on the UWB RX path (keep it to a task wake), or NULL to clear.
+ * Without CONFIG_WOZ_ALIRO there is no range latch to observe and this is a no-op.
+ */
+void woz_uwb_set_range_listener(void (*cb)(void))
+{
+#if defined(CONFIG_WOZ_ALIRO)
+	fira_session_set_range_listener(cb);
+#else
+	(void)cb;
+#endif
+}
+
 bool woz_uwb_trusted_range_cm(int32_t *cm_out)
 {
 #if defined(CONFIG_WOZ_ALIRO)

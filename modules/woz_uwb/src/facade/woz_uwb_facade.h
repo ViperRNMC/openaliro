@@ -66,6 +66,14 @@ bool woz_uwb_last_range_cm(int32_t *cm_out);
  */
 bool woz_uwb_trusted_range_cm(int32_t *cm_out);
 
+/**
+ * Register a callback fired after each accepted range latch (NULL to clear),
+ * so the unlock seam can block on an event instead of polling. The callback
+ * runs on the UWB RX path — keep it to a task wake, nothing heavier. A no-op
+ * without CONFIG_WOZ_ALIRO.
+ */
+void woz_uwb_set_range_listener(void (*cb)(void));
+
 #ifdef __cplusplus
 }
 #endif
