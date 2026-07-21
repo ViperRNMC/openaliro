@@ -7,4 +7,5 @@
 | [`scripts/build.sh`](build.sh.md) | build.sh {build\|rebuild\|flash\|flash-erase\|build-flash} — build the Aliro |
 | [`scripts/docs-publish.sh`](docs-publish.sh.md) | docs-publish.sh — snapshot the rendered site/ onto the local gh-pages branch. |
 | [`scripts/docs.sh`](docs.sh.md) | docs.sh — build the documentation site into site/. |
+| [`scripts/flash_html.py`](flash_html.md) | Render a release FLASH.md into a self-contained FLASH.html. |
 | [`scripts/ws-seed.sh`](ws-seed.sh.md) | ws-seed.sh — give this git worktree its own NCS workspace, cheaply. |

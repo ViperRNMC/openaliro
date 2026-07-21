@@ -751,6 +751,22 @@ NVS-backed persistence for Aliro reader provisioning: loads and stores the seria
 identity and trust store built by aliro_prov.c.
 Lazily initializes NVS on first use; safe to call alongside aliro_ble's own nvs_flash_init.
 
+## `release/esp32-matter-lock/`
+
+### [`release/esp32-matter-lock/flash.sh`](architecture/release.esp32-matter-lock/flash.sh.md)
+
+flash.sh — program the openaliro ESP32-S3 Matter lock (single merged image at
+offset 0x0) with esptool. See FLASH.md for wiring and first run.
+Usage:  bash flash.sh [PORT]       e.g.  bash flash.sh /dev/ttyACM0
+
+## `release/nrf5340dk/`
+
+### [`release/nrf5340dk/flash.sh`](architecture/release.nrf5340dk/flash.sh.md)
+
+flash.sh — program the openaliro nRF5340 DK firmware (both cores) over the
+DK's on-board J-Link, using nrfutil. See FLASH.md for setup and first run.
+Usage:  bash flash.sh [JLINK_SERIAL_NUMBER]
+
 ## `scripts/`
 
 ### [`scripts/bootstrap.sh`](architecture/scripts/bootstrap.sh.md)
@@ -813,6 +829,20 @@ then a link pass rewrites cross-document links so the published site has no
 dead ends, and the freshness gate confirms the committed docs/ tree matches
 the source. Run it through `make docs`.
 Nothing here needs the NCS toolchain or hardware.
+
+### [`scripts/flash_html.py`](architecture/scripts/flash_html.md)
+
+Render a release FLASH.md into a self-contained FLASH.html.
+
+The markdown file stays the single source of truth; this wraps its rendered
+body in an embedded stylesheet (light + dark, no external assets) so the
+bundle ships a guide that reads well in a browser. The output is committed
+next to its source, so regenerate after editing a FLASH.md:
+
+    pip install markdown==3.8
+    python3 scripts/flash_html.py release/*/FLASH.md
+
+Output is deterministic (no timestamps): it only changes when the source does.
 
 ### [`scripts/ws-seed.sh`](architecture/scripts/ws-seed.sh.md)
 
