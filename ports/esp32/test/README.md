@@ -31,5 +31,7 @@ still fits its partition.
 
 ## CI
 
-These suites are not wired into any workflow — CI builds and tests the nRF side only.
-Run them yourself before pushing a change to `ports/`.
+The host suites run in CI as the port-tests workflow (`make test-port` from the repo
+root is the same entry point). `verify_port.sh` needs a local ESP-IDF, so CI covers
+the firmware-build half separately in the firmware-builds workflow; run `run.sh` with
+`idf.py` on `PATH` to get both locally.

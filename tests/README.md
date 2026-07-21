@@ -6,7 +6,7 @@ hardware. Hardware truth comes separately from the manual
 
 | Command | What it runs | CI workflow |
 |---|---|---|
-| `make test` | [`host/`](host/): the KAT suite for the shared engine + Aliro core (574 assertions), compiled against the `WOZ_PORT_HOST` backend with the Zephyr shims in `host/shim/` | host-tests |
+| `make test` | [`host/`](host/): the KAT suite for the shared engine + Aliro core (578 assertions), compiled against the `WOZ_PORT_HOST` backend with the Zephyr shims in `host/shim/` | host-tests |
 | `make coverage` | Same suite instrumented (clang), HTML report, enforced line-coverage floor | host-tests |
 | `make test-san` | Same suite under ASan + UBSan | sanitizers |
 | `make fuzz` | libFuzzer (CI) or corpus replay (macOS) on the wire-facing parsers | fuzz |
@@ -16,6 +16,8 @@ hardware. Hardware truth comes separately from the manual
 | `make test-ws` | [`tooling/ws_seed_test.sh`](tooling/ws_seed_test.sh): hermetic tests of per-worktree workspace seeding | tooling |
 | `tooling/patch_drift_check.sh` | Verifies every nRF patch still applies to the pinned upstream revisions (sparse network fetch, no workspace) | patch-drift |
 
-CI additionally runs shellcheck over every script (tooling) and clang-format over
-`modules/` (format). None of the CI jobs builds firmware; firmware claims are gated on
-the bench, not the runner.
+CI additionally runs shellcheck over every script (tooling), clang-format and
+clang-tidy over `modules/`, a linter over the workflows themselves (workflow-lint),
+and compile-gates both targets' firmware (firmware-builds). Hardware behavior stays
+gated on the bench, not the runner: see
+[hardware-validation.md](../docs/hardware-validation.md).

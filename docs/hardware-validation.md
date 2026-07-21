@@ -1,8 +1,9 @@
 # Hardware validation
 
-Automated CI covers the host-side core of the nRF target (KAT suite, coverage floor,
-ASan/UBSan). It does not build either ESP32 port, and the end-to-end product runs against
-a live iPhone, which CI cannot exercise at all. This checklist is the manual gate: run
+Automated CI gates the host-side logic (KAT suite, coverage floor, sanitizers, fuzz,
+CBMC, the ESP32 port suite) and compile-gates both targets' firmware. What it cannot
+exercise is the product itself, which runs against a live iPhone. This checklist is
+the manual gate: run
 every applicable item before cutting a release, and record the results table in the
 release notes (see [`RELEASING.md`](RELEASING.md)).
 
@@ -42,14 +43,14 @@ No NFC tap path exists on this target, so there is no equivalent of HV-5.
   power-select jumper.
 - An iPhone with a key provisioned in Wallet for *this* reader identity. A key minted
   against a different reader will not authenticate.
-- Serial console attached (`make monitor` from `ports/esp32-matter`).
+- Serial console attached (`make monitor` from `ports/esp32/apps/matter-lock`).
 
 ### Checklist
 
 | ID | Procedure | Pass criterion |
 |---|---|---|
-| EV-1 | `ports/esp32-idf/test/run.sh` on the release commit | Exit 0, all host suites pass |
-| EV-2 | `make rebuild` in `ports/esp32-matter` | Exit 0; `verify_port.sh` reports the link seam intact and the app fits its partition |
+| EV-1 | `make test-port` on the release commit | Exit 0, all host suites pass |
+| EV-2 | `make rebuild` in `ports/esp32/apps/matter-lock` | Exit 0; `verify_port.sh` reports the link seam intact and the app fits its partition |
 | EV-3 | `make flash-erase`, then boot | Clean boot, onboarding codes printed, no watchdog resets |
 | EV-4 | Commission into a home with the printed code | Commissioning completes; `status` shows the fabric |
 | EV-5 | Confirm a key lands in the phone's wallet | Key appears, tied to this reader |

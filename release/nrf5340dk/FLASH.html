@@ -62,7 +62,9 @@ footer { margin-top: 3.5rem; padding-top: 1rem; border-top: 1px solid var(--line
 <main>
 <p class="eyebrow"><b>openaliro</b> · flash bundle · evaluation firmware</p>
 <h1>openaliro on the nRF5340 DK: flash guide</h1>
-<p>The primary openaliro target: an Aliro lock with NFC tap and UWB approach unlock. It joins Apple Home over Thread, your iPhone carries the key in Wallet, and the lock opens as you walk up or on a tap.</p>
+<p>The primary openaliro target: an Aliro lock with NFC tap and UWB approach unlock. It
+joins Apple Home over Thread, your iPhone carries the key in Wallet, and the lock
+opens as you walk up or on a tap.</p>
 <div class="tablewrap"><table>
 <thead>
 <tr>
@@ -124,27 +126,36 @@ footer { margin-top: 3.5rem; padding-top: 1rem; border-top: 1px solid var(--line
 </tr>
 </tbody>
 </table></div>
-<p>Apple side: an iPhone with a UWB chip (iOS 26 is the validated floor) and a Thread-capable Home hub (HomePod or Apple TV 4K) in the same home.</p>
+<p>Apple side: an iPhone with a UWB chip (iOS 26 is the validated floor) and a
+Thread-capable Home hub (HomePod or Apple TV 4K) in the same home.</p>
 <h2>2 · Install the tools</h2>
 <ol>
-<li>Install the <a href="https://www.segger.com/downloads/jlink/">SEGGER J-Link software</a>: the USB driver and programming backend.</li>
-<li>Download <a href="https://www.nordicsemi.com/Products/Development-tools/nRF-Util">nRF Util</a>, a single executable. macOS/Linux:</li>
+<li>Install the <a href="https://www.segger.com/downloads/jlink/">SEGGER J-Link software</a>: the
+   USB driver and programming backend.</li>
+<li>Download <a href="https://www.nordicsemi.com/Products/Development-tools/nRF-Util">nRF Util</a>,
+   a single executable. macOS/Linux:</li>
 </ol>
 <p><code>bash
    chmod +x nrfutil
    sudo mv nrfutil /usr/local/bin/</code></p>
-<p>If macOS blocks it, allow it under System Settings, Privacy &amp; Security. Windows: run <code>nrfutil.exe</code> from its folder or add it to PATH.
+<p>If macOS blocks it, allow it under System Settings, Privacy &amp; Security. Windows:
+   run <code>nrfutil.exe</code> from its folder or add it to PATH.
 3. Once: <code>nrfutil install device</code>
 4. Check: <code>nrfutil device list</code> (shows the DK once plugged in)</p>
-<p>Prefer a GUI? The Programmer app in <a href="https://www.nordicsemi.com/Products/Development-tools/nRF-Connect-for-Desktop">nRF Connect for Desktop</a> flashes both hex files: add the DK, add both files, Erase &amp; write.</p>
+<p>Prefer a GUI? The Programmer app in
+<a href="https://www.nordicsemi.com/Products/Development-tools/nRF-Connect-for-Desktop">nRF Connect for Desktop</a>
+flashes both hex files: add the DK, add both files, Erase &amp; write.</p>
 <p>You also need a serial terminal: <code>screen</code> (built into macOS and most Linux), <code>minicom</code>, or PuTTY.</p>
 <h2>3 · Assemble</h2>
 <blockquote>
-<p><strong>Check the DWM3000EVB's power-select jumper first.</strong> Wrong source and the radio fails silently (no device ID, a deaf responder), looking exactly like a software fault. It cost days on the bench once.</p>
+<p><strong>Check the DWM3000EVB's power-select jumper first.</strong> Wrong source and the radio
+fails silently (no device ID, a deaf responder), looking exactly like a software
+fault. It cost days on the bench once.</p>
 </blockquote>
 <ol>
 <li>Seat the DWM3000EVB on the DK's Arduino header, flat, every pin socketed.</li>
-<li>Wire the NFC12A1's SPI signals (see its silk screen) to these DK pins, from the build's source of truth <code>ports/nrf5340dk/overlays/dw3000-nfc.overlay</code>:</li>
+<li>Wire the NFC12A1's SPI signals (see its silk screen) to these DK pins, from the
+   build's source of truth <code>ports/nrf5340dk/overlays/dw3000-nfc.overlay</code>:</li>
 </ol>
 <div class="tablewrap"><table>
 <thead>
@@ -188,14 +199,17 @@ footer { margin-top: 3.5rem; padding-top: 1rem; border-top: 1px solid var(--line
 </tr>
 </tbody>
 </table></div>
-<p>The four SPI lines sit on the DK's A2 to A5 positions; the NFC board is wired, not stacked, since the DWM3000EVB occupies the header.</p>
+<p>The four SPI lines sit on the DK's A2 to A5 positions; the NFC board is wired, not
+stacked, since the DWM3000EVB occupies the header.</p>
 <ol>
 <li>USB into the DK's J-Link connector (next to the power switch), switch On.</li>
 </ol>
 <h2>4 · Flash</h2>
 <pre><code class="language-bash">bash flash.sh
 </code></pre>
-<p>Programs the network core, then the application core, then resets. Both cores are fully erased first, wiping any previous commissioning. Several DKs? Pass a J-Link serial: <code>bash flash.sh 1050012345</code>.</p>
+<p>Programs the network core, then the application core, then resets. Both cores are
+fully erased first, wiping any previous commissioning. Several DKs? Pass a J-Link
+serial: <code>bash flash.sh 1050012345</code>.</p>
 <p>Manual equivalent:</p>
 <pre><code class="language-bash">nrfutil device program --firmware merged_CPUNET.hex --core network \
   --options chip_erase_mode=ERASE_ALL,verify=VERIFY_READ,reset=RESET_NONE
@@ -261,7 +275,8 @@ nrfutil device program --firmware merged.hex --core application \
 </tr>
 </tbody>
 </table></div>
-<p>More depth, wiring checks, and a radio self-test: <a href="https://github.com/asxeem/openaliro/blob/main/docs/troubleshooting.md">https://github.com/asxeem/openaliro/blob/main/docs/troubleshooting.md</a></p>
+<p>More depth, wiring checks, and a radio self-test:
+<a href="https://github.com/asxeem/openaliro/blob/main/docs/troubleshooting.md">https://github.com/asxeem/openaliro/blob/main/docs/troubleshooting.md</a></p>
 <h2>Notes</h2>
 <ul>
 <li>Evaluation firmware with Matter test certificates; do not put it in charge of a door you care about.</li>

@@ -100,10 +100,11 @@ core-pinning mattered for the ranging task.
 ### Toolchain
 
 - Use the ESP-IDF version esp-matter recommends, and install esp-matter on top of that
-  same tree. The two ports share one toolchain. **Nothing in this repository pins a
-  version**: the Makefiles pin only paths (`IDF_EXPORT`, `ESP_MATTER_PATH`) and check
-  that the export scripts exist. CI never builds either port, so no toolchain is pinned
-  there either. Treat the pair of installs as an external prerequisite you manage.
+  same tree. The two apps share one toolchain. Locally, the Makefiles pin only paths
+  (`IDF_EXPORT`, `ESP_MATTER_PATH`) and check that the export scripts exist: treat the
+  pair of installs as an external prerequisite you manage. CI pins its own copy (an
+  ESP-IDF container digest plus a bench-validated esp-matter revision, in
+  `.github/workflows/firmware-builds.yml` and `release.yml`).
 - Stage the install if disk is tight: plain ESP-IDF with the `esp32s3` target is enough
   for the bench reader app (a few GB). The matter-lock app additionally needs esp-matter,
   which is much larger because connectedhomeip is heavy.

@@ -62,7 +62,9 @@ footer { margin-top: 3.5rem; padding-top: 1rem; border-top: 1px solid var(--line
 <main>
 <p class="eyebrow"><b>openaliro</b> · flash bundle · evaluation firmware</p>
 <h1>openaliro on the ESP32-S3: flash guide</h1>
-<p>The complete Aliro Matter lock on a single ESP32-S3: it commissions into Apple Home over Wi-Fi, your iPhone carries the key in Wallet, and the lock opens as you walk up (BLE + UWB approach unlock; no NFC tap on this target).</p>
+<p>The complete Aliro Matter lock on a single ESP32-S3: it commissions into Apple Home
+over Wi-Fi, your iPhone carries the key in Wallet, and the lock opens as you walk up
+(BLE + UWB approach unlock; no NFC tap on this target).</p>
 <div class="tablewrap"><table>
 <thead>
 <tr>
@@ -116,19 +118,25 @@ footer { margin-top: 3.5rem; padding-top: 1rem; border-top: 1px solid var(--line
 </tr>
 </tbody>
 </table></div>
-<p>Apple side: an iPhone with a UWB chip (iOS 26 is the validated floor), a Home hub (HomePod or Apple TV), and a 2.4 GHz Wi-Fi network (the ESP32 has no 5 GHz).</p>
+<p>Apple side: an iPhone with a UWB chip (iOS 26 is the validated floor), a Home hub
+(HomePod or Apple TV), and a 2.4 GHz Wi-Fi network (the ESP32 has no 5 GHz).</p>
 <h2>2 · Install the tools</h2>
 <ol>
-<li>Python 3 (<code>python3 --version</code> to check; on Windows from <a href="https://www.python.org/downloads/">python.org</a> with "Add to PATH" ticked).</li>
+<li>Python 3 (<code>python3 --version</code> to check; on Windows from
+   <a href="https://www.python.org/downloads/">python.org</a> with "Add to PATH" ticked).</li>
 <li><code>pip install esptool</code> (<code>pip3</code> on some systems, <code>py -m pip</code> on Windows).</li>
 <li>A serial terminal: <code>screen</code> (built into macOS and most Linux), <code>minicom</code>, or PuTTY.</li>
 </ol>
-<p>Boards using the S3's native USB need no driver; boards with a CP210x or CH340 bridge may need that vendor's driver on Windows and older macOS.</p>
+<p>Boards using the S3's native USB need no driver; boards with a CP210x or CH340 bridge
+may need that vendor's driver on Windows and older macOS.</p>
 <h2>3 · Wire it</h2>
 <blockquote>
-<p><strong>Check the DWM3000EVB's power-select jumper first.</strong> Wrong source and the radio fails silently (no device ID, a deaf responder), looking exactly like a software fault. It cost days on the bench once.</p>
+<p><strong>Check the DWM3000EVB's power-select jumper first.</strong> Wrong source and the radio
+fails silently (no device ID, a deaf responder), looking exactly like a software
+fault. It cost days on the bench once.</p>
 </blockquote>
-<p>Power the EVB from <strong>3V3</strong>, not 5 V (the DW3000 is a 3.3 V part), share ground, and wire per the build's source of truth <code>ports/esp32/components/woz_uwb/port/board_pins.h</code>:</p>
+<p>Power the EVB from <strong>3V3</strong>, not 5 V (the DW3000 is a 3.3 V part), share ground, and
+wire per the build's source of truth <code>ports/esp32/components/woz_uwb/port/board_pins.h</code>:</p>
 <div class="tablewrap"><table>
 <thead>
 <tr>
@@ -199,7 +207,9 @@ footer { margin-top: 3.5rem; padding-top: 1rem; border-top: 1px solid var(--line
 <h2>4 · Flash</h2>
 <pre><code class="language-bash">bash flash.sh
 </code></pre>
-<p>esptool auto-detects the port; to name one, <code>bash flash.sh /dev/ttyACM0</code> (<code>/dev/cu.usbmodem…</code> on macOS, <code>COM…</code> on Windows). Chip not detected? Hold BOOT while plugging in, retry, then replug.</p>
+<p>esptool auto-detects the port; to name one, <code>bash flash.sh /dev/ttyACM0</code>
+(<code>/dev/cu.usbmodem…</code> on macOS, <code>COM…</code> on Windows). Chip not detected? Hold BOOT while
+plugging in, retry, then replug.</p>
 <p>Manual equivalent:</p>
 <pre><code class="language-bash">esptool.py --chip esp32s3 --baud 460800 write_flash 0x0 openaliro-matter-lock.bin
 </code></pre>
@@ -211,14 +221,17 @@ footer { margin-top: 3.5rem; padding-top: 1rem; border-top: 1px solid var(--line
 <li><strong>Linux:</strong> <code>screen /dev/ttyACM0 115200</code> (<code>/dev/ttyUSB0</code> on bridge boards)</li>
 <li><strong>Windows:</strong> PuTTY, Serial, the board's COM port, 115200</li>
 </ul>
-<p>The boot log prints the Matter onboarding QR code URL and manual pairing code, then a <code>matter&gt;</code> prompt; <code>codes</code> reprints both.</p>
+<p>The boot log prints the Matter onboarding QR code URL and manual pairing code, then a
+<code>matter&gt;</code> prompt; <code>codes</code> reprints both.</p>
 <h2>6 · Add it to Apple Home</h2>
 <ol>
 <li>Open the QR code URL on another screen, or keep the 11-digit code handy.</li>
 <li>Home app: add accessory, scan the QR code or type the code manually.</li>
-<li>Keep the phone next to the board; commissioning starts over BLE, then joins your 2.4 GHz Wi-Fi. Expect a minute or two.</li>
+<li>Keep the phone next to the board; commissioning starts over BLE, then joins your
+   2.4 GHz Wi-Fi. Expect a minute or two.</li>
 <li>Home warns about an uncertified accessory (test certificates); add anyway.</li>
-<li>Home then provisions the key into Wallet on its own. Walk up: the Wallet animation plays, the lock opens, and it relocks as you leave.</li>
+<li>Home then provisions the key into Wallet on its own. Walk up: the Wallet animation
+   plays, the lock opens, and it relocks as you leave.</li>
 </ol>
 <p>The <code>matter&gt;</code> console also has <code>status</code>, <code>range</code>, <code>lock</code>/<code>unlock</code>, and <code>factoryreset</code>.</p>
 <h2>7 · Troubleshooting</h2>
@@ -260,7 +273,10 @@ footer { margin-top: 3.5rem; padding-top: 1rem; border-top: 1px solid var(--line
 </tr>
 </tbody>
 </table></div>
-<p>More depth: the <a href="https://github.com/asxeem/openaliro/blob/main/docs/esp32-bringup.md">bring-up checklist</a> and <a href="https://github.com/asxeem/openaliro/blob/main/docs/esp32-gotchas.md">forty-odd known traps</a>.</p>
+<p>More depth: the
+<a href="https://github.com/asxeem/openaliro/blob/main/docs/esp32-bringup.md">bring-up checklist</a>
+and
+<a href="https://github.com/asxeem/openaliro/blob/main/docs/esp32-gotchas.md">forty-odd known traps</a>.</p>
 <h2>Notes</h2>
 <ul>
 <li>Evaluation firmware with Matter test certificates; do not put it in charge of a door you care about.</li>

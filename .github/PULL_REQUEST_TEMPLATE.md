@@ -5,7 +5,8 @@
 ## Checklist
 
 - [ ] `make test` passes locally
-- [ ] No edits to fetched upstream trees (`workspace/`); integration went through `ports/nrf5340dk/patches/`, `ports/nrf5340dk/overlays/`, `modules/`, or `ports/`
+- [ ] No edits to fetched upstream (`workspace/`): changes go via
+      `ports/nrf5340dk/{patches,overlays}/`, `modules/`, or `ports/`
 - [ ] New parsing / session / crypto code has host KAT coverage in `tests/host/`
 - [ ] New files carry an `SPDX-License-Identifier` header
 - [ ] `CHANGELOG.md` updated if the change is user-visible

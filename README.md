@@ -111,7 +111,7 @@ make go            # build + flash + monitor
 **No hardware** (laptop only — run the whole host-side gate):
 
 ```bash
-make test          # 574-assertion KAT suite, plain cc, sub-second
+make test          # 578-assertion KAT suite, plain cc, sub-second
 make test-port     # ESP32 port suite (crypto KATs, codec, provisioning)
 make verify        # everything: test + sanitizers + fuzz + CBMC
 ```

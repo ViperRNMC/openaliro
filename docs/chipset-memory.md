@@ -1,7 +1,7 @@
 # Memory usage
 
-Scope: the primary nRF5340 DK image only. The ESP32-S3 ports have their own budgets and
-partition layout (`ports/esp32-*/partitions.csv`) and are not measured here.
+Scope: the primary nRF5340 DK image only. The ESP32-S3 apps have their own budgets and
+partition layout (`ports/esp32/apps/*/partitions.csv`) and are not measured here.
 
 Snapshot measured 2026-07-19 from the build artifacts of 2026-07-17 19:55 in `build/`
 (repo HEAD `56df8df` at measurement time). `ports/nrf5340dk/overlays/woz-aliro.conf` and several

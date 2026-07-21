@@ -8,61 +8,66 @@
 ## API
 
 ### `static int uwb_probe_ensure(void)`
-`modules/woz_uwb/src/driver/uwb_min.c:23`
+`modules/woz_uwb/src/driver/uwb_min.c:29`
 
 @brief Bring the SDK up to "probed" state on first call; no-op afterwards.
+The whole reset -> wake -> probe sequence is retried: transient SPI/power
+glitches (bench-seen as a burst of dwt_probe -1 during post-commissioning
+Wi-Fi traffic, self-recovering on the caller's next attempt) clear on a
+fresh chip reset, so retrying here turns a failed session start into a
+slightly slower one.
 
 **called by** `uwb_min_read_chipid`, `uwb_radio_ensure_init`
 
 ### `static int uwb_radio_ensure_init(void)`
-`modules/woz_uwb/src/driver/uwb_min.c:101`
+`modules/woz_uwb/src/driver/uwb_min.c:114`
 
 @brief Bring the SDK up to "radio configured + LEDs on" state.
 
 **called by** `uwb_min_radio_init`, `uwb_min_selftest`, `uwb_min_twr_prep`  ·  **calls** `uwb_probe_ensure`
 
 ### `int uwb_min_radio_init(void)`
-`modules/woz_uwb/src/driver/uwb_min.c:139`
+`modules/woz_uwb/src/driver/uwb_min.c:152`
 
 @brief Ensure the DW3110 is fully initialised (probe + initialise + configure + LEDs).
 
 **calls** `uwb_radio_ensure_init`
 
 ### `int uwb_min_hw_reset(void)`
-`modules/woz_uwb/src/driver/uwb_min.c:144`
+`modules/woz_uwb/src/driver/uwb_min.c:157`
 
 @brief Pulse the DW3110 RST line low to force a hardware reset.
 
 ### `int uwb_min_read_chipid(uint32_t *id_out)`
-`modules/woz_uwb/src/driver/uwb_min.c:156`
+`modules/woz_uwb/src/driver/uwb_min.c:169`
 
 @brief Read the DW3000-family DEV_ID register over SPI.
 
 **calls** `uwb_probe_ensure`
 
 ### `int uwb_min_selftest(struct uwb_selftest_result *out)`
-`modules/woz_uwb/src/driver/uwb_min.c:181`
+`modules/woz_uwb/src/driver/uwb_min.c:194`
 
 @brief Radio self-test: configure, TX one frame, then arm RX.
 
 **calls** `uwb_radio_ensure_init`
 
 ### `int uwb_min_twr_prep(void)`
-`modules/woz_uwb/src/driver/uwb_min.c:275`
+`modules/woz_uwb/src/driver/uwb_min.c:288`
 
 @brief Configure the radio for the raw SS-TWR loopback (SP3-ND, ch9, code11); no STS.
 
 **called by** `uwb_min_twr_poll`  ·  **calls** `uwb_radio_ensure_init`
 
 ### `void uwb_min_twr_exchange(struct uwb_twr_frame *f)`
-`modules/woz_uwb/src/driver/uwb_min.c:296`
+`modules/woz_uwb/src/driver/uwb_min.c:309`
 
 @brief Run one POLL/RESP exchange; the STS must already be programmed.
 
 **called by** `uwb_min_twr_poll`
 
 ### `int uwb_min_twr_poll(uint32_t n, uint32_t period_ms, struct uwb_twr_result *out)`
-`modules/woz_uwb/src/driver/uwb_min.c:349`
+`modules/woz_uwb/src/driver/uwb_min.c:362`
 
 @brief Raw static-STS SS-TWR initiator burst (bench probe).
 

@@ -1,6 +1,8 @@
 # openaliro on the nRF5340 DK: flash guide
 
-The primary openaliro target: an Aliro lock with NFC tap and UWB approach unlock. It joins Apple Home over Thread, your iPhone carries the key in Wallet, and the lock opens as you walk up or on a tap.
+The primary openaliro target: an Aliro lock with NFC tap and UWB approach unlock. It
+joins Apple Home over Thread, your iPhone carries the key in Wallet, and the lock
+opens as you walk up or on a tap.
 
 | File | What it is |
 |---|---|
@@ -20,32 +22,41 @@ The primary openaliro target: an Aliro lock with NFC tap and UWB approach unlock
 | 8 jumper wires or a ribbon | NFC board to DK |
 | USB cable | power, flashing, serial console |
 
-Apple side: an iPhone with a UWB chip (iOS 26 is the validated floor) and a Thread-capable Home hub (HomePod or Apple TV 4K) in the same home.
+Apple side: an iPhone with a UWB chip (iOS 26 is the validated floor) and a
+Thread-capable Home hub (HomePod or Apple TV 4K) in the same home.
 
 ## 2. Install the tools
 
-1. Install the [SEGGER J-Link software](https://www.segger.com/downloads/jlink/): the USB driver and programming backend.
-2. Download [nRF Util](https://www.nordicsemi.com/Products/Development-tools/nRF-Util), a single executable. macOS/Linux:
+1. Install the [SEGGER J-Link software](https://www.segger.com/downloads/jlink/): the
+   USB driver and programming backend.
+2. Download [nRF Util](https://www.nordicsemi.com/Products/Development-tools/nRF-Util),
+   a single executable. macOS/Linux:
 
    ```bash
    chmod +x nrfutil
    sudo mv nrfutil /usr/local/bin/
    ```
 
-   If macOS blocks it, allow it under System Settings, Privacy & Security. Windows: run `nrfutil.exe` from its folder or add it to PATH.
+   If macOS blocks it, allow it under System Settings, Privacy & Security. Windows:
+   run `nrfutil.exe` from its folder or add it to PATH.
 3. Once: `nrfutil install device`
 4. Check: `nrfutil device list` (shows the DK once plugged in)
 
-Prefer a GUI? The Programmer app in [nRF Connect for Desktop](https://www.nordicsemi.com/Products/Development-tools/nRF-Connect-for-Desktop) flashes both hex files: add the DK, add both files, Erase & write.
+Prefer a GUI? The Programmer app in
+[nRF Connect for Desktop](https://www.nordicsemi.com/Products/Development-tools/nRF-Connect-for-Desktop)
+flashes both hex files: add the DK, add both files, Erase & write.
 
 You also need a serial terminal: `screen` (built into macOS and most Linux), `minicom`, or PuTTY.
 
 ## 3. Assemble
 
-> **Check the DWM3000EVB's power-select jumper first.** Wrong source and the radio fails silently (no device ID, a deaf responder), looking exactly like a software fault. It cost days on the bench once.
+> **Check the DWM3000EVB's power-select jumper first.** Wrong source and the radio
+> fails silently (no device ID, a deaf responder), looking exactly like a software
+> fault. It cost days on the bench once.
 
 1. Seat the DWM3000EVB on the DK's Arduino header, flat, every pin socketed.
-2. Wire the NFC12A1's SPI signals (see its silk screen) to these DK pins, from the build's source of truth `ports/nrf5340dk/overlays/dw3000-nfc.overlay`:
+2. Wire the NFC12A1's SPI signals (see its silk screen) to these DK pins, from the
+   build's source of truth `ports/nrf5340dk/overlays/dw3000-nfc.overlay`:
 
 | Signal | nRF5340 DK pin |
 |---|---|
@@ -58,7 +69,8 @@ You also need a serial terminal: `screen` (built into macOS and most Linux), `mi
 | 3V3 | 3V3 |
 | GND | GND |
 
-The four SPI lines sit on the DK's A2 to A5 positions; the NFC board is wired, not stacked, since the DWM3000EVB occupies the header.
+The four SPI lines sit on the DK's A2 to A5 positions; the NFC board is wired, not
+stacked, since the DWM3000EVB occupies the header.
 
 3. USB into the DK's J-Link connector (next to the power switch), switch On.
 
@@ -68,7 +80,9 @@ The four SPI lines sit on the DK's A2 to A5 positions; the NFC board is wired, n
 bash flash.sh
 ```
 
-Programs the network core, then the application core, then resets. Both cores are fully erased first, wiping any previous commissioning. Several DKs? Pass a J-Link serial: `bash flash.sh 1050012345`.
+Programs the network core, then the application core, then resets. Both cores are
+fully erased first, wiping any previous commissioning. Several DKs? Pass a J-Link
+serial: `bash flash.sh 1050012345`.
 
 Manual equivalent:
 
@@ -110,7 +124,8 @@ The boot log prints the Matter onboarding QR code URL and manual pairing code; R
 | Commissioning fails near the end | Thread join: hub online, same home; remove the half-added accessory and retry |
 | No key in Wallet | Wait a few minutes; needs iOS 26+ and a UWB iPhone |
 
-More depth, wiring checks, and a radio self-test: <https://github.com/asxeem/openaliro/blob/main/docs/troubleshooting.md>
+More depth, wiring checks, and a radio self-test:
+<https://github.com/asxeem/openaliro/blob/main/docs/troubleshooting.md>
 
 ## Notes
 

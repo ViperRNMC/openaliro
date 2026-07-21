@@ -16,7 +16,7 @@ specifications).
 The BLE transport and reader scaffold were already green on silicon: advertising the
 service (`0xFFF2`), serving the SPSM/version GATT read, bringing up the L2CAP CoC server
 on the SPSM, and coexisting with the UWB responder on one ESP32-S3. Components:
-`ports/esp32-idf/components/aliro_ble` (transport) and `.../aliro_reader` (the
+`ports/esp32/components/aliro_ble` (transport) and `.../aliro_reader` (the
 session/transaction scaffold, with the crypto handshake seam still stubbed).
 
 ## The boundary finding (why this phase existed at all)
@@ -71,7 +71,7 @@ Each step below is implemented, host-KAT'd where it is host-testable, and confir
 silicon against a live phone.
 
 - **3.1 — the key schedule.** `aliro_crypto`
-  (`ports/esp32-idf/components/aliro_crypto`): a portable SHA-256 / HMAC / HKDF /
+  (`ports/esp32/components/aliro_crypto`): a portable SHA-256 / HMAC / HKDF /
   X9.63-KDF core (compiled identically on host and target) plus an mbedTLS-PSA
   backend for AES-256-GCM and P-256 ECDH/ECDSA. On top of that, the key schedule:
   - stage 1 `Z = SHA-256( ecdh_shared(32) ‖ 0x00000001 ‖ txid(16) )` (single-block
@@ -84,7 +84,7 @@ silicon against a live phone.
     (0 = seal, 1 = open) ‖ 4-byte big-endian per-direction counter, separate
     non-wrapping counters.
 
-  Host KATs (`ports/esp32-idf/test/test_aliro_crypto.c`, in `run.sh`) pass against
+  Host KATs (`ports/esp32/test/test_aliro_crypto.c`, in `run.sh`) pass against
   FIPS-180-4, RFC 4231, RFC 5869, a GCM spec vector, and cross-check the schedule
   wiring; the whole component also builds and links into the firmware.
 
@@ -99,7 +99,8 @@ silicon against a live phone.
   transcript (the exact signed bytes, with the reader/device usage domain
   separators), the AUTH0/AUTH1 response parsers, the EXCHANGE command + the
   zero-length `98 00` URSK-ready trigger, and the 4-byte L2CAP envelope
-  (`[type&0x3F][opcode][len_be16]`). Host KAT: `test/test_aliro_apdu.c` in `run.sh`.
+  (`[type&0x3F][opcode][len_be16]`). Host KAT: `ports/esp32/test/test_aliro_apdu.c`
+  in `run.sh`.
   `aliro_reader` now drives the transaction (AUTH0 → AUTH1 → EXCHANGE), running
   ECDH + the key schedule to derive the URSK, replying via `aliro_ble_send`, with
   heavy diagnostic logging.
@@ -109,13 +110,14 @@ silicon against a live phone.
   negotiation, so the params are now negotiated with the peer rather than fixed.
 - **3.4 — the provisioning seam.** The provisioning seam
   (`modules/woz_aliro/src/aliro_prov.c` + `modules/woz_aliro/include/aliro_prov.h`,
-  with the storage backend in `ports/esp32-idf/components/aliro_reader/aliro_prov_nvs.c`):
+  with the storage backend in `ports/esp32/components/aliro_reader/aliro_prov_nvs.c`):
   the reader identity (a stable reader identifier + P-256 signing key) and a
   credential **trust store**, NVS-backed with a clearly-marked, fixed **dev
   identity** fallback so the transaction is drivable at bench before Phase-4 Matter
   provisioning writes a real identity. Split like `aliro_crypto`: the dev default +
   blob (de)serialisation + trust logic are portable and host-KAT'd
-  (`test/test_aliro_prov.c` in `run.sh`); the NVS load/store is target-only. The
+  (`ports/esp32/test/test_aliro_prov.c` in `run.sh`); the NVS load/store is
+  target-only. The
   reader now loads identity+trust at start (replacing the per-boot random dev key,
   which changed the reader identity every reboot), signs with the provisioned key,
   and gates on a trust check after verifying the device signature: a raw-key
@@ -146,7 +148,7 @@ silicon against a live phone.
 
 Three different kinds of evidence back this phase, and they are not interchangeable:
 
-- **Host KATs** (`ports/esp32-idf/test/run.sh`) pin the key schedule against published
+- **Host KATs** (`ports/esp32/test/run.sh`) pin the key schedule against published
   vectors, the wire codec byte-for-byte, and the provisioning logic. The crypto core
   compiles host-identical to target, which is what lets a host result say anything about
   on-target behavior.

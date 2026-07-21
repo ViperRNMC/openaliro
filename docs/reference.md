@@ -13,9 +13,9 @@ Use it when you need the exact shape of something:
 - struct members, with the per-field comments
 - include graphs
 
-It covers the code this project owns: `modules/woz_uwb`, `modules/woz_aliro_ecp`, and the
-ESP32-S3 reader components (`aliro_ble`, `aliro_crypto`, `aliro_reader`). The Zephyr
-compatibility shim is excluded as port scaffolding rather than API.
+It covers the code this project owns: `modules/woz_port`, `modules/woz_uwb`,
+`modules/woz_aliro`, `modules/woz_aliro_ecp`, and the ESP32-S3 reader components
+(`aliro_ble`, `aliro_crypto`, `aliro_reader`).
 
 ## Reference or Architecture?
 

@@ -5,8 +5,9 @@ bump means new capability and a patch bump means fixes only.
 
 ## Preconditions
 
-1. `main` is green on all four CI workflows (host-tests, sanitizers, patch-drift,
-   tooling).
+1. `main` is green across all CI workflows, including `firmware-builds`: the release
+   build reuses its containers and scripts, so a green gate there predicts a green
+   release build.
 2. The working tree is clean and on the release commit.
 3. The [hardware validation checklist](hardware-validation.md) passes on that commit,
    with the results table filled in.
@@ -16,16 +17,16 @@ bump means new capability and a patch bump means fixes only.
 1. **Changelog.** Move the `[Unreleased]` content in `CHANGELOG.md` under a new
    `## [X.Y.Z] - YYYY-MM-DD` heading, leave an empty `[Unreleased]` section, and update
    the link references at the bottom. Commit.
-2. **Tag.** `git tag -a vX.Y.Z -m "vX.Y.Z"` on that commit, then push the branch and the
-   tag.
-3. **Artifact.** Build pristine from the tagged commit: `make rebuild`. Take
-   `build/merged.hex` and compute its checksum:
-   `shasum -a 256 build/merged.hex > merged.hex.sha256`.
-4. **GitHub release.** Create a release from the tag. The notes contain, in order: the
-   changelog section for this version, the hardware validation results tables (with
-   firmware commit, toolchain versions, phone model, iOS version), and flashing
-   instructions (`nrfjprog`/`west flash` of `merged.hex` needs a full-erase first flash,
-   same as `make flash-erase`). Attach `merged.hex` and `merged.hex.sha256`.
+2. **Dry run (recommended).** Trigger the `release` workflow manually
+   (`workflow_dispatch`) from the release branch. It exercises the whole pipeline and
+   leaves the bundles as run artifacts without publishing anything.
+3. **Tag.** `git tag -a vX.Y.Z -m "vX.Y.Z"` on the release commit, then push the branch
+   and the tag. The tag push triggers the `release` workflow, which cold-builds both
+   flash bundles (sources in `release/<target>/`), zips them with a `SHA256SUMS.txt`,
+   and creates the GitHub release with those assets.
+4. **Release notes.** Edit the created release and append, above the generated bundle
+   table: the changelog section for this version, and the hardware validation results
+   tables (with firmware commit, toolchain versions, phone model, and iOS version).
 
 ## Documentation
 
@@ -43,12 +44,12 @@ committed `docs/` tree, so a contributor never needs it. Regenerating `docs/` do
 
 ## Notes
 
-- The artifact is built locally, not in CI: the NCS toolchain and workspace fetch
-  (~6.5 GB) make a CI build slow and disk-tight on stock runners. If that changes, a
-  tag-triggered build workflow can replace step 3.
-- The prebuilt hex targets the default configuration (nRF5340 DK, DW3110, ST25R300).
-  Other configurations (`CHIP=dw3720`) build from source.
-- No ESP32 binary is attached. That build depends on an ESP-IDF and esp-matter pair that
-  this repository does not pin, so a prebuilt image would not be reproducible from the
-  tag alone. Build it from `ports/esp32/apps/matter-lock` and record the two toolchain versions in
-  the release notes alongside the ESP32 validation table.
+- Release builds are deliberately cache-free, unlike `firmware-builds`: a shipped
+  binary must not depend on restored CI state. Cold builds are slow (the NCS workspace
+  fetch alone is ~6.5 GB); the job timeouts allow 3 h (nRF) and 4 h (ESP32).
+- The toolchain pins live in the workflow itself: the NCS toolchain container by
+  digest for the nRF bundle, and the ESP-IDF container digest plus a bench-validated
+  esp-matter revision (`ESP_MATTER_REV`) for the ESP32 bundle.
+- The bundles cover the default configurations only: nRF5340 DK (DW3110, ST25R300)
+  and the ESP32-S3 Matter lock. Variants (`CHIP=dw3720`, `HA=1`, the bench reader
+  app) build from source.

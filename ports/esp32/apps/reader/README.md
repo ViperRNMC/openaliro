@@ -14,23 +14,23 @@ ending in an approach unlock.
 
 | Component | What it is |
 |---|---|
-| `aliro_ble` | NimBLE transport: `0xFFF2` advertisement, the SPSM/version GATT characteristics, and the L2CAP CoC that carries the transaction. Works standalone or attached to an existing NimBLE host. See its [`SPEC.md`](components/aliro_ble/SPEC.md). |
+| `aliro_ble` | NimBLE transport: `0xFFF2` advertisement, the SPSM/version GATT characteristics, and the L2CAP CoC that carries the transaction. Works standalone or attached to an existing NimBLE host. See its [`SPEC.md`](../../components/aliro_ble/SPEC.md). |
 | `aliro_crypto` | The key schedule and secure channels: SHA-256 / HMAC / HKDF / X9.63 in portable C, with an mbedTLS-PSA backend for AES-256-GCM and P-256. |
 | `aliro_reader` | The transaction itself: AUTH0 → AUTH1 → EXCHANGE over APDUs, then the M1-M4 ranging setup, plus the reader identity and credential trust store in NVS. |
 | `woz_uwb` | The shared engine. `modules/woz_uwb/src` and `deps/dw3000` are compiled straight from the repo against the `woz_port.h` platform contract, with an ESP-IDF DW3000 backend underneath. |
 
 Only one seam is target-specific:
 
-- **`components/woz_uwb/port/`** — the ESP-IDF DW3000 platform backend (`dw3000_spi.c`,
+- **`../../components/woz_uwb/port/`** — the ESP-IDF DW3000 platform backend (`dw3000_spi.c`,
   `dw3000_hw.c`) replacing the Zephyr `deps/dw3000/platform/` one (SPI-master + GPIO/IRQ),
   plus `board_pins.h` and a tiny wrap/diag stub (`woz_wrap_stubs.c`).
 
 There is **no Zephyr compatibility layer**. The engine takes its whole OS surface
-from `modules/woz_uwb/src/facade/woz_port.h` (eight functions: heap, monotonic
+from `modules/woz_port/include/woz_port.h` (eight functions: heap, monotonic
 clock, two sleeps, cycle counter) and its logging from `woz_log.h`, both of which
 select an ESP-IDF backend on `ESP_PLATFORM`. The earlier `compat/zephyr/*` shim,
 194 lines of fake `<zephyr/*>` headers, was deleted once those two headers
-existed. See [`docs/porting.md`](../../../docs/porting.md).
+existed. See [`docs/porting.md`](../../../../docs/porting.md).
 
 The CCC STS substitution links the same way it does on Nordic: `--wrap=dwt_rxenable`
 (the load-bearing one, where `ccc_shim_rx.c` programs the CCC key and IV on every RX-arm)
@@ -45,8 +45,9 @@ that calls `dwt_isr()`, because that call does SPI and cannot run in ISR context
 
 ## Wiring
 
-Source of truth is `components/woz_uwb/port/board_pins.h`; the physical
-DWM3000EVB-to-header mapping is in [`docs/esp32-bringup.md`](../../../docs/esp32-bringup.md).
+Source of truth is `../../components/woz_uwb/port/board_pins.h`; the physical
+DWM3000EVB-to-header mapping is in
+[`docs/esp32-bringup.md`](../../../../docs/esp32-bringup.md).
 
     SPI2 / FSPI:  SCLK 12   MOSI 11   MISO 13   CS 10
     control:      RSTn  4   IRQ   5   WAKEUP 6
@@ -55,7 +56,7 @@ DWM3000EVB-to-header mapping is in [`docs/esp32-bringup.md`](../../../docs/esp32
 ## Build, flash, run
 
 ```bash
-cd ports/esp32-idf
+cd ports/esp32/apps/reader
 idf.py set-target esp32s3   # once per checkout
 make build
 make flash
@@ -90,7 +91,7 @@ first use is deliberate: probing the DW3000 from inside a BLE host callback fail
 ## Tests
 
 ```bash
-ports/esp32-idf/test/run.sh
+ports/esp32/test/run.sh
 ```
 
 Five host suites (no ESP-IDF, no hardware): the port headers, the `aliro_crypto` key
@@ -108,8 +109,9 @@ change — every bug in the gotchas log built cleanly first.
 
 ## Further reading
 
-- [`docs/esp32-bringup.md`](../../../docs/esp32-bringup.md) — wire it up and confirm the radio answers.
-- [`docs/esp32-gotchas.md`](../../../docs/esp32-gotchas.md) — every trap hit on the way to
-  a working unlock, with symptom and fix.
+- [`docs/esp32-bringup.md`](../../../../docs/esp32-bringup.md): wire it up and confirm
+  the radio answers.
+- [`docs/esp32-gotchas.md`](../../../../docs/esp32-gotchas.md): every trap hit on the
+  way to a working unlock, with symptom and fix.
 - [`../matter-lock/README.md`](../matter-lock/README.md) — the same stack inside a
   Matter door lock.

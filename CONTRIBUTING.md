@@ -14,9 +14,11 @@ For the ESP32-S3 ports, build from the app directory (`ports/esp32/apps/reader` 
 `ports/esp32/apps/matter-lock`) with ESP-IDF on your `PATH`; see [`ports/README.md`](ports/README.md).
 Their host tests run without ESP-IDF: `make test-port`.
 
-Every PR must pass the CI gates that run automatically: host tests, coverage floor,
-ASan/UBSan, patch drift, and shellcheck. Run `make test` locally before pushing, plus
-`make test-port` if you touched a port (CI gates on it too).
+Every PR must pass the CI gates that run automatically: host tests + coverage floor,
+sanitizers, fuzz, CBMC, the ESP32 port suite, clang-format and clang-tidy over
+`modules/`, shellcheck, patch drift, workflow lint, and compile checks of both
+targets' firmware. `make verify` runs the host-side gates locally in one go; add
+`make test-port` if you touched a port.
 
 ## Ground rules
 

@@ -21,8 +21,8 @@ layout, the version-selection write, and the CoC parameters — are in
 
 Which one you use depends on who owns the BLE stack:
 
-- **Standalone** — `aliro_ble_start()` brings up NimBLE itself. This is what the bench app
-  in `../../main` uses.
+- **Standalone** — `aliro_ble_start()` brings up NimBLE itself. This is what the bench
+  app in [`../../apps/reader`](../../apps/reader) uses.
 - **Attached** — `aliro_ble_prepare()`, `aliro_ble_service_def()`, and
   `aliro_ble_start_attached()` let the reader register its service on a NimBLE host that
   something else already owns. The Matter app uses this, because esp-matter runs the host

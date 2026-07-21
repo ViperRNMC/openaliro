@@ -13,7 +13,7 @@ for the tiers and what each costs.
 
 | Directory | Target | What it is | Status |
 |---|---|---|---|
-| *(repository root)* | **nRF5340 DK** | The primary build: NFC tap + UWB approach unlock on top of the Nordic door-lock add-on, assembled by `make bootstrap` from patches and overlays in [`integration/`](../integration) | **Hardware-validated** end to end, including the NFC tap path |
+| *(repository root)* | **nRF5340 DK** | The primary build: NFC tap + UWB approach unlock on top of the Nordic door-lock add-on, assembled by `make bootstrap` from patches and overlays in [`nrf5340dk/`](nrf5340dk/) | **Hardware-validated** end to end, including the NFC tap path |
 | [`esp32/`](esp32/) | **ESP32-S3** | The complete ESP-IDF port: shared components plus two apps (a Matter door lock and a standalone bench reader) | **Hardware-validated.** Approach unlock driven end to end against a live iPhone, Wallet animation and all |
 
 ## The ESP32-S3 port (`esp32/`)

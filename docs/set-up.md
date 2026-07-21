@@ -64,12 +64,10 @@ pins ESP-IDF v5.5.4 and esp-matter in
 
 ```bash
 cd ports/esp32/apps/reader
-make set-target
+idf.py set-target esp32s3   # once per checkout, needs the IDF env exported
 make build
 make flash
 ```
-
-`make set-target` runs once per checkout.
 
 **Matter door lock** (`../ports/esp32/apps/matter-lock`): also needs
 esp-matter at `~/esp/esp-matter` (override: `ESP_MATTER_PATH=`).

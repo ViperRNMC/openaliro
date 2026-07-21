@@ -165,8 +165,8 @@ behind it is not implemented, and on this hardware cannot be.
 
 | Port | Status |
 |---|---|
-| `ports/esp32-matter` | **implemented** — runtime `cluster::create()` in `app_main.cpp` |
-| nRF5340 door lock app | **implemented** — static tables, `ports/nrf5340dk/patches/approach-direction-cluster.patch` |
+| `ports/esp32/apps/matter-lock` | **implemented**: runtime `cluster::create()` in `app_main.cpp` |
+| nRF5340 door lock app | **implemented**: static tables, `ports/nrf5340dk/patches/approach-direction-cluster.patch` |
 
 The two ports build their data models differently. The ESP32 port constructs endpoints at
 runtime, so the cluster is a few lines of C++. The nRF app's is a set of static tables

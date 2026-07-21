@@ -10,13 +10,13 @@ proven correct; forking them for ESP32 would mean two engines to keep honest.
 ## The API seam lives in the engine, not here
 
 There is no `<zephyr/*>` compatibility tree any more. The engine takes its whole OS
-surface from `modules/woz_uwb/src/facade/woz_port.h` — eight functions (heap, monotonic
-clock, two sleeps, cycle counter) — and its logging from `woz_log.h`. Both select an
+surface from `modules/woz_port/include/woz_port.h`, eight functions (heap, monotonic
+clock, two sleeps, cycle counter), and its logging from `woz_log.h`. Both select an
 ESP-IDF backend on `ESP_PLATFORM`: FreeRTOS, `esp_timer`, `esp_rom_delay_us`,
 `esp_cpu_get_cycle_count`, and `esp_log`. The pure byte and bit helpers are platform-free
 and sit alongside them in `woz_bytes.h` / `woz_util.h`.
 
-`test/test_port_headers.c` exercises those headers on the host, and
+`../../test/test_port_headers.c` exercises those headers on the host, and
 [`docs/porting.md`](../../../../docs/porting.md) describes what a new target owes them.
 
 ## `port/` — the hardware seam

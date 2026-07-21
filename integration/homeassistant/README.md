@@ -21,8 +21,8 @@ same information over Matter instead of over the console: a DoorLock
 the bootstrap step is what applies the matching data-model patches:
 
 ```
-HA=1 ./bootstrap.sh     # or: make bootstrap HA=1
-HA=1 ./build.sh build   # or: make build HA=1
+make bootstrap HA=1
+make build HA=1
 ```
 
 **Not hardware-validated.** This has never been run on a board. It changes the

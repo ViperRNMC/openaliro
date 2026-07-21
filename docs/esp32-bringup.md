@@ -1,7 +1,8 @@
 # ESP32-S3 bring-up
 
 One page, match-the-table. The pin map's source of truth is
-`components/woz_uwb/port/board_pins.h`; if you change it there, change it here.
+`ports/esp32/components/woz_uwb/port/board_pins.h`; if you change it there, change it
+here.
 
 ## 1. Wire it (11 connections)
 
@@ -72,9 +73,9 @@ provisioned for this reader, or a second DW3000 board acting as initiator. With 
 `range: NN cm` lines appear and `status` reports a trusted range.
 
 For the full approach-unlock path — commissioning, a key in the phone's wallet, and the
-Wallet unlock animation — use the Matter app in [`../matter-lock`](../ports/esp32/apps/matter-lock)
-instead. This bench app has no Matter layer, so nothing provisions a real credential
-into a phone for it.
+Wallet unlock animation — use the Matter app in
+[`ports/esp32/apps/matter-lock`](../ports/esp32/apps/matter-lock) instead. This bench
+app has no Matter layer, so nothing provisions a real credential into a phone for it.
 
 No antenna calibration was needed on this hardware. If distances come out negative or
 absurd, read

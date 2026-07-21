@@ -20,13 +20,13 @@ the API and behavior may change in minor releases.
 - Distance-gated unlock and relock with hysteresis, validated end to end on an nRF5340 DK
   against a live iPhone.
 
-#### ESP32-S3 port (`ports/`)
+#### ESP32-S3 port (`ports/esp32/`)
 
 - A standalone Aliro reader on ESP-IDF: BLE transport (NimBLE GATT + L2CAP CoC),
   credential authentication, key schedule, and URSK derivation, all reimplemented rather
   than delegated to a vendor library.
-- The shared `modules/woz_uwb` ranging engine compiled unchanged for Xtensa behind a
-  Zephyr-compat layer, with an ESP-IDF DW3000 SPI/GPIO backend.
+- The shared `modules/woz_uwb` ranging engine compiled unchanged for Xtensa against
+  the `woz_port.h` platform contract, with an ESP-IDF DW3000 SPI/GPIO backend.
 - Negotiated M1-M4 ranging setup and live DS-TWR distance on the DW3000, tuned for the
   ESP32's real-time budget (DMA-disabled SPI, STS key cache, hot-path log throttling).
 - A Matter door lock (`ports/esp32/apps/matter-lock`) that commissions into a Home app, provisions
@@ -40,6 +40,13 @@ the API and behavior may change in minor releases.
 - Host KAT test suite with a line-coverage floor, ASan/UBSan runs, patch-drift and
   shellcheck gates in CI.
 - A second host test suite for the ESP32 port's crypto, wire codec, provisioning, and
-  compat shim (`make test-port`, CI-gated).
+  port headers (`make test-port`, CI-gated).
+- The `modules/woz_port` platform contract (`woz_port.h` + `woz_log.h`): the single
+  seam every target's port builds against.
+- libFuzzer harnesses and CBMC bounded proofs over the wire-facing parsers
+  (`make fuzz`, `make cbmc`), both CI-gated.
+- CI firmware builds for both targets, and a tag-triggered release workflow publishing
+  self-contained flash bundles (firmware, flash script, setup guide) for the
+  nRF5340 DK and the ESP32-S3 Matter lock.
 
 [Unreleased]: https://github.com/asxeem/openaliro/commits/main

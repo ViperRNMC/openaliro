@@ -111,10 +111,12 @@ divided at boot.
 
 ### Linker seam
 
-The CCC STS substitution relies on three `-Wl,--wrap=dwt_*` flags
-(`dwt_configurestsiv`, `dwt_rxenable`, `dwt_configurestsmode`). Any GNU ld supports this;
-it is confirmed working on both `arm-zephyr-eabi-ld` and `xtensa-esp32s3-elf-ld`. A port to
-a non-GNU linker would need a different interception strategy.
+The CCC STS substitution rides one load-bearing link-time intercept,
+`-Wl,--wrap=dwt_rxenable`, where `ccc_shim_rx.c` programs the CCC key and IV on every
+RX-arm; the other `--wrap=dwt_*` flags in the build files are diagnostics or have no
+live caller. Any GNU ld supports `--wrap`; it is confirmed working on both
+`arm-zephyr-eabi-ld` and `xtensa-esp32s3-elf-ld`. A port to a non-GNU linker would
+need a different interception strategy.
 
 ## 4. Verifying a port did not change the validated target
 

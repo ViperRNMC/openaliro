@@ -28,8 +28,8 @@ phone connects (aliro_ble)
 | `aliro_prov_nvs.c` | The NVS load/store behind `aliro_prov.c`. Target-only, so it stays here. |
 
 Everything but the NVS backend is platform-agnostic and lives in `modules/woz_aliro`,
-shared with the nRF build. `aliro_reader.c` and `aliro_ranging.c` still reach for
-`esp_log.h`/FreeRTOS, so the Zephyr side does not compile them yet.
+shared source between the targets; this component is the ESP-IDF build wiring plus
+that one backend.
 
 ## Two things that are easy to get wrong
 
