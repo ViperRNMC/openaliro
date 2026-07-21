@@ -11,4 +11,5 @@
 | [`tools/docs_media.py`](docs_media.md) | Add the repo's imagery to the rendered site: demo screenshots and a share card. |
 | [`tools/docs_nav.py`](docs_nav.md) | Give the rendered site one curated reading order. |
 | [`tools/docs_start.py`](docs_start.md) | Give the rendered site a real "Get started" landing. |
+| [`tools/docs_theme.py`](docs_theme.md) | Retheme the rendered site: warm paper surfaces, serif display headings. |
 | [`tools/docs_title.py`](docs_title.md) | Title the generated pages after the repository, not after the checkout directory. |

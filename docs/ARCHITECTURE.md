@@ -1070,22 +1070,58 @@ Also part of wayfinding, on every page:
 Run from the repo root, after docs_github.py and before docs_graph.py, so
 the page exists before the sitewide shims and the link pass run.
 
+### [`tools/docs_theme.py`](architecture/tools/docs_theme.md)
+
+Retheme the rendered site: warm paper surfaces, serif display headings.
+
+The page generator ships a neutral blue-on-gray look. This pass restyles the
+rendered output — never the generator — into the warm editorial style the
+project wants: ivory paper backgrounds, near-black ink, a terracotta accent,
+tan links in dark mode, and a serif display face over the headings. Two files
+carry the whole theme:
+
+  * site/style.css — every generated page links it, and every earlier pass
+    styles its injections through the sheet's custom properties (--ground,
+    --ink, --accent, …). Appending a redefinition of those properties at the
+    end of the sheet wins the cascade everywhere at once, so the sidebar, the
+    landing cards, the command chips and the search palette all follow without
+    touching a single HTML file. A short component layer after the variables
+    covers what variables cannot express: heading typefaces and the always-dark
+    code panels.
+  * site/api/doxygen-awesome.css — the reference tree's stylesheet exposes the
+    same kind of seam (--page-background-color, --primary-color, …), so the
+    API pages get the matching palette and headline face.
+
+The display face is Source Serif 4 from Google Fonts, pulled with @import —
+which CSS requires ahead of every rule, so the import is prepended while the
+overrides are appended. Body text stays on the system sans stack.
+
+Idempotent like the other passes: a marker comment guards both files, so
+re-running over a kept site/ changes nothing. Run from the repo root, any time
+after the generators; it edits only the two stylesheets, no page markup.
+
 ### [`tools/docs_title.py`](architecture/tools/docs_title.md)
 
 Title the generated pages after the repository, not after the checkout directory.
 
-The page generator takes the project name from the basename of the directory it
-runs in, and offers no setting to override it. In a linked worktree that name is
-the worktree directory's, not the repository's, which would put the wrong title
-on every page and in the committed docs/ tree.
+Older page-generator releases took the project name from the basename of the
+directory they ran in. In a linked worktree that name is the worktree
+directory's, not the repository's, which put the wrong title on every page and
+in the committed docs/ tree. The current release derives the name from git
+itself, so this pass is a safety net that normally rewrites nothing.
 
-Deliberately no example checkout name here: this docstring is itself published,
-and the rewrite below would substitute any literal it contained, leaving a
-sentence that compares a name against itself.
+The net only looks where a title can actually sit: the <title> tag, the
+sidebar brand, and h1 headings in the rendered pages; the markdown H1 lines in
+the two committed docs/ pages. It must not look anywhere else. A checkout can
+be named after an ordinary word of the prose — a worktree named after, say,
+the very thing this site is — and a blanket replacement would then rename that
+word through running text, the generator's own ownership stamp (breaking its
+regeneration), and the reference tree's rendered source listings. The
+reference tree is excluded entirely: doxygen takes its project name from
+docs/Doxyfile, never from the checkout.
 
-This rewrites the checkout's name to the repository's wherever the generator
-emitted it. The repository name comes from the common git directory, which every
-worktree shares, so it is the same value from any checkout. When the two names
-already agree this is a no-op, which is the case in the main checkout.
+The repository name comes from the common git directory, which every worktree
+shares, so it is the same value from any checkout. When the two names agree
+this is a no-op, which is the case in the main checkout.
 
 Run from the repo root, after the generators and before the link pass.
