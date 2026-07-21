@@ -9,7 +9,7 @@ seal/open framing shared by the reader and device sides of an Aliro session.
 ## API
 
 ### `struct aliro_secchan`
-`modules/woz_aliro/include/aliro_crypto.h:95`
+`modules/woz_aliro/include/aliro_crypto.h:134`
 
 ---- Secure channel (AES-256-GCM, directional per-message counters) ------
 Nonce = 8-byte big-endian direction (0 outbound/seal, 1 inbound/open) followed

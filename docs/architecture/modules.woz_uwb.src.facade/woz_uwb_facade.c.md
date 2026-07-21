@@ -52,12 +52,19 @@ fails.
 @param cm_out Pointer to store the distance in cm.
 @return True if a valid range has been seen since initialization; false otherwise.
 
-### `bool woz_uwb_trusted_range_cm(int32_t *cm_out)`
-`modules/woz_uwb/src/facade/woz_uwb_facade.c:115`
+### `void woz_uwb_set_range_listener(void (*cb)(void))`
+`modules/woz_uwb/src/facade/woz_uwb_facade.c:120`
 
-@brief Retrieve the last valid DS-TWR distance in centimeters, gated by range-integrity
-consensus.
-@param cm_out Pointer to store the distance in cm.
-@return True only when a valid range has been seen AND it is trusted by the layer-4 consensus
-gate; false if no valid range exists or the range is not yet trusted. When CONFIG_WOZ_ALIRO is
-not defined, behaves identically to woz_uwb_last_range_cm().
+@brief Register a callback fired after each accepted DS-TWR range latch.
+@param cb Callback invoked on the UWB RX path (keep it to a task wake), or NULL to clear.
+Without CONFIG_WOZ_ALIRO there is no range latch to observe and this is a no-op.
+
+### `bool woz_uwb_trusted_range_cm(int32_t *cm_out)`
+`modules/woz_uwb/src/facade/woz_uwb_facade.c:129`
+
+Latest distance in cm, gated by the range-integrity consensus (layer 4):
+true only when a valid range has been seen AND it is trusted
+(fira_session_range_trusted()). This is the accessor the unlock decision
+must use so a single unverified/spoofed block cannot drive an unlock; raw
+telemetry keeps using woz_uwb_last_range_cm(). Without CONFIG_WOZ_ALIRO
+there is no trust concept and this matches woz_uwb_last_range_cm().
