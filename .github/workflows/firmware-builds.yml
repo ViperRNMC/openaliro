@@ -109,17 +109,34 @@ jobs:
     timeout-minutes: 45
     container:
       image: espressif/idf@sha256:b9f2d6ea1c19e0c9f7959bdb74a9e3c775642f9d0f3b841937c5fa3363db892b # v5.5.4
+    env:
+      IDF_CCACHE_ENABLE: "1"
+      CCACHE_MAXSIZE: 300M
     steps:
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
         with:
           persist-credentials: false
+      # Compiler cache: the run-unique key means the post-job save always
+      # uploads a fresh cache, and restore-keys picks the newest previous one
+      # (stale entries fall out via LRU eviction). Unlike the workspace/tree
+      # caches below, a stale ccache is harmless — worst case is a slower
+      # build, never a wrong one.
+      - name: restore the compiler cache
+        uses: actions/cache@55cc8345863c7cc4c66a329aec7e433d2d1c52a9 # v6.1.0
+        with:
+          path: .ccache
+          key: ccache-esp32-idf-${{ github.run_id }}
+          restore-keys: |
+            ccache-esp32-idf-
       - name: build the reader app (esp32s3)
         working-directory: ports/esp32/apps/reader
         # Steps bypass the image entrypoint, so source the IDF env explicitly.
         run: |
+          export CCACHE_DIR="$GITHUB_WORKSPACE/.ccache"
           . "$IDF_PATH/export.sh"
           idf.py set-target esp32s3
           idf.py build
+          { command -v ccache >/dev/null && ccache -s | head -n 6; } || echo "no ccache on PATH"
 
   # nRF5340 DK Zephyr/NCS build: bootstrap the pinned west workspace (multi-GB
   # fetch), then the sysbuild image. The bootstrapped workspace is cached,
@@ -143,6 +160,11 @@ jobs:
       image: ghcr.io/nrfconnect/sdk-nrf-toolchain@sha256:f24d8932ff081ebcd8da9c248f4449bdabe461c0620a7a4ac9e95eb577ba2276 # v3.3.0
     env:
       ALIRO_TOOLCHAIN: env
+      # History-free fetch of exactly the pinned revisions: the same tree
+      # state at a fraction of the size, so bootstrap and the workspace cache
+      # are both much faster. The bench default keeps full clones.
+      ALIRO_SHALLOW: "1"
+      CCACHE_MAXSIZE: 1G
     steps:
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
         with:
@@ -155,7 +177,14 @@ jobs:
           key: nrf-workspace-${{ hashFiles('west.yml', 'scripts/bootstrap.sh', 'ports/nrf5340dk/patches/**') }}
       - name: bootstrap the workspace (cold cache)
         if: steps.ws.outputs.cache-hit != 'true'
-        run: ./scripts/bootstrap.sh
+        # One retry: bootstrap is resumable (the fetch sentinel means a rerun
+        # picks up where an interrupted west update stopped), so a transient
+        # fetch failure costs one resume, not the whole multi-GB fetch.
+        run: |
+          ./scripts/bootstrap.sh || {
+            echo "::warning::bootstrap failed once — retrying (resumes the fetch)"
+            ./scripts/bootstrap.sh
+          }
       # Save before building: the build writes only to ./build, so the
       # workspace is already complete here, and an expensive bootstrap is not
       # lost when the build step itself fails (the failure this gate exists
@@ -166,8 +195,22 @@ jobs:
         with:
           path: workspace
           key: ${{ steps.ws.outputs.cache-primary-key }}
+      # See the esp32-idf job for the ccache key/restore-keys rationale. The
+      # NCS toolchain bundles ccache and Zephyr picks it up from PATH
+      # automatically (zephyr/cmake/modules/ccache.cmake), so warm builds
+      # skip most compilation.
+      - name: restore the compiler cache
+        uses: actions/cache@55cc8345863c7cc4c66a329aec7e433d2d1c52a9 # v6.1.0
+        with:
+          path: .ccache
+          key: ccache-nrf5340dk-${{ github.run_id }}
+          restore-keys: |
+            ccache-nrf5340dk-
       - name: build (nrf5340dk/nrf5340/cpuapp, sysbuild)
-        run: ./scripts/build.sh build
+        run: |
+          export CCACHE_DIR="$GITHUB_WORKSPACE/.ccache"
+          ./scripts/build.sh build
+          { command -v ccache >/dev/null && ccache -s | head -n 6; } || echo "no ccache on PATH"
 
   # ESP32-S3 Matter door lock against esp-matter at the bench-validated
   # revision (6+ GB once the CHIP submodule tree is in). Deliberately kept off
@@ -189,6 +232,8 @@ jobs:
       # The bench-validated esp-matter revision; the cache key derives from it.
       ESP_MATTER_REV: 93b168027bf95f4e467230345ad1f2d147eb1f6b
       ESP_MATTER_PATH: /opt/esp/esp-matter
+      IDF_CCACHE_ENABLE: "1"
+      CCACHE_MAXSIZE: 1G
     steps:
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
         with:
@@ -204,18 +249,28 @@ jobs:
         # Pinned-SHA clone (git clone --branch takes no SHA, so init + fetch),
         # then the setup esp-matter documents: shallow esp32 submodules and
         # install.sh, minus the chip-tool/chip-cert host tools the firmware
-        # build never runs.
+        # build never runs. One from-scratch retry absorbs transient fetch
+        # failures. Subshell + && chain on purpose: the cd stays contained,
+        # and `set -e` is suppressed inside a `||` context, so an explicit
+        # chain is the only reliable early-exit.
         run: |
           . "$IDF_PATH/export.sh"
-          git init -q "$ESP_MATTER_PATH"
-          cd "$ESP_MATTER_PATH"
-          git remote add origin https://github.com/espressif/esp-matter.git
-          git fetch -q --depth 1 origin "$ESP_MATTER_REV"
-          git checkout -q FETCH_HEAD
-          git submodule update --init --depth 1
-          ./connectedhomeip/connectedhomeip/scripts/checkout_submodules.py \
-            --platform esp32 linux --shallow
-          ./install.sh --no-host-tool
+          setup() (
+            rm -rf "$ESP_MATTER_PATH" &&
+            git init -q "$ESP_MATTER_PATH" &&
+            cd "$ESP_MATTER_PATH" &&
+            git remote add origin https://github.com/espressif/esp-matter.git &&
+            git fetch -q --depth 1 origin "$ESP_MATTER_REV" &&
+            git checkout -q FETCH_HEAD &&
+            git submodule update --init --depth 1 &&
+            ./connectedhomeip/connectedhomeip/scripts/checkout_submodules.py \
+              --platform esp32 linux --shallow &&
+            ./install.sh --no-host-tool
+          )
+          setup || {
+            echo "::warning::esp-matter setup failed once — retrying from scratch"
+            setup
+          }
       # Save before building, so a broken app build does not throw away the
       # expensive fetch + install.
       - name: save the esp-matter cache (cold cache)
@@ -231,10 +286,22 @@ jobs:
         run: |
           . "$IDF_PATH/export.sh"
           python3 -m pip install -q -r "$ESP_MATTER_PATH/requirements.txt"
+      # See the esp32-idf job for the ccache key/restore-keys rationale.
+      # Covers the IDF-side components; the CHIP core built through GN keeps
+      # its own compile times.
+      - name: restore the compiler cache
+        uses: actions/cache@55cc8345863c7cc4c66a329aec7e433d2d1c52a9 # v6.1.0
+        with:
+          path: .ccache
+          key: ccache-esp32-matter-${{ github.run_id }}
+          restore-keys: |
+            ccache-esp32-matter-
       - name: build the matter-lock app (esp32s3)
         working-directory: ports/esp32/apps/matter-lock
         run: |
+          export CCACHE_DIR="$GITHUB_WORKSPACE/.ccache"
           . "$IDF_PATH/export.sh"
           . "$ESP_MATTER_PATH/export.sh"
           idf.py set-target esp32s3
           idf.py build
+          { command -v ccache >/dev/null && ccache -s | head -n 6; } || echo "no ccache on PATH"
