@@ -54,6 +54,13 @@ NFC tap unlocks it as well. No app, no button.
   Qorvo DW3110.
 - **Two SoCs**: the same ranging engine runs on Nordic and on Espressif silicon.
 
+<p align="center">
+  <img src="assets/grid-demo.webp" alt="Six iPhone screenshots of the Aliro lock in use: key setup and Express Mode, Approach Direction settings, key provisioning, and lock-state notifications" />
+</p>
+<p align="center"><sub>Key setup · Approach Direction · provisioning · lock and unlock states, all against live hardware</sub></p>
+
+
+
 ## Targets
 
 Both targets unlock on approach against a live iPhone, and both have been validated on
