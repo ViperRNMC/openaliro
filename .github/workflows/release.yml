@@ -60,7 +60,8 @@ jobs:
           out=dist/openaliro-nrf5340dk
           mkdir -p "$out"
           cp build/merged.hex build/merged_CPUNET.hex "$out"/
-          cp release/nrf5340dk/FLASH.md release/nrf5340dk/flash.sh "$out"/
+          cp release/nrf5340dk/FLASH.md release/nrf5340dk/FLASH.html \
+            release/nrf5340dk/flash.sh "$out"/
           printf 'openaliro %s (%s)\nbuilt %s\nhttps://github.com/asxeem/openaliro\n' \
             "$REF_NAME" "$COMMIT" "$(date -u +%Y-%m-%dT%H:%MZ)" > "$out/VERSION.txt"
       - uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7.0.1
@@ -127,7 +128,8 @@ jobs:
           out=dist/openaliro-esp32-matter-lock
           mkdir -p "$out"
           cp ports/esp32/apps/matter-lock/build/openaliro-matter-lock.bin "$out"/
-          cp release/esp32-matter-lock/FLASH.md release/esp32-matter-lock/flash.sh "$out"/
+          cp release/esp32-matter-lock/FLASH.md release/esp32-matter-lock/FLASH.html \
+            release/esp32-matter-lock/flash.sh "$out"/
           printf 'openaliro %s (%s)\nbuilt %s\nhttps://github.com/asxeem/openaliro\n' \
             "$REF_NAME" "$COMMIT" "$(date -u +%Y-%m-%dT%H:%MZ)" > "$out/VERSION.txt"
       - uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7.0.1
@@ -170,8 +172,9 @@ jobs:
           notes="$(mktemp)"
           {
             echo "Self-contained flash bundles: each zip holds the firmware, a flash"
-            echo "script, and a FLASH.md with the hardware list, wiring, and first-run"
-            echo "steps. Evaluation firmware with Matter test certificates."
+            echo "script, and the setup guide as both FLASH.md and a styled FLASH.html"
+            echo "(open it in a browser) covering tools, wiring, flashing, and Apple"
+            echo "Home setup. Evaluation firmware with Matter test certificates."
             echo
             echo "| Bundle | Hardware | What you get |"
             echo "|---|---|---|"
