@@ -11,7 +11,7 @@
  * aliro_ranging — see aliro_ranging.h. Drives the engine reader adapter/session
  * for the post-auth M1-M4 ranging-setup exchange. Provenance: original glue over
  * the reverse-engineered engine adapter; call contract mirrors the reference
- * reader (integration/patches/custom_impl-uwb.patch).
+ * reader (ports/nrf5340dk/patches/custom_impl-uwb.patch).
  */
 #include <stdbool.h>
 #include <stddef.h>

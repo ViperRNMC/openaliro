@@ -15,7 +15,7 @@ CONFIG_*_LOG_LEVEL with a source whose INFO lines drive the demo narrative
 and a threshold below ERR still lets ERR through. So mute per-source at runtime.
 Reversible: compiled only under CONFIG_WOZ_PRETTY_SHELL (PRETTY=1). Drop PRETTY
 and every one of these lines returns for raw diagnosis. Needs
-CONFIG_LOG_RUNTIME_FILTERING=y (set in integration/overlays/woz-pretty.conf).
+CONFIG_LOG_RUNTIME_FILTERING=y (set in ports/nrf5340dk/overlays/woz-pretty.conf).
 
 **discussed in** [`docs/porting.md`](../../porting.md)
 

@@ -26,7 +26,7 @@ In scope:
 - The credential-to-ranging binding: anything that lets ranging be spoofed, replayed, or
   unbound from the authenticated key (STS derivation, key ladder, M1-M4 handling).
 - The ESP32-S3 reader's credential-auth and secure-channel code
-  (`ports/esp32-idf/components/aliro_crypto` and `.../aliro_reader`): key schedule, GCM
+  (`ports/esp32/components/aliro_crypto` and `.../aliro_reader`): key schedule, GCM
   channel handling, signature verification, and the credential trust gate.
 - Key material handling in this repository's code.
 

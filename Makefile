@@ -1,6 +1,6 @@
 # Makefile — single command entry point for the Aliro NFC + UWB firmware.
 #
-# Thin front door over ./bootstrap.sh and ./build.sh (which hold the real logic:
+# Thin front door over scripts/bootstrap.sh and scripts/build.sh (which hold the real logic:
 # preflight, pristine-vs-incremental signature detection, chip resolution), plus
 # the host-side test/coverage targets (plain C, no NCS toolchain or hardware).
 #
@@ -42,19 +42,19 @@ ENV := $(strip \
   $(if $(STRICT),STRICT=$(STRICT)) \
   $(if $(HA),HA=$(HA)))
 
-.PHONY: help bootstrap ws-seed ws-clean build rebuild pretty selftest test test-san coverage test-ws docs docs-publish fuzz cbmc verify flash flash-erase term clean
+.PHONY: help bootstrap ws-seed ws-clean build rebuild pretty selftest test test-san coverage test-port test-ws docs docs-publish fuzz cbmc verify flash flash-erase term clean
 
 ##@ Setup
 ## bootstrap: fetch NCS v3.3.0 + add-on (~6.5 GB), apply patches  ·  first run only
 ##   Options: HA=1 also applies the Home Assistant data-model patches
 ##            (pair with `make build HA=1`; not hardware-validated)
 bootstrap:
-	@$(ENV) ./bootstrap.sh
+	@$(ENV) ./scripts/bootstrap.sh
 
 ## ws-seed: give THIS worktree its own workspace (APFS COW clone, ~0 disk)
 ##   Idempotent. Isolates worktrees so branch-bouncing can't build stale patches.
 ws-seed:
-	@$(REPO_ROOT)/ws-seed.sh
+	@$(REPO_ROOT)/scripts/ws-seed.sh
 
 ##@ Build
 ## build: incremental build            -> build/merged.hex
@@ -63,19 +63,19 @@ ws-seed:
 ##            HA=1 (Home Assistant variant — needs `make bootstrap HA=1` too)
 ##   e.g.     make build PRETTY=1 CHIP=dw3720
 build:
-	@$(ENV) ./build.sh build
+	@$(ENV) ./scripts/build.sh build
 
 ## rebuild: force clean pristine build
 rebuild:
-	@$(ENV) ./build.sh rebuild
+	@$(ENV) ./scripts/build.sh rebuild
 
 ## selftest: one-shot boot self-test (no iPhone)
 selftest:
-	@$(ENV) UWB_SELFTEST=1 ./build.sh build
+	@$(ENV) UWB_SELFTEST=1 ./scripts/build.sh build
 
 ## pretty: build with curated / quiet console
 pretty:
-	@$(ENV) PRETTY=1 ./build.sh build
+	@$(ENV) PRETTY=1 ./scripts/build.sh build
 
 ##@ Test
 ## test: run the host test suite for our logic  (no NCS toolchain / hardware)
@@ -116,6 +116,11 @@ verify:
 	@$(MAKE) --no-print-directory cbmc
 	@printf '\n  ✓ all host gates passed\n'
 
+## test-port: host-runnable ESP32 port tests (port headers, crypto KATs, codec)
+##   No ESP-IDF needed; the on-target build check inside skips cleanly without it.
+test-port:
+	@$(REPO_ROOT)/ports/esp32/test/run.sh
+
 ## test-ws: hermetic tests for per-worktree workspace auto-seeding
 ##   Runs in a temp dir with a stub bootstrap — no west, no hardware, and it
 ##   never touches this repo's own workspace/ or build/.
@@ -128,22 +133,22 @@ test-ws:
 ##   then a link pass that fails the build on any dead link. Needs doxygen and
 ##   graphviz; no NCS toolchain or hardware.
 docs:
-	@$(REPO_ROOT)/docs.sh
+	@$(REPO_ROOT)/scripts/docs.sh
 
 ## docs-publish: rebuild the site, then snapshot it onto the local gh-pages branch
 ##   Never pushes: publishing stays `git push origin gh-pages`. Refuses a stale
 ##   or partial site, uncommitted docs/, or a foreign branch named gh-pages.
 docs-publish: docs
-	@$(REPO_ROOT)/docs-publish.sh
+	@$(REPO_ROOT)/scripts/docs-publish.sh
 
 ##@ Flash
 ## flash: app-only flash
 flash:
-	@$(ENV) ./build.sh flash
+	@$(ENV) ./scripts/build.sh flash
 
 ## flash-erase: full erase + flash  ·  needed after a net-core change
 flash-erase:
-	@$(ENV) ./build.sh flash-erase
+	@$(ENV) ./scripts/build.sh flash-erase
 
 ##@ Monitor
 ## term: interactive serial console — live logs + typeable shell (tio, 115200 8N1)

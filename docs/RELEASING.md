@@ -50,5 +50,5 @@ committed `docs/` tree, so a contributor never needs it. Regenerating `docs/` do
   Other configurations (`CHIP=dw3720`) build from source.
 - No ESP32 binary is attached. That build depends on an ESP-IDF and esp-matter pair that
   this repository does not pin, so a prebuilt image would not be reproducible from the
-  tag alone. Build it from `ports/esp32-matter` and record the two toolchain versions in
+  tag alone. Build it from `ports/esp32/apps/matter-lock` and record the two toolchain versions in
   the release notes alongside the ESP32 validation table.

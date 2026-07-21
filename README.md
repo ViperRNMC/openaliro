@@ -68,8 +68,8 @@ hardware. They share the UWB engine in `modules/woz_uwb` byte-for-byte.
 
 | Target | What it is | Where |
 |---|---|---|
-| **nRF5340 DK** | The primary build. Approach unlock plus the NFC tap path, on top of the Nordic door-lock add-on. | this directory |
-| **ESP32-S3** | A Matter door lock built from a reader stack written from scratch: BLE transport, credential authentication, and ranging-key derivation. Approach unlock only, no NFC tap. | [`ports/esp32-matter/`](ports/esp32-matter/) |
+| **nRF5340 DK** | The primary build. Approach unlock plus the NFC tap path, on top of the Nordic door-lock add-on. | [`ports/nrf5340dk/`](ports/nrf5340dk/) (built from the repo root: `make build`) |
+| **ESP32-S3** | A Matter door lock built from a reader stack written from scratch: BLE transport, credential authentication, and ranging-key derivation. Approach unlock only, no NFC tap. | [`ports/esp32/`](ports/esp32/) |
 
 The ESP32 port is not a recompile. The reference design delegates credential
 authentication and ranging-key derivation to a closed vendor library that ships only as
@@ -103,13 +103,40 @@ documents a console-to-MQTT bridge that needs no firmware change at all.
 **ESP32-S3** (needs ESP-IDF and esp-matter on the machine):
 
 ```bash
-cd ports/esp32-matter
+cd ports/esp32/apps/matter-lock
 make set-target    # once per checkout
 make go            # build + flash + monitor
 ```
 
+**No hardware** (laptop only — run the whole host-side gate):
+
+```bash
+make test          # 574-assertion KAT suite, plain cc, sub-second
+make test-port     # ESP32 port suite (crypto KATs, codec, provisioning)
+make verify        # everything: test + sanitizers + fuzz + CBMC
+```
+
 See [`ports/README.md`](ports/README.md) for the port index, and
 [`docs/esp32-bringup.md`](docs/esp32-bringup.md) to wire the radio up.
+
+## Repository map
+
+```
+Makefile           every entry point (build, flash, test, docs); run `make` for the list
+scripts/           the machinery behind it (bootstrap, build, docs, workspace seeding)
+modules/
+  woz_port/        THE PORTING SEAM: woz_port.h + woz_log.h, the whole platform contract
+  woz_uwb/         UWB engine: driver, FiRa MAC, CCC STS, M1-M4 codec (shared, all targets)
+  woz_aliro/       Aliro credential auth: key schedule, secure channels, wire codec, reader
+  woz_aliro_ecp/   NFC ECP emitter for Express Mode tap (Nordic-licensed)
+ports/
+  nrf5340dk/       primary target: patches + overlays laid over the fetched Nordic add-on
+  esp32/           ESP32-S3: shared components + two apps (matter-lock, bench reader) + tests
+deps/dw3000/       vendored Qorvo/Decawave DW3000 driver, compiled unchanged by every target
+integration/       Home Assistant MQTT bridge (no firmware change needed)
+tests/             host KAT suite, sanitizers, fuzzing, CBMC proofs, tooling tests
+docs/              guides (protocol research, bring-up, porting) + generated reference
+```
 
 ## Hardware
 
@@ -122,7 +149,7 @@ See [`ports/README.md`](ports/README.md) for the port index, and
 | X-NUCLEO-NFC12A1 (ST25R300) | NFC reader front end for tap (SPIM2) |
 
 Pin assignments live in
-[`integration/overlays/dw3000-nfc.overlay`](integration/overlays/dw3000-nfc.overlay).
+[`ports/nrf5340dk/overlays/dw3000-nfc.overlay`](ports/nrf5340dk/overlays/dw3000-nfc.overlay).
 
 **ESP32-S3:**
 
@@ -132,7 +159,7 @@ Pin assignments live in
 | DWM3000EVB (DW3110) | UWB radio on SPI2, eleven jumpers |
 
 Pin assignments live in
-[`ports/esp32-idf/components/woz_uwb/port/board_pins.h`](ports/esp32-idf/components/woz_uwb/port/board_pins.h);
+[`ports/esp32/components/woz_uwb/port/board_pins.h`](ports/esp32/components/woz_uwb/port/board_pins.h);
 the wiring table is in [`docs/esp32-bringup.md`](docs/esp32-bringup.md).
 
 ## How it works
@@ -217,20 +244,25 @@ its own separate fight.
 
 A layered stack; each layer is optional and depends only on the one below it:
 
+- **`modules/woz_port/`**: the platform contract — `woz_port.h` (eight functions + a
+  mutex) and `woz_log.h`. Every other layer is written against these two headers, which
+  is what makes the engine portable; see [`docs/porting.md`](docs/porting.md).
 - **`modules/woz_uwb/`**: the UWB engine (`src/`, split into
   `driver/ fira/ ccc/ aliro/ facade/ shell/`): the CCC key ladder, MAC, STS, and DS-TWR
   responder, driving `deps/dw3000` directly. The M1-M4 ranging-setup codec is in
   `src/aliro/`, and callers come in through `facade/woz_uwb_facade.c`.
+- **`modules/woz_aliro/`**: the Aliro credential-auth reader — key schedule, secure
+  channels, wire codec, provisioning — shared source between the targets.
 - **`modules/woz_aliro_ecp/`**: NFC ECP emitter for the Express Mode (no Face ID) tap.
 - **`deps/dw3000/`**: Bruno Randolf's DW3000 decadriver (ISC).
-- **`ports/`**: the ESP32-S3 target. It compiles the two directories above unchanged
-  behind a Zephyr-compat layer, adds an ESP-IDF DW3000 backend, and supplies its own
-  reader stack in place of the Nordic add-on.
+- **`ports/`**: one directory per target. `nrf5340dk/` is patches + overlays over the
+  Nordic add-on; `esp32/` compiles the modules above unchanged, adds an ESP-IDF DW3000
+  backend, and supplies its own reader stack in place of the Nordic add-on.
 
 On nRF the Nordic add-on owns BLE and Matter and hands the engine a plaintext ranging
 key; on ESP32 the port's own reader derives that key and hands it over at the same seam.
 Integration onto the fetched add-on is layered and never edited in place: patches in
-`integration/patches/`, configuration in `integration/overlays/`, modules in `modules/` +
+`ports/nrf5340dk/patches/`, configuration in `ports/nrf5340dk/overlays/`, modules in `modules/` +
 `deps/`.
 
 </details>

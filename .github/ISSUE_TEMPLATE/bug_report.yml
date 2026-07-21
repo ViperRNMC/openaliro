@@ -21,7 +21,7 @@ body:
       label: Target
       options:
         - nRF5340 DK (primary)
-        - ESP32-S3 port (ports/esp32-idf)
+        - ESP32-S3 port (ports/esp32)
         - Host tests only (no hardware)
     validations:
       required: true

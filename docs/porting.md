@@ -4,14 +4,14 @@ How the UWB engine moves to a new chipset, what it costs, and how to prove a por
 change the code the validated target runs.
 
 The primary target is the nRF5340 DK on NCS v3.3.0 (hardware-validated end to end). A
-second port, ESP32-S3 on ESP-IDF, lives in [`ports/esp32-idf/`](../ports/esp32-idf/).
+second port, ESP32-S3 on ESP-IDF, lives in [`ports/esp32/`](../ports/esp32/).
 
 ## 1. The contract
 
-Everything the ranging engine needs from a platform is two headers in
-`modules/woz_uwb/src/facade/`:
+Everything the ranging engine needs from a platform is the two headers in
+[`modules/woz_port/include/`](../modules/woz_port/include/):
 
-- **[`woz_port.h`](../modules/woz_uwb/src/facade/woz_port.h)** — eight functions:
+- **[`woz_port.h`](../modules/woz_port/include/woz_port.h)** — eight functions plus one mutex:
 
   | Function | Meaning |
   |---|---|
@@ -21,14 +21,16 @@ Everything the ranging engine needs from a platform is two headers in
   | `woz_sleep_ms` | relinquish the CPU for at least N ms |
   | `woz_sleep_us` | short busy-wait, microseconds (`deca_sleep`) |
   | `woz_cycle_get_32` | free-running counter, RX-arm latency probe |
+  | `woz_mutex_init/lock/unlock` | blocking mutex (Aliro reader trust store; three lines per backend) |
 
-- **[`woz_log.h`](../modules/woz_uwb/src/facade/woz_log.h)** — `LOG_ERR/WRN/INF/DBG`, the
+- **[`woz_log.h`](../modules/woz_port/include/woz_log.h)** — `LOG_ERR/WRN/INF/DBG`, the
   hexdump variants, `LOG_MODULE_REGISTER/DECLARE`, and `woz_printf`.
 
 Both select a backend from `__ZEPHYR__`, `ESP_PLATFORM`, or `WOZ_PORT_HOST`, and `#error`
-if none is defined rather than guessing. Two further headers, `woz_bytes.h` (endian-neutral
-load/store) and `woz_util.h` (`MIN`/`MAX`/`ARRAY_SIZE`/`IS_ENABLED`), are pure code with no
-platform content at all; they are shared by every target including Zephyr.
+if none is defined rather than guessing. Two further headers in
+`modules/woz_uwb/src/facade/`, `woz_bytes.h` (endian-neutral load/store) and `woz_util.h`
+(`MIN`/`MAX`/`ARRAY_SIZE`/`IS_ENABLED`), are pure code with no platform content at all;
+they are shared by every target including Zephyr.
 
 **Deliberately not in the contract:** work queues, timers, and init hooks. Those appear only
 in `uwb_rxdiag.c`, `uwb_selftest.c`, `woz_logfmt.c`, `woz_logquiet.c` and `aliro_shell.c`,
@@ -60,9 +62,21 @@ sysbuild and Matter-transport exercise well beyond a devicetree overlay. Porting
 engine to a new Zephyr board is cheap; porting the product is not, and the two should not
 be quoted at the same price.
 
-For reference, the ESP-IDF port's entire target-specific surface is now
-`ports/esp32-idf/components/woz_uwb/port/`: `dw3000_spi.c` (169), `dw3000_hw.c` (180) and
+For reference, the ESP-IDF port's entire target-specific surface for the ranging engine
+is `ports/esp32/components/woz_uwb/port/`: `dw3000_spi.c` (169), `dw3000_hw.c` (180) and
 `woz_wrap_stubs.c` (21). It carries no Zephyr compatibility layer.
+
+**Beyond the engine: the full reader.** The tiers above cover secure ranging. A complete
+lock additionally needs the credential-auth reader from `modules/woz_aliro`, which brings
+two more per-platform seams, both small and both with ESP-IDF worked examples:
+
+- a **BLE transport** implementing [`aliro_ble.h`](../modules/woz_aliro/include/aliro_ble.h)
+  (the NimBLE backend is `ports/esp32/components/aliro_ble/aliro_ble.c`);
+- a **storage backend** for the `aliro_prov` trust store (the NVS one is
+  `ports/esp32/components/aliro_reader/aliro_prov_nvs.c`).
+
+The crypto layer itself (`aliro_hash.c`, `aliro_crypto.c`, `aliro_prim_psa.c`) is shared
+source over PSA/mbedTLS and ports without platform code.
 
 ## 3. Build tiers
 
@@ -70,7 +84,7 @@ For reference, the ESP-IDF port's entire target-specific surface is now
 - **Bring-up only** — `CONFIG_WOZ_UWB=y` alone compiles just `uwb_min.c`.
 - **No UWB (NFC-only)** — `CONFIG_WOZ_UWB=n`. The whole module is wrapped in
   `if(CONFIG_WOZ_UWB)` and contributes nothing; every external call site in
-  `integration/patches/custom_impl-uwb.patch` is `#ifdef CONFIG_WOZ_ALIRO`, so the build
+  `ports/nrf5340dk/patches/custom_impl-uwb.patch` is `#ifdef CONFIG_WOZ_ALIRO`, so the build
   links clean with no UWB silicon present.
 
   This matters more than it looks. Aliro makes NFC the mandatory transport and BLE and UWB
@@ -113,17 +127,17 @@ change.
 SIZE=<zephyr-sdk>/arm-zephyr-eabi/bin/arm-zephyr-eabi-size
 D=build/matter-aliro-door-lock-app/modules/woz_uwb/CMakeFiles/woz_uwb.dir/src
 
-./build.sh build                                  # before the change
+make build                                        # before the change
 find $D -name '*.obj' | sort | xargs $SIZE > /tmp/before.txt
 # ... make the change ...
-./build.sh build
+make build
 find $D -name '*.obj' | sort | xargs $SIZE > /tmp/after.txt
 diff /tmp/before.txt /tmp/after.txt                # must be empty for a pure refactor
 ```
 
 Repeat for the vendored DW3000 objects under
 `build/matter-aliro-door-lock-app/modules/dw3000/` if `deps/dw3000` was touched, and run
-`./tests/host/run.sh` (558 assertions, no toolchain or hardware needed).
+`make test` (the host KAT suite, no toolchain or hardware needed) plus `make test-port`.
 
 A byte-identical size table proves codegen is unchanged; it does not prove the port works.
 Only a bench run against a phone does that.

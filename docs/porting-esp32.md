@@ -2,8 +2,8 @@
 
 **Status: shipped and hardware-validated.** Phases 1 through 4 are done; approach unlock
 runs end to end on an ESP32-S3 against a live iPhone. Phase 5 (the NFC tap path) was not
-attempted. The code lives in [`ports/esp32-idf`](../ports/esp32-idf) and
-[`ports/esp32-matter`](../ports/esp32-matter).
+attempted. The code lives in [`ports/esp32`](../ports/esp32) (components, plus the
+bench-reader and matter-lock apps).
 
 This document keeps the original plan, written before any ESP32 code existed, and marks
 what the plan got right and wrong. The plan's own estimates are left unedited so the
@@ -61,7 +61,7 @@ discipline already used in this project.
 
 The engine seam is confirmed. Nordic's Aliro reader talks to UWB only through the `UltraWideBand`
 C++ interface (`subsys/aliro/uwb/.../uwb.h`), and this repo's engine already implements it (the
-in-repo `integration/patches/custom_impl-uwb.patch` fills `_ConfigureRangingSession(sessionId,
+in-repo `ports/nrf5340dk/patches/custom_impl-uwb.patch` fills `_ConfigureRangingSession(sessionId,
 ursk, ...)` to call `aliro_uwb_session_set_ursk`, and `_HandleBleMessage(...)` to route the Aliro
 UWB messages, backed by `woz_uwb_facade`). So on ESP32 the engine keeps implementing the same
 interface; the reader above it is what gets rebuilt.
@@ -105,7 +105,7 @@ core-pinning mattered for the ranging task.
   that the export scripts exist. CI never builds either port, so no toolchain is pinned
   there either. Treat the pair of installs as an external prerequisite you manage.
 - Stage the install if disk is tight: plain ESP-IDF with the `esp32s3` target is enough
-  for `ports/esp32-idf` (a few GB). `ports/esp32-matter` additionally needs esp-matter,
+  for the bench reader app (a few GB). The matter-lock app additionally needs esp-matter,
   which is much larger because connectedhomeip is heavy.
 
 ## 4. Engine port surface (Phase 1, concrete)
@@ -133,9 +133,9 @@ The UWB engine (`modules/woz_uwb`) already compiles as pure C on host (`tests/ho
 | Phase | Plan | Outcome |
 |---|---|---|
 | 1 — engine on ESP-IDF | Compile the engine behind an OS seam, write a DW3000 backend, range against a second board with a canned URSK. | **Done.** The compat layer let `modules/woz_uwb/src` and `deps/dw3000` compile unchanged, and `--wrap` behaved as on any GNU ld. The one surprise was hardware, not software: an EVB power-select jumper hid the radio for days. |
-| 2 — BLE transport | Reimplement GATT + L2CAP CoC on NimBLE. Estimated the dominant rewrite. | **Done, and easier than planned.** `ports/esp32-idf/components/aliro_ble`. Advertising, the SPSM/version characteristics, and the CoC came up quickly. |
+| 2 — BLE transport | Reimplement GATT + L2CAP CoC on NimBLE. Estimated the dominant rewrite. | **Done, and easier than planned.** `ports/esp32/components/aliro_ble`. Advertising, the SPSM/version characteristics, and the CoC came up quickly. |
 | 3 — reader logic and the ranging key | Port the reference's reader logic and storage; the derived key enters the engine at the existing seam. | **Done, and far larger than planned.** The reference does not derive the key in portable code at all — a closed ARM-only library does. This phase became a from-scratch reimplementation of the credential authentication, key schedule, secure channels, and wire codec, plus a provisioning seam. See [`porting-esp32-phase3.md`](porting-esp32-phase3.md). |
-| 4 — Matter provisioning | esp-matter door lock over Wi-Fi with the Aliro cluster and delegate, so the lock self-commissions and provisions a key into the wallet. | **Done.** `ports/esp32-matter`. The Tier-A bet paid off: the cluster and delegate came across with modest change. The reader attaches to esp-matter's NimBLE host rather than starting its own. |
+| 4 — Matter provisioning | esp-matter door lock over Wi-Fi with the Aliro cluster and delegate, so the lock self-commissions and provisions a key into the wallet. | **Done.** `ports/esp32/apps/matter-lock`. The Tier-A bet paid off: the cluster and delegate came across with modest change. The reader attaches to esp-matter's NimBLE host rather than starting its own. |
 | 4.5 — real-time ranging | Not in the plan. | **Done, and unplanned.** Making the DS-TWR responder hold a 2 ms slot on ESP32 was its own campaign. Nothing here was a logic bug; the shared engine was already correct. |
 | 5 — NFC tap | Integrate a first-party Aliro-over-NFC stack rather than reimplementing RFAL. | **Not attempted.** No NFC reader was sourced. The ESP32 target is approach-unlock only. |
 
@@ -143,7 +143,7 @@ The UWB engine (`modules/woz_uwb`) already compiles as pure C on host (`tests/ho
 
 - ESP32-S3-WROOM N16R8 dev board.
 - DWM3000EVB (DW3110) for UWB on SPI2, eleven jumpers. Current pin map:
-  [`ports/esp32-idf/components/woz_uwb/port/board_pins.h`](../ports/esp32-idf/components/woz_uwb/port/board_pins.h),
+  [`ports/esp32/components/woz_uwb/port/board_pins.h`](../ports/esp32/components/woz_uwb/port/board_pins.h),
   wiring table in [`docs/esp32-bringup.md`](esp32-bringup.md).
 - No NFC reader. Phase 5 was not attempted; if you pick this up, note that PN532-class
   parts are assumed too limited for Express / ECP timing and the reference uses ST25R.

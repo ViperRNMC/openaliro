@@ -3,7 +3,7 @@
 
 *No module docstring. First commit: "port: replace the Zephyr compat shims with a neutral woz_port.h contract".*
 
-**used by** [`modules/woz_uwb/src/ccc/ccc_shim_rx.c`](../modules.woz_uwb.src.ccc/ccc_shim_rx.c.md), [`modules/woz_uwb/src/ccc/ccc_shim_wrap.c`](../modules.woz_uwb.src.ccc/ccc_shim_wrap.c.md), [`modules/woz_uwb/src/ccc/ccc_sts.c`](../modules.woz_uwb.src.ccc/ccc_sts.c.md)  ·  **discussed in** [`docs/porting.md`](../../porting.md), [`ports/esp32-idf/components/woz_uwb/README.md`](../../../ports/esp32-idf/components/woz_uwb/README.md)
+**used by** [`modules/woz_uwb/src/ccc/ccc_shim_rx.c`](../modules.woz_uwb.src.ccc/ccc_shim_rx.c.md), [`modules/woz_uwb/src/ccc/ccc_shim_wrap.c`](../modules.woz_uwb.src.ccc/ccc_shim_wrap.c.md), [`modules/woz_uwb/src/ccc/ccc_sts.c`](../modules.woz_uwb.src.ccc/ccc_sts.c.md)  ·  **discussed in** [`docs/porting.md`](../../porting.md), [`ports/esp32/components/woz_uwb/README.md`](../../../ports/esp32/components/woz_uwb/README.md)
 
 ## API
 

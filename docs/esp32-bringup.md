@@ -40,7 +40,7 @@ of debugging once. Check the jumper first.
 ## 2. Build and flash
 
 ```bash
-cd ports/esp32-idf
+cd ports/esp32/apps/reader
 idf.py set-target esp32s3   # once, if not already set
 make build
 make flash
@@ -71,7 +71,7 @@ provisioned for this reader, or a second DW3000 board acting as initiator. With 
 `range: NN cm` lines appear and `status` reports a trusted range.
 
 For the full approach-unlock path — commissioning, a key in the phone's wallet, and the
-Wallet unlock animation — use the Matter app in [`../esp32-matter`](../ports/esp32-matter)
+Wallet unlock animation — use the Matter app in [`../matter-lock`](../ports/esp32/apps/matter-lock)
 instead. This bench app has no Matter layer, so nothing provisions a real credential
 into a phone for it.
 

@@ -3,7 +3,7 @@
 
 @file uwb_min.c — DW3110 bring-up driver (implementation).
 
-**depends on** [`modules/woz_uwb/src/driver/uwb_min.h`](uwb_min.h.md), [`modules/woz_uwb/src/facade/woz_log.h`](../modules.woz_uwb.src.facade/woz_log.h.md), [`modules/woz_uwb/src/facade/woz_port.h`](../modules.woz_uwb.src.facade/woz_port.h.md)  ·  **discussed in** [`docs/porting-esp32.md`](../../porting-esp32.md), [`docs/porting.md`](../../porting.md)
+**depends on** [`modules/woz_port/include/woz_log.h`](../modules.woz_port.include/woz_log.h.md), [`modules/woz_port/include/woz_port.h`](../modules.woz_port.include/woz_port.h.md), [`modules/woz_uwb/src/driver/uwb_min.h`](uwb_min.h.md)  ·  **discussed in** [`docs/porting-esp32.md`](../../porting-esp32.md), [`docs/porting.md`](../../porting.md)
 
 ## API
 

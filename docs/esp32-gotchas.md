@@ -4,8 +4,8 @@ Hard-won, non-obvious findings from porting the Aliro UWB door-lock reader to ES
 (ESP-IDF + esp-matter + NimBLE + DWM3000EVB). Each entry is a trap actually hit on the
 bench: what it looks like, why it bites, and how to avoid or apply it.
 
-Ports live under [`ports/esp32-idf`](../ports/esp32-idf) (reader / crypto / BLE components and
-the standalone bring-up app) and [`ports/esp32-matter`](../ports/esp32-matter) (the Matter
+Ports live under [`ports/esp32`](../ports/esp32) (reader / crypto / BLE components and
+the standalone bring-up app) and [`ports/esp32/apps/matter-lock`](../ports/esp32/apps/matter-lock) (the Matter
 door-lock app that hosts the reader). The ranging engine is `modules/woz_uwb`, shared
 byte-for-byte with the nRF5340 build.
 
@@ -27,7 +27,7 @@ found" even though the board is plugged in.
 - **Fix:** prefix the `awk` invocation with `LC_ALL=C` (byte-wise, locale-independent).
 - **Subtlety:** `LC_ALL=C ioreg | awk …` does **not** work — the env prefix applies only
   to the first command in the pipeline. It must be `ioreg | LC_ALL=C awk …`.
-- Applied at both `awk` sites in `ports/esp32-matter/Makefile` (the RESOLVE_PORT table
+- Applied at both `awk` sites in `ports/esp32/apps/matter-lock/Makefile` (the RESOLVE_PORT table
   build and the `ports` target).
 
 ### 1.2 Never flash the SEGGER/J-Link (nRF) port
@@ -45,7 +45,7 @@ message. Override with `FORCE=1` only after confirming no other session owns the
 
 ### 1.4 Host tests are the target's proof
 The crypto core (`aliro_hash.c`) compiles **host == target** so host KATs pin target
-behaviour. Run `ports/esp32-idf/test/run.sh` before believing any crypto change. A
+behaviour. Run `ports/esp32/test/run.sh` before believing any crypto change. A
 compact AES-256-GCM host double (`aliro_prim_host.c`) lets the KATs run without PSA.
 Build success is not proof — the wire/crypto bugs below all built cleanly. The shared
 `modules/woz_uwb` logic has a second host harness, `tests/host/run.sh` (558 tests),
@@ -63,8 +63,8 @@ aliro()=0`, responder listening, a 36-byte RX frame arrives. If DW3000 bring-up 
 dead, check the **board power-select jumper first** — it is not a software problem.
 
 ### 2.2 Probe the DW3000 at boot, never from the BLE-host callback at M4
-**VERIFIED (regression) → BENCH-GATED (fix).** The standalone `esp32-idf` port probes the
-DW3000 at boot (`app_responder_start()` in `main.c`). The `esp32-matter` port dropped
+**VERIFIED (regression) → BENCH-GATED (fix).** The standalone reader app (`ports/esp32/apps/reader`) probes the
+DW3000 at boot (`app_responder_start()` in `main.c`). The `matter-lock` app dropped
 that, so the first DW3000 touch happened at M4 — inside the NimBLE host callback
 (`aliro_ranging_feed → engine → woz_uwb_start_aliro → dwt_probe`). There `dwt_probe`
 returns `-1` (radio init `-5`): no prior bring-up + a shallow callback stack. Symptoms:

@@ -1,27 +1,42 @@
 # Ports
 
-Aliro locks on targets other than the primary nRF5340 DK build at the repository root.
-Each port reuses `modules/woz_uwb/src` and `deps/dw3000` and keeps all target-specific
-code inside its own directory.
+Every target lives here, one directory per platform. Each port reuses the
+platform-neutral engine in [`modules/`](../modules) and the vendor driver in
+[`deps/dw3000`](../deps/dw3000), and keeps all target-specific code inside its
+own directory.
 
-The platform contract is [`modules/woz_uwb/src/facade/woz_port.h`](../modules/woz_uwb/src/facade/woz_port.h):
-eight functions (heap, monotonic clock, two sleeps, cycle counter), plus `woz_log.h` for
-logging. A new RTOS is a new branch in those two headers; a new board on an existing RTOS
-is a DW3000 SPI/GPIO backend. See [`docs/porting.md`](../docs/porting.md) for the tiers and
-what each costs.
+The platform contract is [`modules/woz_port/include/woz_port.h`](../modules/woz_port/include/woz_port.h):
+eight functions (heap, monotonic clock, two sleeps, cycle counter, a mutex), plus
+`woz_log.h` for logging. A new RTOS is a new branch in those two headers; a new board
+on an existing RTOS is a DW3000 SPI/GPIO backend. See [`docs/porting.md`](../docs/porting.md)
+for the tiers and what each costs.
 
-| Directory | What it is | Status |
-|---|---|---|
-| [`esp32-matter/`](esp32-matter/) | The complete ESP32-S3 lock: a Matter door lock that commissions into a home, provisions a key into the phone's wallet, and unlocks on approach over BLE + UWB | **Hardware-validated.** Approach unlock driven end to end against a live iPhone, Wallet animation and all |
-| [`esp32-idf/`](esp32-idf/) | The reader stack the Matter app is built from — BLE transport, credential auth, ranging setup, and the shared UWB engine as ESP-IDF components — plus a bench app to drive them without Matter | **Hardware-validated.** Credential auth, M1-M4 setup, and live DS-TWR distance on silicon |
-| [`esp32s3/`](esp32s3/) | An early Zephyr-based ESP32-S3 spike (devicetree overlay + sample app) | **Superseded** by `esp32-idf/`; kept only as a pin-mapping reference, never run on silicon |
+| Directory | Target | What it is | Status |
+|---|---|---|---|
+| *(repository root)* | **nRF5340 DK** | The primary build: NFC tap + UWB approach unlock on top of the Nordic door-lock add-on, assembled by `make bootstrap` from patches and overlays in [`integration/`](../integration) | **Hardware-validated** end to end, including the NFC tap path |
+| [`esp32/`](esp32/) | **ESP32-S3** | The complete ESP-IDF port: shared components plus two apps (a Matter door lock and a standalone bench reader) | **Hardware-validated.** Approach unlock driven end to end against a live iPhone, Wallet animation and all |
 
-## The ESP32-S3 port
+## The ESP32-S3 port (`esp32/`)
 
-Start at [`esp32-matter/README.md`](esp32-matter/README.md) for the whole lock, or
-[`esp32-idf/README.md`](esp32-idf/README.md) for the component stack. The two share
-every component: `esp32-matter` adds `../esp32-idf/components` to its component path
-rather than duplicating anything.
+One platform directory, two apps over one set of shared components:
+
+```
+esp32/
+├── components/          # the stack, as ESP-IDF components:
+│   ├── woz_uwb/         #   shared UWB engine + ESP-IDF DW3000 backend (SPI/GPIO/pins)
+│   ├── aliro_crypto/    #   credential auth + ranging-key derivation (mbedTLS)
+│   ├── aliro_reader/    #   reader, APDU codec, NVS-backed provisioning
+│   └── aliro_ble/       #   NimBLE transport
+├── apps/
+│   ├── matter-lock/     # the full lock: Matter commissioning + Wallet provisioning
+│   └── reader/          # standalone bench app: drives the stack without Matter
+└── test/                # host-runnable port tests (no ESP-IDF needed): test/run.sh
+```
+
+Start at [`esp32/apps/matter-lock/README.md`](esp32/apps/matter-lock/README.md) for the
+whole lock, or [`esp32/apps/reader/README.md`](esp32/apps/reader/README.md) for the
+component stack and the bench app. Both apps consume `esp32/components/` — nothing is
+duplicated between them.
 
 What makes it more than a recompile: the reference design hands the credential
 authentication and the ranging key derivation to a closed vendor library that only exists
@@ -34,11 +49,17 @@ Two documents carry the detail:
 
 - [`docs/esp32-gotchas.md`](../docs/esp32-gotchas.md) — every trap hit during bring-up,
   with symptom, cause, and fix. Read it before debugging anything on this target.
-- [`../docs/porting-esp32.md`](../docs/porting-esp32.md) — how the port was planned and
+- [`docs/porting-esp32.md`](../docs/porting-esp32.md) — how the port was planned and
   how it actually went.
+
+An early Zephyr-based ESP32-S3 spike (`ports/esp32s3/`, never run on silicon) was
+removed; its pin map lives on in [`docs/esp32-bringup.md`](../docs/esp32-bringup.md).
+For archaeology, the last commit carrying it is `b11549d`.
 
 ## The primary target
 
-The nRF5340 DK build lives at the repository root and is hardware-validated end to end,
-including the NFC tap path that the ESP32 ports do not have. See the top-level
-[README](../README.md).
+The nRF5340 DK build is assembled at the repository root: the app itself is Nordic's
+door-lock add-on, fetched pristine by `make bootstrap` and patched from
+[`ports/nrf5340dk/patches/`](../ports/nrf5340dk/patches), configured by
+[`ports/nrf5340dk/overlays/`](../ports/nrf5340dk/overlays), with the engine supplied from
+`modules/` via `ZEPHYR_EXTRA_MODULES`. See the top-level [README](../README.md).

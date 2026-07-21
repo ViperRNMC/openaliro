@@ -53,7 +53,7 @@ Failure chain after any reboot, without the fixes below:
    (`Current time is outside the Access Document validity period`).
 4. Step-up fails closed, permanently, until the lock is re-commissioned.
 
-### Fixes carried by this repo (`integration/patches/`)
+### Fixes carried by this repo (`ports/nrf5340dk/patches/`)
 
 - **`aliro-doc-time-ratchet.patch`** (`CONFIG_DOOR_LOCK_TIME_CONCEPT_RATCHET`,
   default y): when a signature-verified document's `validFrom` lies ahead of
@@ -88,7 +88,7 @@ more than the window therefore kills unlock-on-approach for every phone, while
 NFC and Matter keep working. Both of this repo's time fixes create exactly
 that state (the restored clock understates real time by the accumulated
 power-off duration; a ratcheted clock understates it by the presented
-document's age), so `integration/overlays/woz-aliro.conf` disables the Dynamic
+document's age), so `ports/nrf5340dk/overlays/woz-aliro.conf` disables the Dynamic
 Tag until a real time source exists. Stock firmware never hits this: its clock
 is either fresh (before the first reboot) or invalid (after), never
 valid-but-stale.
@@ -113,7 +113,7 @@ run async with backoff, and rank it below `SetUTCTime` as a source.
    same-account iPhone), power on: first step-up logs
    `system time ratcheted forward` and unlocks.
 
-The temporary DBG overlay lines in `integration/overlays/woz-aliro.conf`
+The temporary DBG overlay lines in `ports/nrf5340dk/overlays/woz-aliro.conf`
 (`DOOR_LOCK_APP_LOG_LEVEL_DBG`, `DOOR_LOCK_ALIRO_TIME_UTILS_LOG_LEVEL_DBG`)
 surface the decisive `Current time / validFrom / validUntil` values during
 these tests and should be reverted afterwards.

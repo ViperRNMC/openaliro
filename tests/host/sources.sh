@@ -66,6 +66,7 @@ INCS=(
 	-I"$SRC/aliro/include"
 	-I"$SRC/fira"
 	-I"$SRC/facade"
+	-I"$ROOT/modules/woz_port/include"
 )
 
 # The Aliro path is Kconfig-gated in-tree; the normal build has it on.

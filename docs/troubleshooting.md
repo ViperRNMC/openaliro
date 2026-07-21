@@ -65,7 +65,7 @@ no shared frames. See [`protocol-research.md`](protocol-research.md) §6-§7.
 ## Hardware
 
 Pin assignments are defined in
-[`integration/overlays/dw3000-nfc.overlay`](../integration/overlays/dw3000-nfc.overlay),
+[`ports/nrf5340dk/overlays/dw3000-nfc.overlay`](../ports/nrf5340dk/overlays/dw3000-nfc.overlay),
 which is the source of truth. If the overlay changes, the wiring must change with it.
 
 **The DW3000 is a 3.3 V part.** Power the DWM3000EVB from a 3.3 V rail, not 5 V. Share a

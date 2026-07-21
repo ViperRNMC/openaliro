@@ -7,7 +7,7 @@ Callers configure the transport via aliro_ble_prepare (which builds the READ cha
 payload without touching NimBLE), then register the GATT service returned by
 aliro_ble_service_def with the host's combined service table.
 
-**used by** [`modules/woz_aliro/src/aliro_ranging.c`](../modules.woz_aliro.src/aliro_ranging.c.md), [`modules/woz_aliro/src/aliro_reader.c`](../modules.woz_aliro.src/aliro_reader.c.md)
+**used by** [`modules/woz_aliro/src/aliro_ranging.c`](../modules.woz_aliro.src/aliro_ranging.c.md), [`modules/woz_aliro/src/aliro_reader.c`](../modules.woz_aliro.src/aliro_reader.c.md)  ·  **discussed in** [`docs/porting.md`](../../porting.md)
 
 ## API
 

@@ -9,8 +9,8 @@
 set -uo pipefail
 
 REPO="$(cd "$(dirname "$0")/../.." && pwd)"
-WS_SEED="$REPO/ws-seed.sh"
-BUILD_SH="$REPO/build.sh"
+WS_SEED="$REPO/scripts/ws-seed.sh"
+BUILD_SH="$REPO/scripts/build.sh"
 
 TMP="$(mktemp -d "${TMPDIR:-/tmp}/wsseed.XXXXXX")"
 TMP="$(cd "$TMP" && pwd -P)"   # canonicalize (macOS /var -> /private/var, strip //)
@@ -28,7 +28,8 @@ has() { printf '%s' "${out:-}" | grep -qi -- "$1"; }
 # bootstrapped workspace (.west + a marker) and can be told to fail, to exercise
 # ws-seed's cleanup trap. No west, no network.
 write_stub_bootstrap() {
-	cat > "$1/bootstrap.sh" <<'EOF'
+	mkdir -p "$1/scripts"
+	cat > "$1/scripts/bootstrap.sh" <<'EOF'
 #!/usr/bin/env bash
 set -e
 WS="${ALIRO_WS:-$PWD/workspace}"
@@ -37,7 +38,7 @@ mkdir -p "$WS/.west" "$WS/ncs-door-lock-and-access-control"
 touch "$WS/.bootstrapped"
 echo "normalized" > "$WS/ncs-door-lock-and-access-control/marker.txt"
 EOF
-	chmod +x "$1/bootstrap.sh"
+	chmod +x "$1/scripts/bootstrap.sh"
 }
 
 # Build a fake primary checkout. $2=yes seeds a fake bootstrapped workspace in it.
@@ -46,8 +47,9 @@ make_primary() {
 	mkdir -p "$dir"
 	git -C "$dir" init -q
 	git -C "$dir" config user.email t@t; git -C "$dir" config user.name t
-	cp "$WS_SEED" "$dir/ws-seed.sh"; chmod +x "$dir/ws-seed.sh"
-	cp "$BUILD_SH" "$dir/build.sh"; chmod +x "$dir/build.sh"
+	mkdir -p "$dir/scripts"
+	cp "$WS_SEED" "$dir/scripts/ws-seed.sh"; chmod +x "$dir/scripts/ws-seed.sh"
+	cp "$BUILD_SH" "$dir/scripts/build.sh"; chmod +x "$dir/scripts/build.sh"
 	write_stub_bootstrap "$dir"
 	if [ "$bootstrapped" = yes ]; then
 		mkdir -p "$dir/workspace/.west" "$dir/workspace/ncs-door-lock-and-access-control"
@@ -59,14 +61,14 @@ make_primary() {
 
 # Resolve WS via build.sh's resolve-only seam; return only its final line (the
 # path), so any seed/bootstrap chatter on stdout is ignored.
-resolve() { ( cd "$1" && shift; env "$@" ALIRO_RESOLVE_ONLY=1 ./build.sh build 2>/dev/null | tail -1 ); }
+resolve() { ( cd "$1" && shift; env "$@" ALIRO_RESOLVE_ONLY=1 ./scripts/build.sh build 2>/dev/null | tail -1 ); }
 
 echo "== ws-seed.sh unit scenarios =="
 
 # T1: fresh worktree seeds a local COW clone + runs (stub) bootstrap.
 make_primary "$TMP/p1" yes
 git -C "$TMP/p1" worktree add -q "$TMP/wt1" >/dev/null 2>&1
-out="$( cd "$TMP/wt1" && ./ws-seed.sh 2>&1 )"; rc=$?
+out="$( cd "$TMP/wt1" && ./scripts/ws-seed.sh 2>&1 )"; rc=$?
 assert "T1 seed exits 0"              test "$rc" -eq 0
 assert "T1 local .west created"       test -d "$TMP/wt1/workspace/.west"
 assert "T1 stub bootstrap ran"        test -f "$TMP/wt1/workspace/.bootstrapped"
@@ -74,27 +76,27 @@ assert "T1 announced the clone"       has 'COW-cloning'
 
 # T2: idempotent — a second run is a no-op (does NOT re-bootstrap).
 rm -f "$TMP/wt1/workspace/.bootstrapped"
-out="$( cd "$TMP/wt1" && ./ws-seed.sh 2>&1 )"; rc=$?
+out="$( cd "$TMP/wt1" && ./scripts/ws-seed.sh 2>&1 )"; rc=$?
 assert "T2 re-run exits 0"            test "$rc" -eq 0
 assert "T2 reports already seeded"    has 'already seeded'
 assert "T2 did NOT re-run bootstrap"  test ! -f "$TMP/wt1/workspace/.bootstrapped"
 
 # T3: refuses to seed onto the primary checkout itself.
 make_primary "$TMP/p3" no   # no workspace, so the .west guard doesn't short-circuit
-out="$( cd "$TMP/p3" && ./ws-seed.sh 2>&1 )"; rc=$?
+out="$( cd "$TMP/p3" && ./scripts/ws-seed.sh 2>&1 )"; rc=$?
 assert "T3 self-seed refused"         test "$rc" -ne 0
 assert "T3 explains it is primary"    has 'primary checkout'
 assert "T3 created no workspace"      test ! -e "$TMP/p3/workspace"
 
 # T4: errors when the primary has no bootstrapped workspace to clone.
 git -C "$TMP/p3" worktree add -q "$TMP/wt4" >/dev/null 2>&1
-out="$( cd "$TMP/wt4" && ./ws-seed.sh 2>&1 )"; rc=$?
+out="$( cd "$TMP/wt4" && ./scripts/ws-seed.sh 2>&1 )"; rc=$?
 assert "T4 unbootstrapped errors"     test "$rc" -ne 0
 assert "T4 says not bootstrapped"     has 'not bootstrapped'
 
 # T5: a failing bootstrap removes the partial clone (cleanup trap).
 git -C "$TMP/p1" worktree add -q "$TMP/wt5" >/dev/null 2>&1
-out="$( cd "$TMP/wt5" && BOOTSTRAP_FAIL=1 ./ws-seed.sh 2>&1 )"; rc=$?
+out="$( cd "$TMP/wt5" && BOOTSTRAP_FAIL=1 ./scripts/ws-seed.sh 2>&1 )"; rc=$?
 assert "T5 failed seed nonzero"       test "$rc" -ne 0
 assert "T5 partial clone cleaned up"  test ! -e "$TMP/wt5/workspace"
 

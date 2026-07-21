@@ -7,7 +7,7 @@ Implements the Aliro key-derivation chain (ECDH shared secret -> z -> 160-byte k
 session keys / URSK / BLE ranging keys), per-direction AES-256-GCM secure channels with monotonic
 message counters, and the seal/open framing used to carry engine plaintext over the wire.
 
-**depends on** [`modules/woz_aliro/include/aliro_crypto.h`](../modules.woz_aliro.include/aliro_crypto.h.md), [`modules/woz_aliro/include/aliro_prim.h`](../modules.woz_aliro.include/aliro_prim.h.md), [`modules/woz_aliro/src/aliro_hash.h`](aliro_hash.h.md)  ·  **discussed in** [`ports/esp32-idf/components/aliro_crypto/README.md`](../../../ports/esp32-idf/components/aliro_crypto/README.md)
+**depends on** [`modules/woz_aliro/include/aliro_crypto.h`](../modules.woz_aliro.include/aliro_crypto.h.md), [`modules/woz_aliro/include/aliro_prim.h`](../modules.woz_aliro.include/aliro_prim.h.md), [`modules/woz_aliro/src/aliro_hash.h`](aliro_hash.h.md)  ·  **discussed in** [`docs/porting.md`](../../porting.md), [`ports/esp32/components/aliro_crypto/README.md`](../../../ports/esp32/components/aliro_crypto/README.md)
 
 ## API
 

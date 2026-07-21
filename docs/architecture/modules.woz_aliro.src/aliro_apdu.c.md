@@ -6,7 +6,7 @@ response APDUs, plus BLE envelope framing/unframing and ISO7816 APDU wrap/status
 Provides a minimal BER-TLV writer (aliro_tlv_w_init/put/finish) used to assemble command
 payloads, and TLV/APDU parsing helpers used to extract fields from device responses.
 
-**depends on** [`modules/woz_aliro/src/aliro_apdu.h`](aliro_apdu.h.md)  ·  **discussed in** [`ports/esp32-idf/components/aliro_reader/README.md`](../../../ports/esp32-idf/components/aliro_reader/README.md)
+**depends on** [`modules/woz_aliro/src/aliro_apdu.h`](aliro_apdu.h.md)  ·  **discussed in** [`ports/esp32/components/aliro_reader/README.md`](../../../ports/esp32/components/aliro_reader/README.md)
 
 ```mermaid
 flowchart TD

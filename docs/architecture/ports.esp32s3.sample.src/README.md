@@ -1,6 +1,0 @@
-<!-- generated documentation — edit the source, not this file -->
-# `ports/esp32s3/sample/src/`
-
-| subsystem | about |
-|---|---|
-| [`ports/esp32s3/sample/src/main.c`](main.c.md) | Woz UWB ranging engine on ESP32-S3 — minimal bring-up sample. |

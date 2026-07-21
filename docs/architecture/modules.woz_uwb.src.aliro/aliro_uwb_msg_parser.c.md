@@ -3,7 +3,7 @@
 
 @file aliro_uwb_msg_parser.c — TLV attribute parser and big-endian reads.
 
-**depends on** [`modules/woz_uwb/src/aliro/aliro_uwb_msg_parser.h`](aliro_uwb_msg_parser.h.md), [`modules/woz_uwb/src/facade/woz_log.h`](../modules.woz_uwb.src.facade/woz_log.h.md)
+**depends on** [`modules/woz_port/include/woz_log.h`](../modules.woz_port.include/woz_log.h.md), [`modules/woz_uwb/src/aliro/aliro_uwb_msg_parser.h`](aliro_uwb_msg_parser.h.md)
 
 ## API
 

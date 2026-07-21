@@ -14,17 +14,18 @@ OUTPUT_DIRECTORY       = site
 HTML_OUTPUT            = api
 CREATE_SUBDIRS         = NO
 
-INPUT                  = modules/woz_uwb \
+INPUT                  = modules/woz_port \
+                         modules/woz_uwb \
                          modules/woz_aliro \
                          modules/woz_aliro_ecp \
-                         ports/esp32-idf/components/aliro_ble \
-                         ports/esp32-idf/components/aliro_crypto \
-                         ports/esp32-idf/components/aliro_reader
+                         ports/esp32/components/aliro_ble \
+                         ports/esp32/components/aliro_crypto \
+                         ports/esp32/components/aliro_reader
 FILE_PATTERNS          = *.c *.h *.cpp
 RECURSIVE              = YES
 
 # The Zephyr compatibility shim is a port scaffold, not project API.
-EXCLUDE                = ports/esp32-idf/components/woz_uwb/compat/zephyr
+EXCLUDE                = ports/esp32/components/woz_uwb/compat/zephyr
 EXCLUDE_PATTERNS       = */build/* */test/*
 
 # Only documented symbols. An undocumented symbol should be fixed at the source,

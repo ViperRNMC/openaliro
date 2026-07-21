@@ -12,11 +12,11 @@
 set -euo pipefail
 
 ROOT="$(cd "$(dirname "$0")/../.." && pwd)"
-P="$ROOT/integration/patches"
+P="$ROOT/ports/nrf5340dk/patches"
 
 # The add-on pin lives in bootstrap.sh (the applier); west.yml documents the same
 # pin. The two drifting apart is itself a failure.
-PIN="$(sed -n 's/^PIN="\([0-9a-f]\{40\}\)".*/\1/p' "$ROOT/bootstrap.sh")"
+PIN="$(sed -n 's/^PIN="\([0-9a-f]\{40\}\)".*/\1/p' "$ROOT/scripts/bootstrap.sh")"
 [ -n "$PIN" ] || { echo "ERROR: could not read PIN from bootstrap.sh" >&2; exit 1; }
 grep -q "revision: $PIN" "$ROOT/west.yml" \
   || { echo "ERROR: west.yml revision != bootstrap.sh PIN ($PIN)" >&2; exit 1; }
@@ -42,7 +42,7 @@ covered="$(printf '%s\n' "${ADDON_PATCHES[@]}" "${NRF_PATCHES[@]}" "${MATTER_PAT
   | sed 's|.*/||' | sort)"
 ondisk="$(cd "$P" && printf '%s\n' *.patch | sort)"
 [ "$covered" = "$ondisk" ] || {
-  echo "ERROR: integration/patches/ and this script's lists disagree" >&2
+  echo "ERROR: ports/nrf5340dk/patches/ and this script's lists disagree" >&2
   echo "       (< = listed but absent, > = present but unchecked)" >&2
   diff <(printf '%s\n' "$covered") <(printf '%s\n' "$ondisk") >&2 || true
   exit 1

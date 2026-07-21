@@ -7,7 +7,7 @@ Provides the aliro_prim_* / aliro_* primitive functions consumed by the higher-l
 and secure-channel code in aliro_crypto.c; callers must call aliro_prim_init before using any
 other function in this file.
 
-**depends on** [`modules/woz_aliro/include/aliro_prim.h`](../modules.woz_aliro.include/aliro_prim.h.md)  ·  **discussed in** [`ports/esp32-idf/components/aliro_crypto/README.md`](../../../ports/esp32-idf/components/aliro_crypto/README.md)
+**depends on** [`modules/woz_aliro/include/aliro_prim.h`](../modules.woz_aliro.include/aliro_prim.h.md)  ·  **discussed in** [`docs/porting.md`](../../porting.md), [`ports/esp32/components/aliro_crypto/README.md`](../../../ports/esp32/components/aliro_crypto/README.md)
 
 ## API
 

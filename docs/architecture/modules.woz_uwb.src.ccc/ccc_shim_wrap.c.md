@@ -4,7 +4,7 @@
 @file ccc_shim_wrap.c — per-frame STS interception (ld --wrap=dwt_configurestsiv) substituting
 CCC STS for the FiRa MAC; target only.
 
-**depends on** [`modules/woz_uwb/src/ccc/ccc_shim.h`](ccc_shim.h.md), [`modules/woz_uwb/src/facade/woz_bytes.h`](../modules.woz_uwb.src.facade/woz_bytes.h.md), [`modules/woz_uwb/src/facade/woz_log.h`](../modules.woz_uwb.src.facade/woz_log.h.md)
+**depends on** [`modules/woz_port/include/woz_log.h`](../modules.woz_port.include/woz_log.h.md), [`modules/woz_uwb/src/ccc/ccc_shim.h`](ccc_shim.h.md), [`modules/woz_uwb/src/facade/woz_bytes.h`](../modules.woz_uwb.src.facade/woz_bytes.h.md)
 
 ## API
 

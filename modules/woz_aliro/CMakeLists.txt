@@ -1,7 +1,7 @@
 # Woz Aliro credential-auth stack as a Zephyr module.
 # Contributes nothing unless CONFIG_WOZ_ALIRO_STACK=y (stock nRF build
 # byte-identical). The same src/ is compiled by the ESP-IDF ports through
-# ports/esp32-idf/components/aliro_{crypto,reader}/CMakeLists.txt.
+# ports/esp32/components/aliro_{crypto,reader}/CMakeLists.txt.
 #
 # Every source here is platform-agnostic: the k_*/LOG_* calls are Zephyr's own
 # API, which the ESP-IDF side backs with the woz_uwb compat headers. What is NOT

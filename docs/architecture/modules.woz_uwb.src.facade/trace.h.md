@@ -3,7 +3,7 @@
 
 @file trace.h — Structured [WOZ_TRACE] emit helpers, gated on CONFIG_WOZ_E2E_TRACE.
 
-**depends on** [`modules/woz_uwb/src/facade/woz_log.h`](woz_log.h.md)  ·  **used by** [`modules/woz_uwb/src/driver/uwb_isr.c`](../modules.woz_uwb.src.driver/uwb_isr.c.md)
+**depends on** [`modules/woz_port/include/woz_log.h`](../modules.woz_port.include/woz_log.h.md)  ·  **used by** [`modules/woz_uwb/src/driver/uwb_isr.c`](../modules.woz_uwb.src.driver/uwb_isr.c.md)
 
 ## API
 

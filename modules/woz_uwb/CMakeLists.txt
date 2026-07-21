@@ -48,7 +48,7 @@ if(CONFIG_WOZ_UWB)
 
       # PRETTY (reversible): DWT-cycle-counter timestamps + compact colored log
       # line. Owns the whole log line via LOG_CUSTOM_FORMAT_SUPPORT (set in
-      # integration/overlays/woz-pretty.conf, active only under PRETTY=1).
+      # ports/nrf5340dk/overlays/woz-pretty.conf, active only under PRETTY=1).
       if(CONFIG_WOZ_PRETTY_SHELL)
         zephyr_library_sources(${SRC}/facade/woz_logfmt.c)
         # Runtime-mute benign upstream Matter/BLE error spam (reversible).
@@ -112,7 +112,9 @@ if(CONFIG_WOZ_UWB)
 
   # All layer subfolders on the include path so the flat #include "sibling.h"
   # style resolves across layers (headers moved into src/{driver,fira,ccc,facade,shell}).
+  # The platform contract (woz_port.h / woz_log.h) lives in modules/woz_port.
   zephyr_include_directories(
+    ${CMAKE_CURRENT_SOURCE_DIR}/../woz_port/include
     ${SRC}/driver ${SRC}/fira ${SRC}/ccc ${SRC}/facade ${SRC}/shell)
 
 endif()

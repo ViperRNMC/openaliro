@@ -14,7 +14,7 @@ only one target runs only that target's rows and records the other as `n/a`.
 ### Test setup
 
 - nRF5340 DK with DWM3000EVB (Arduino header) and X-NUCLEO-NFC12A1, wired per
-  [`integration/overlays/dw3000-nfc.overlay`](../integration/overlays/dw3000-nfc.overlay).
+  [`ports/nrf5340dk/overlays/dw3000-nfc.overlay`](../ports/nrf5340dk/overlays/dw3000-nfc.overlay).
 - An iPhone (or Apple Watch) with the lock's Aliro key provisioned in Wallet.
 - Serial console attached (`make term`) to observe logs.
 

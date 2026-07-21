@@ -34,7 +34,7 @@ each file:
   LicenseRef-Nordic-5-Clause; use tied to Nordic devices.
   Text: LICENSES/LicenseRef-Nordic-5-Clause.txt
 
-- integration/patches/*.patch modify Nordic sdk-nrf / Zephyr upstream
+- ports/nrf5340dk/patches/*.patch modify Nordic sdk-nrf / Zephyr upstream
   (Apache-2.0 / LicenseRef-Nordic-5-Clause), fetched into workspace/.
 
 Because of the Qorvo terms, the repository as a whole is source-available, not

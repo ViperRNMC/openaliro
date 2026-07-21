@@ -4,7 +4,7 @@ Scope: the primary nRF5340 DK image only. The ESP32-S3 ports have their own budg
 partition layout (`ports/esp32-*/partitions.csv`) and are not measured here.
 
 Snapshot measured 2026-07-19 from the build artifacts of 2026-07-17 19:55 in `build/`
-(repo HEAD `56df8df` at measurement time). `integration/overlays/woz-aliro.conf` and several
+(repo HEAD `56df8df` at measurement time). `ports/nrf5340dk/overlays/woz-aliro.conf` and several
 `modules/woz_uwb` sources are newer than these artifacts, so expect small shifts on the next
 `make build`.
 ## Hardware budgets
@@ -44,7 +44,7 @@ RAM composition (KiB):
 
 ## Flash maps
 
-Internal flash, app core (`integration/overlays/pm_static.yml`):
+Internal flash, app core (`ports/nrf5340dk/overlays/pm_static.yml`):
 
 | Partition | Address | Size | Purpose |
 |---|---|---:|---|
@@ -112,7 +112,7 @@ The UWB engine is not a RAM factor: `woz_uwb` + `deps/dw3000` together hold abou
   16 KiB buffer. Net-core logging fully off.
 - `CONFIG_ASSERT=y` on both cores (app strips condition/message strings, net is verbose).
 - BLE: `CONFIG_BT_MAX_CONN=5` on both cores; ACL TX/RX 271 B; EVT RX count 10.
-- Net core already hand-trimmed by `integration/overlays/ipc_radio.conf` (verified applied
+- Net core already hand-trimmed by `ports/nrf5340dk/overlays/ipc_radio.conf` (verified applied
   in the generated `.config`): Coded PHY off, 802.15.4 RX buffers 20 to 8, pending-child
   tables 1+1 (MTD-SED). The usage numbers above are after this trim.
 

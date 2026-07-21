@@ -8,8 +8,8 @@ on:
     branches: [main]
     paths:
       - west.yml
-      - bootstrap.sh
-      - integration/patches/**
+      - scripts/bootstrap.sh
+      - ports/nrf5340dk/patches/**
       - tests/tooling/patch_drift_check.sh
       - .github/workflows/patch-drift.yml
   # No path filter on PRs: drift is a required check, and a path-skipped

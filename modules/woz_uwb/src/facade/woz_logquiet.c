@@ -15,7 +15,7 @@
  *
  * Reversible: compiled only under CONFIG_WOZ_PRETTY_SHELL (PRETTY=1). Drop PRETTY
  * and every one of these lines returns for raw diagnosis. Needs
- * CONFIG_LOG_RUNTIME_FILTERING=y (set in integration/overlays/woz-pretty.conf).
+ * CONFIG_LOG_RUNTIME_FILTERING=y (set in ports/nrf5340dk/overlays/woz-pretty.conf).
  */
 
 #include <zephyr/init.h>

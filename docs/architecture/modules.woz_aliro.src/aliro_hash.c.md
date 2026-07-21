@@ -4,7 +4,7 @@
 Self-contained SHA-256, HMAC-SHA256, HKDF, and ANSI-X9.63 KDF implementation for the ESP32-IDF
 Aliro crypto port, with no external crypto library dependency.
 
-**depends on** [`modules/woz_aliro/src/aliro_hash.h`](aliro_hash.h.md)  ·  **discussed in** [`docs/esp32-gotchas.md`](../../esp32-gotchas.md), [`ports/esp32-idf/components/aliro_crypto/README.md`](../../../ports/esp32-idf/components/aliro_crypto/README.md)
+**depends on** [`modules/woz_aliro/src/aliro_hash.h`](aliro_hash.h.md)  ·  **discussed in** [`docs/esp32-gotchas.md`](../../esp32-gotchas.md), [`docs/porting.md`](../../porting.md), [`ports/esp32/components/aliro_crypto/README.md`](../../../ports/esp32/components/aliro_crypto/README.md)
 
 ```mermaid
 flowchart TD
