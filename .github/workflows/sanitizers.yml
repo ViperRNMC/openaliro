@@ -17,6 +17,10 @@ on:
   pull_request:
   workflow_dispatch:
 
+# CI only reads the repo: no token write scopes for any job.
+permissions:
+  contents: read
+
 # Superseded runs on the same ref are wasted work — cancel them.
 concurrency:
   group: ${{ github.workflow }}-${{ github.ref }}

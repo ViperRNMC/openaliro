@@ -18,6 +18,10 @@ on:
   pull_request:
   workflow_dispatch:
 
+# CI only reads the repo: no token write scopes for any job.
+permissions:
+  contents: read
+
 jobs:
   drift:
     runs-on: ubuntu-latest
