@@ -33,6 +33,7 @@ extern "C" {
 #define ALIRO_CRED_PUB_LEN    65u /* uncompressed P-256 point: 0x04 | X | Y */
 #define ALIRO_TRUST_MAX       4u  /* trusted credential keys the store holds */
 #define ALIRO_GRK_LEN         16u /* group resolving key (Aliro BLE-UWB adv tag) */
+#define ALIRO_KPERSISTENT_LEN 32u /* per-credential expedited-fast key (§8.3.1.13) */
 
 /*
  * The reader's provisioned identity. reader_id rides AUTH0 and both ECDSA
@@ -55,14 +56,20 @@ struct aliro_reader_identity {
 struct aliro_trust_store {
 	uint8_t count;
 	uint8_t cred_pub[ALIRO_TRUST_MAX][ALIRO_CRED_PUB_LEN];
+	/* Expedited-fast state: bit i of kp_valid set = kpersistent[i] holds the
+	 * Kpersistent agreed with cred_pub[i] in its last standard phase. */
+	uint8_t kp_valid;
+	uint8_t kpersistent[ALIRO_TRUST_MAX][ALIRO_KPERSISTENT_LEN];
 };
 
-/* Serialised blob v2: magic(4) ver(1) flags(1) reader_id(32) sign_priv(32)
- * grk(16) count(1) then count * cred_pub(65). (v1 had no grk; still parsed.) */
+/* Serialised blob v3: magic(4) ver(1) flags(1) reader_id(32) sign_priv(32)
+ * grk(16) count(1), count * cred_pub(65), kp_valid(1), count * kpersistent(32).
+ * (v2 ended at the cred_pub array; v1 also had no grk. Both still parsed.) */
 #define ALIRO_PROV_BLOB_HDR 6u
 #define ALIRO_PROV_BLOB_MAX                                                                        \
 	(ALIRO_PROV_BLOB_HDR + ALIRO_READER_ID_LEN + ALIRO_READER_PRIV_LEN + ALIRO_GRK_LEN + 1u +  \
-	 (size_t)ALIRO_TRUST_MAX * ALIRO_CRED_PUB_LEN)
+	 (size_t)ALIRO_TRUST_MAX * ALIRO_CRED_PUB_LEN + 1u +                                       \
+	 (size_t)ALIRO_TRUST_MAX * ALIRO_KPERSISTENT_LEN)
 
 /* ---- portable core (aliro_prov.c) --------------------------------------- */
 
@@ -89,6 +96,16 @@ int aliro_prov_trust_check(const struct aliro_trust_store *ts,
 /* Add a credential key to the store. 0 added; 1 already present (dedup); -1 full
  * or the point is not an uncompressed P-256 point (leading byte != 0x04). */
 int aliro_prov_trust_add(struct aliro_trust_store *ts, const uint8_t cred_pub[ALIRO_CRED_PUB_LEN]);
+
+/* Index of a credential key in the store, or -1 if not present. */
+int aliro_prov_trust_find(const struct aliro_trust_store *ts,
+			  const uint8_t cred_pub[ALIRO_CRED_PUB_LEN]);
+
+/* Bind a Kpersistent (§8.3.1.13) to the credential at idx (from
+ * aliro_prov_trust_find), replacing any earlier one. 0 on success; -1 if idx is
+ * not a stored credential. */
+int aliro_prov_kpersistent_set(struct aliro_trust_store *ts, int idx,
+			       const uint8_t kp[ALIRO_KPERSISTENT_LEN]);
 
 /* ---- target NVS backend (aliro_prov_nvs.c) ------------------------------ */
 

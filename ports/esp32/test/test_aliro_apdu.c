@@ -118,6 +118,10 @@ int main(void)
 	okc("phase.1byte", out[0] == 0x41 && out[1] == 0x01 && out[2] == 0x00); /* 41 01 00, not empty */
 	okc("user_pol.01", out[3] == 0x42 && out[4] == 0x01 && out[5] == 0x01);
 	okc("len==129", n == 129);
+	/* fast-phase request = command_parameters bit 0 (41 01 01) */
+	okc("build.fast", aliro_apdu_build_auth0(0x01, 0x01, 0x0100, pub, txid, rid, out,
+						 sizeof(out), &n) == 0);
+	okc("phase.fastbit", out[0] == 0x41 && out[1] == 0x01 && out[2] == 0x01);
 	{
 		uint8_t apdu[300];
 		size_t alen;
@@ -171,6 +175,12 @@ int main(void)
 	okc("auth0resp.pub", memcmp(a0.device_eph_pub, pub, 65) == 0);
 	okc("auth0resp.crypto", a0.have_cryptogram &&
 					memcmp(a0.cryptogram, sig, 64) == 0);
+	/* standard response (no 0x9D): parses with have_cryptogram unset */
+	aliro_tlv_w_init(&w, rbuf, sizeof(rbuf));
+	aliro_tlv_put(&w, 0x86, pub, 65);
+	aliro_tlv_w_finish(&w, &rlen);
+	okc("auth0resp.no-crypto",
+	    aliro_apdu_parse_auth0_response(rbuf, rlen, &a0) == 0 && a0.have_cryptogram == 0);
 	/* missing mandatory 0x86 -> reject */
 	aliro_tlv_w_init(&w, rbuf, sizeof(rbuf));
 	aliro_tlv_put(&w, 0x9D, sig, 64);

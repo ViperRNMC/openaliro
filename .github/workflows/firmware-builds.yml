@@ -20,6 +20,9 @@ on:
       - scripts/bootstrap.sh
       - scripts/build.sh
       - .github/workflows/firmware-builds.yml
+      # Last so it wins: markdown never compiles into firmware, so pure-docs
+      # pushes (READMEs live inside the build dirs) skip the workflow.
+      - "!**/*.md"
   pull_request:
     paths:
       - ports/esp32/**
@@ -75,29 +78,36 @@ jobs:
           # The esp32 component/module dirs are shared by both ESP32 apps;
           # per-app dirs are added on top (see the app CMakeLists for the
           # REPO_ROOT source references the components compile).
+          #
+          # The !(*.md) suffix keeps READMEs from counting as build inputs.
+          # It must sit inside each glob: a filter ORs its patterns, so a
+          # separate `!**/*.md` rule would match every non-markdown file in
+          # the repo, and the `predicate-quantifier: every` mode that does
+          # support bare exclusions breaks multi-directory filters like these
+          # (no file can be in two directories at once).
           filters: |
             esp32-shared: &esp32-shared
-              - ports/esp32/components/**
-              - modules/woz_aliro/**
-              - modules/woz_port/**
-              - modules/woz_uwb/**
-              - deps/dw3000/**
+              - ports/esp32/components/**/!(*.md)
+              - modules/woz_aliro/**/!(*.md)
+              - modules/woz_port/**/!(*.md)
+              - modules/woz_uwb/**/!(*.md)
+              - deps/dw3000/**/!(*.md)
               - .github/workflows/firmware-builds.yml
             esp32-idf:
               - *esp32-shared
-              - ports/esp32/apps/reader/**
+              - ports/esp32/apps/reader/**/!(*.md)
             esp32-matter:
               - *esp32-shared
-              - ports/esp32/apps/matter-lock/**
+              - ports/esp32/apps/matter-lock/**/!(*.md)
             nrf5340dk:
               - west.yml
               - scripts/bootstrap.sh
               - scripts/build.sh
-              - ports/nrf5340dk/**
-              - modules/woz_uwb/**
-              - modules/woz_aliro_ecp/**
-              - modules/woz_port/**
-              - deps/dw3000/**
+              - ports/nrf5340dk/**/!(*.md)
+              - modules/woz_uwb/**/!(*.md)
+              - modules/woz_aliro_ecp/**/!(*.md)
+              - modules/woz_port/**/!(*.md)
+              - deps/dw3000/**/!(*.md)
               - .github/workflows/firmware-builds.yml
 
   # Plain ESP-IDF reader app. All dependencies are in-tree, so this is the
@@ -265,6 +275,13 @@ jobs:
             git submodule update --init --depth 1 &&
             ./connectedhomeip/connectedhomeip/scripts/checkout_submodules.py \
               --platform esp32 linux --shallow &&
+            # CHIP pins cffi==1.15.0 (python<3.13), which ships no wheel for
+            # the environment's CIPD python 3.11, and its from-source build
+            # breaks in this container. 1.15.1 is the same release line with
+            # cp311 wheels, so pip never has to compile it.
+            sed -i 's/cffi==1.15.0/cffi==1.15.1/' \
+              connectedhomeip/connectedhomeip/scripts/setup/constraints.txt \
+              connectedhomeip/connectedhomeip/scripts/setup/requirements.all.txt &&
             ./install.sh --no-host-tool
           )
           setup || {

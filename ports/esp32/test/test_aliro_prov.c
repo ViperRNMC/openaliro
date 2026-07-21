@@ -77,7 +77,7 @@ int main(void)
 	okc("ser.ok", aliro_prov_serialize(&id, &ts, blob, sizeof(blob), &n) == 0);
 	okc("ser.len", n == ALIRO_PROV_BLOB_HDR + ALIRO_READER_ID_LEN +
 			   ALIRO_READER_PRIV_LEN + ALIRO_GRK_LEN + 1u +
-			   2u * ALIRO_CRED_PUB_LEN);
+			   2u * ALIRO_CRED_PUB_LEN + 1u + 2u * ALIRO_KPERSISTENT_LEN);
 	okc("ser.magic", blob[0] == 'A' && blob[1] == 'P' && blob[2] == 'R' &&
 			 blob[3] == 'V');
 
@@ -94,7 +94,7 @@ int main(void)
 	aliro_prov_dev_default(&id, &ts);
 	okc("ser.dev.ok", aliro_prov_serialize(&id, &ts, blob, sizeof(blob), &n) == 0);
 	okc("ser.dev.len", n == ALIRO_PROV_BLOB_HDR + ALIRO_READER_ID_LEN +
-			       ALIRO_READER_PRIV_LEN + ALIRO_GRK_LEN + 1u);
+			       ALIRO_READER_PRIV_LEN + ALIRO_GRK_LEN + 1u + 1u);
 	okc("de.dev.ok", aliro_prov_deserialize(blob, n, &id2, &ts2) == 0);
 	okc("de.dev.flag", id2.is_dev == true);
 	okc("de.dev.count", ts2.count == 0);
@@ -118,7 +118,7 @@ int main(void)
 	okc("de.badmagic", aliro_prov_deserialize(bad, n, &id2, &ts2) == -1);
 
 	memcpy(bad, blob, n);
-	bad[4] = 0xFF; /* unknown version (0x01/0x02 are valid) */
+	bad[4] = 0xFF; /* unknown version (0x01..0x03 are valid) */
 	okc("de.badver", aliro_prov_deserialize(bad, n, &id2, &ts2) == -1);
 
 	memcpy(bad, blob, n);
@@ -128,6 +128,52 @@ int main(void)
 
 	/* count says 1 but the buffer is truncated by a byte. */
 	okc("de.lenmismatch", aliro_prov_deserialize(blob, n - 1, &id2, &ts2) == -1);
+
+	printf("\n== Kpersistent bind / v3 round-trip / v2 compat ==\n");
+	memset(&ts, 0, sizeof(ts));
+	mkpub(k0, 0x10);
+	mkpub(k1, 0x60);
+	aliro_prov_trust_add(&ts, k0);
+	aliro_prov_trust_add(&ts, k1);
+	uint8_t kp[ALIRO_KPERSISTENT_LEN], kmiss[ALIRO_CRED_PUB_LEN];
+
+	for (unsigned i = 0; i < ALIRO_KPERSISTENT_LEN; i++) {
+		kp[i] = (uint8_t)(0xD0 + i);
+	}
+	mkpub(kmiss, 0xF0);
+	okc("find.k1", aliro_prov_trust_find(&ts, k1) == 1);
+	okc("find.miss", aliro_prov_trust_find(&ts, kmiss) == -1);
+	okc("kp.set", aliro_prov_kpersistent_set(&ts, 1, kp) == 0);
+	okc("kp.mask", ts.kp_valid == 0x02);
+	okc("kp.set-oob", aliro_prov_kpersistent_set(&ts, 2, kp) == -1);
+	okc("kp.set-neg", aliro_prov_kpersistent_set(&ts, -1, kp) == -1);
+
+	aliro_prov_dev_default(&id, NULL);
+	okc("kp.ser", aliro_prov_serialize(&id, &ts, blob, sizeof(blob), &n) == 0);
+	okc("kp.de", aliro_prov_deserialize(blob, n, &id2, &ts2) == 0);
+	okc("kp.de-mask", ts2.kp_valid == 0x02);
+	okc("kp.de-key", memcmp(ts2.kpersistent[1], kp, ALIRO_KPERSISTENT_LEN) == 0);
+	uint8_t zeros[ALIRO_KPERSISTENT_LEN] = { 0 };
+
+	okc("kp.de-unset-zero",
+	    memcmp(ts2.kpersistent[0], zeros, ALIRO_KPERSISTENT_LEN) == 0);
+
+	/* a v2 blob (no kpersistent tail) still parses, with no Kpersistent */
+	memcpy(bad, blob, n);
+	bad[4] = 0x02; /* ALIRO_PROV_VERSION_2 */
+	okc("kp.v2-compat",
+	    aliro_prov_deserialize(bad, n - 1u - 2u * ALIRO_KPERSISTENT_LEN, &id2, &ts2) == 0);
+	okc("kp.v2-no-kp", ts2.kp_valid == 0 && ts2.count == 2 &&
+				   memcmp(ts2.cred_pub[1], k1, ALIRO_CRED_PUB_LEN) == 0);
+
+	/* trust_add must not inherit a stale bit for the slot it fills */
+	memset(&ts, 0, sizeof(ts));
+	aliro_prov_trust_add(&ts, k0);
+	ts.kp_valid = 0x03; /* stale bit for the not-yet-used slot 1 */
+	memcpy(ts.kpersistent[1], kp, ALIRO_KPERSISTENT_LEN); /* stale bytes */
+	okc("add.clears-slot",
+	    aliro_prov_trust_add(&ts, k1) == 0 && ts.kp_valid == 0x01 &&
+		    memcmp(ts.kpersistent[1], zeros, ALIRO_KPERSISTENT_LEN) == 0);
 
 	printf("\n== trust check / add / dedup / full ==\n");
 	memset(&ts, 0, sizeof(ts));
