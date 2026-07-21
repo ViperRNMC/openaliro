@@ -1,0 +1,662 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>openaliro — the whole surface in 3D</title>
+<style>
+@import url('https://fonts.googleapis.com/css2?family=Source+Serif+4:opsz,wght@8..60,400..600&display=swap');
+:root{
+  --ground:#faf9f5; --card:#ffffff; --ink:#3d3d3a; --strong:#141413; --muted:#73726c;
+  --faint:#9c9a92; --line:rgba(31,30,29,.15); --hairline:rgba(31,30,29,.08);
+  --accent:#c96442; --accent-ink:#141413; --raise:#f0eee6;
+  --stage:#141313;
+  --mono:ui-monospace,"SF Mono",Menlo,Consolas,monospace;
+  --sans:-apple-system,BlinkMacSystemFont,"SF Pro Text","Segoe UI",Roboto,Helvetica,Arial,sans-serif;
+  --serif:"Source Serif 4",Georgia,serif;
+}
+:root[data-theme="dark"]{
+  --ground:#1f1e1d; --card:#262624; --ink:#c2c0b6; --strong:#faf9f5; --muted:#9e9c93;
+  --faint:#6e6c64; --line:rgba(250,249,245,.13); --hairline:rgba(250,249,245,.07);
+  --accent:#d97757; --accent-ink:#d4a27f; --raise:#302f2c;
+}
+*{box-sizing:border-box}
+html,body{height:100%}
+body{margin:0;background:var(--stage);color:var(--ink);font-family:var(--sans);overflow:hidden}
+a{color:inherit;text-decoration:none}
+
+.bar{position:fixed;inset:0 0 auto 0;z-index:20;display:flex;align-items:center;gap:1rem;
+  height:3.4rem;padding:0 1.1rem;background:var(--ground);border-bottom:1px solid var(--hairline)}
+.back{display:inline-flex;align-items:center;gap:.45rem;font-size:.85rem;color:var(--muted);
+  padding:.4rem .7rem;border-radius:99px;border:1px solid transparent}
+.back:hover{border-color:var(--line);color:var(--strong)}
+.crumbs{display:flex;align-items:center;gap:.45rem;font-family:var(--serif);font-weight:500;
+  font-size:1.02rem;color:var(--strong);min-width:0}
+.crumbs .cr{cursor:pointer;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;max-width:14rem}
+.crumbs .cr:hover{color:var(--accent)}
+.crumbs .cr:last-child{cursor:default}
+.crumbs .cr:last-child:hover{color:var(--strong)}
+.crumbs .sep{color:var(--faint);font-family:var(--sans);font-size:.85rem}
+.bar .sp{flex:1}
+.bar input{width:15rem;max-width:34vw;padding:.42rem .8rem;border:1px solid var(--line);
+  border-radius:99px;background:var(--card);color:var(--strong);font-family:var(--sans);
+  font-size:.82rem;outline:none}
+.bar input::placeholder{color:var(--faint)}
+.bar input:focus{border-color:var(--accent)}
+.fitb{padding:.4rem .8rem;border-radius:99px;border:1px solid var(--line);background:var(--card);
+  color:var(--muted);font-size:.8rem;font-family:var(--sans);cursor:pointer}
+.fitb:hover{border-color:var(--accent);color:var(--strong)}
+
+.legend{position:fixed;left:1.1rem;bottom:1.1rem;z-index:20;display:flex;flex-wrap:wrap;
+  gap:.4rem;max-width:min(46rem,70vw)}
+.lg{display:inline-flex;align-items:center;gap:.45rem;padding:.3rem .7rem;border-radius:99px;
+  font-size:.74rem;color:#c9c7bd;background:rgba(250,249,245,.06);
+  border:1px solid rgba(250,249,245,.1);cursor:pointer;user-select:none}
+.lg i{width:.55rem;height:.55rem;border-radius:99px;background:var(--c)}
+.lg:hover{background:rgba(250,249,245,.12)}
+.lg.on{background:rgba(250,249,245,.16);color:#faf9f5;border-color:rgba(250,249,245,.3)}
+.hint{position:fixed;right:1.1rem;bottom:1.1rem;z-index:20;font-size:.72rem;color:rgba(250,249,245,.42)}
+
+#stage{position:absolute;inset:0;
+  background:radial-gradient(120% 90% at 50% 40%,#1d1b1a 0%,#141313 52%,#0b0a0a 100%)}
+#labels{position:absolute;inset:0;z-index:5;pointer-events:none;overflow:hidden}
+.lab{position:absolute;left:0;top:0;font-family:var(--mono);font-size:10.5px;
+  letter-spacing:.02em;color:#eceade;white-space:nowrap;opacity:0;
+  transition:opacity .18s linear;will-change:transform,opacity;
+  pointer-events:auto;cursor:pointer;
+  text-shadow:0 1px 3px rgba(0,0,0,.95),0 0 16px rgba(0,0,0,.75)}
+.lab.lab-s{font-size:9.3px;color:#ddd9cc}
+.lab:hover{opacity:1!important}
+.scene-nav-info{display:none!important}
+.scene-tooltip{font-family:var(--mono)!important;font-size:.72rem!important;
+  color:#faf9f5!important;background:rgba(20,19,18,.92)!important;padding:.35rem .6rem!important;
+  border-radius:8px!important;border:1px solid rgba(250,249,245,.14)}
+
+.panel{position:fixed;top:4.4rem;right:1rem;bottom:1rem;width:min(400px,94vw);z-index:25;
+  background:var(--ground);border:1px solid var(--line);border-radius:16px;
+  box-shadow:0 30px 70px -26px rgba(0,0,0,.55);display:none;flex-direction:column;overflow:hidden}
+.panel.on{display:flex}
+.p-head{padding:1.15rem 1.25rem .9rem;border-bottom:1px solid var(--hairline)}
+.p-eyebrow{display:flex;align-items:center;gap:.5rem;font-size:.68rem;font-weight:650;
+  letter-spacing:.12em;text-transform:uppercase;color:var(--accent)}
+.p-eyebrow i{width:.55rem;height:.55rem;border-radius:99px;background:var(--c)}
+.p-x{float:right;border:0;background:none;color:var(--faint);font-size:1.1rem;cursor:pointer;
+  padding:.1rem .4rem;border-radius:8px}
+.p-x:hover{background:var(--raise);color:var(--strong)}
+.p-head h2{font-family:var(--serif);font-weight:500;font-size:1.45rem;color:var(--strong);
+  margin:.45rem 0 .2rem;overflow-wrap:anywhere}
+.p-path{font-family:var(--mono);font-size:.72rem;color:var(--faint);overflow-wrap:anywhere}
+.p-body{flex:1;overflow-y:auto;padding:1rem 1.25rem 1.2rem;scrollbar-width:thin;
+  scrollbar-color:var(--line) transparent}
+.p-body p{margin:.2rem 0 1rem;font-size:.88rem;line-height:1.65;color:var(--ink)}
+.p-cap{font-size:.68rem;font-weight:650;letter-spacing:.11em;text-transform:uppercase;
+  color:var(--faint);margin:1.1rem 0 .5rem}
+.p-cap.p-dive{cursor:pointer;color:var(--accent)}
+.p-cap.p-dive:hover{text-decoration:underline}
+.chips{display:flex;flex-wrap:wrap;gap:.35rem}
+.chip{font-family:var(--mono);font-size:.72rem;color:var(--ink);background:var(--raise);
+  border:1px solid var(--hairline);border-radius:8px;padding:.24rem .55rem;cursor:pointer}
+.chip:hover{border-color:var(--accent);color:var(--strong)}
+.sym{display:flex;align-items:baseline;gap:.55rem;padding:.26rem 0;font-size:.8rem}
+.sym b{flex:none;display:inline-grid;place-items:center;width:1.25rem;height:1.25rem;
+  border-radius:6px;background:var(--raise);border:1px solid var(--hairline);
+  font-size:.62rem;font-weight:650;color:var(--muted)}
+.sym a{font-family:var(--mono);color:var(--ink);overflow-wrap:anywhere}
+.sym a:hover{color:var(--accent);text-decoration:underline}
+.p-foot{padding: .85rem 1.25rem;border-top:1px solid var(--hairline)}
+.p-open{display:inline-flex;align-items:center;gap:.4rem;font-size:.85rem;font-weight:600;
+  color:var(--accent)}
+.p-open:hover{text-decoration:underline}
+
+.docwrap{position:fixed;inset:0;z-index:40;display:none;align-items:center;justify-content:center;
+  background:rgba(10,9,9,.6);backdrop-filter:blur(7px)}
+.docwrap.on{display:flex}
+.doc-card{display:flex;flex-direction:column;width:min(900px,94vw);height:min(84vh,860px);
+  background:var(--ground);border:1px solid var(--line);border-radius:18px;overflow:hidden;
+  box-shadow:0 40px 90px -30px rgba(0,0,0,.7);animation:dpop .28s cubic-bezier(.2,.9,.3,1)}
+@keyframes dpop{from{opacity:0;transform:translateY(18px) scale(.97)}}
+.d-head{display:flex;align-items:center;gap:.7rem;padding:.85rem 1.1rem;
+  border-bottom:1px solid var(--hairline)}
+.d-kind{font-size:.66rem;font-weight:650;letter-spacing:.1em;text-transform:uppercase;
+  padding:.22rem .55rem;border-radius:99px;background:var(--raise);color:var(--kc,var(--accent))}
+.d-head h2{font-family:var(--serif);font-weight:500;font-size:1.1rem;color:var(--strong);
+  margin:0;overflow-wrap:anywhere}
+.d-head .sp{flex:1}
+.d-btn{font-size:.78rem;font-family:var(--sans);color:var(--muted);background:var(--card);
+  border:1px solid var(--line);border-radius:99px;padding:.34rem .75rem;cursor:pointer;flex:none}
+.d-btn:hover{border-color:var(--accent);color:var(--strong)}
+.d-x{border:0;background:none;color:var(--faint);font-size:1.2rem;cursor:pointer;
+  padding:.1rem .45rem;border-radius:8px;flex:none}
+.d-x:hover{background:var(--raise);color:var(--strong)}
+#dframe{flex:1;width:100%;border:0;background:var(--card)}
+@media (max-width:720px){.crumbs{display:none}.legend{max-width:94vw;bottom:.7rem}.hint{display:none}}
+</style>
+</head>
+<body>
+<header class="bar">
+<a class="back" href="architecture.html">&#8592; Architecture</a>
+<nav class="crumbs" id="crumbs"><span class="cr" data-i="0">The whole surface</span></nav>
+<div class="sp"></div>
+<input id="q" type="search" placeholder="Filter files &mdash; &#9166; jumps&hellip;" autocomplete="off">
+<button id="fit" class="fitb" title="Frame everything (F)">Fit</button>
+</header>
+<div id="stage"></div>
+<div id="labels"></div>
+<div class="legend" id="legend"></div>
+<div class="hint" id="hint">drag to orbit &middot; right-drag to pan &middot; scroll to zoom &middot; F fits &middot; double-click dives</div>
+<aside class="panel" id="panel">
+<div class="p-head">
+<button class="p-x" id="px" aria-label="Close">&#215;</button>
+<div class="p-eyebrow" id="pey"></div>
+<h2 id="pname"></h2>
+<div class="p-path" id="ppath"></div>
+</div>
+<div class="p-body" id="pbody"></div>
+<div class="p-foot"><a class="p-open" id="popen" target="_blank" rel="noopener">Open reference page &#8599;</a></div>
+</aside>
+<div class="docwrap" id="doc">
+<div class="doc-card">
+<header class="d-head">
+<b class="d-kind" id="dkind"></b>
+<h2 id="dname"></h2>
+<div class="sp"></div>
+<button class="d-btn" id="dcopy">Copy link</button>
+<a class="d-btn" id="dopen" target="_blank" rel="noopener">Open page &#8599;</a>
+<button class="d-x" id="dx" aria-label="Close">&#215;</button>
+</header>
+<iframe id="dframe" title="Reference"></iframe>
+</div>
+</div>
+<script src="@@LIB@@"></script>
+<script id="gv3d-data" type="application/json">@@DATA@@</script>
+<script>
+(function(){
+"use strict";
+var theme=null;
+try{theme=localStorage.getItem("dm-theme")}catch(e){}
+if(theme==="dark"||(theme!=="light"&&matchMedia("(prefers-color-scheme:dark)").matches))
+  document.documentElement.setAttribute("data-theme","dark");
+
+var D=JSON.parse(document.getElementById("gv3d-data").textContent);
+var colOf={},rgbOf={};
+Object.keys(D.slots).forEach(function(g){
+  var hex=D.colors[D.slots[g]%D.colors.length];colOf[g]=hex;
+  var n=parseInt(hex.slice(1),16);rgbOf[g]=[n>>16&255,n>>8&255,n&255];
+});
+var byId={},outs={},ins={};
+D.nodes.forEach(function(n){byId[n.id]=n;outs[n.id]=[];ins[n.id]=[]});
+D.links.forEach(function(l){outs[l.source].push(l.target);ins[l.target].push(l.source)});
+var deg={};D.nodes.forEach(function(n){deg[n.id]=outs[n.id].length+ins[n.id].length});
+
+/* symbol kinds: function / type / macro — badge word and color */
+var KMETA={f:["function","#d97757",[217,119,87]],
+           c:["type","#4a90d9",[74,144,217]],
+           m:["macro","#c9a227",[201,162,39]]};
+
+var sel=null,hov=null,near={},iso=null,q="";
+var stack=[],curNodes=D.nodes;
+function visible(n){
+  if(iso&&n.grp!==iso)return false;
+  if(q&&((n.id+" "+n.name).toLowerCase().indexOf(q)<0))return false;
+  return true;
+}
+function nodeColor(n){
+  var c=n.kind&&KMETA[n.kind]?KMETA[n.kind][2]:(rgbOf[n.grp]||[150,150,150]);
+  var dim=!visible(n)||(sel&&n.id!==sel&&!near[n.id]);
+  var a=dim?0.10:(n.kind==="dep"||n.kind==="use"?0.75:0.92);
+  return "rgba("+c[0]+","+c[1]+","+c[2]+","+a+")";
+}
+function linkColor(l){
+  var a=sel&&(l.source.id===sel||l.target.id===sel);
+  if(sel&&!a)return "rgba(250,249,245,0.03)";
+  if(iso&&(l.source.grp!==iso||l.target.grp!==iso))return "rgba(250,249,245,0.03)";
+  if(a)return "rgba(250,249,245,0.55)";
+  var t=l.target,c=t.kind&&KMETA[t.kind]?KMETA[t.kind][2]:(rgbOf[l.source.grp]||[150,150,150]);
+  return "rgba("+c[0]+","+c[1]+","+c[2]+","+(t.kind&&KMETA[t.kind]?0.22:0.16)+")";
+}
+var lastClick={id:null,t:0};
+var Graph=ForceGraph3D({controlType:"orbit"})(document.getElementById("stage"))
+  .graphData({nodes:D.nodes,links:D.links})
+  .backgroundColor("rgba(0,0,0,0)")
+  .nodeVal(function(n){return n.val||1.6+(deg[n.id]||0)*0.55})
+  .nodeResolution(24)
+  .nodeColor(nodeColor)
+  .nodeOpacity(1)
+  .nodeLabel(function(n){
+    if(n.kind&&KMETA[n.kind])return KMETA[n.kind][0]+" &middot; "+n.name;
+    if(n.kind==="dep")return n.id+" &middot; dependency &mdash; click to dive";
+    if(n.kind==="use")return n.id+" &middot; uses this file &mdash; click to dive";
+    if(n.kind==="file")return n.id+" &middot; click for its reference page";
+    return n.id+" &middot; "+(outs[n.id]||[]).length+"&#8599; "+(ins[n.id]||[]).length+"&#8601;";
+  })
+  .linkColor(linkColor)
+  .linkOpacity(1)
+  .linkWidth(function(l){return sel&&(l.source.id===sel||l.target.id===sel)?1.2:0})
+  .linkDirectionalParticles(function(l){return sel&&(l.source.id===sel||l.target.id===sel)?2:0})
+  .linkDirectionalParticleWidth(1.4)
+  .linkDirectionalParticleSpeed(0.007)
+  .warmupTicks(90)
+  .cooldownTicks(180)
+  .d3VelocityDecay(0.32)
+  .onNodeHover(function(n){hov=n})
+  .onNodeClick(function(n){
+    var now=Date.now();
+    if(!stack.length&&n.id===lastClick.id&&now-lastClick.t<340){
+      lastClick={id:null,t:0};dive(n.id);return;
+    }
+    lastClick={id:n.id,t:now};
+    nodeAct(n);
+  })
+  .onBackgroundClick(function(){select(null)});
+
+/* steering: orbit controls with inertia — drag to orbit, right-drag to pan,
+   the wheel zooms toward the cursor; F or the Fit button reframes everything.
+   A slow auto-orbit runs until the first touch or flight */
+var ctr=Graph.controls();
+ctr.enableDamping=true;ctr.dampingFactor=0.085;
+ctr.screenSpacePanning=true;
+if("zoomToCursor" in ctr)ctr.zoomToCursor=true;
+ctr.zoomSpeed=1.3;ctr.rotateSpeed=0.85;
+ctr.autoRotate=true;ctr.autoRotateSpeed=0.4;
+function wake(){ctr.autoRotate=false}
+["pointerdown","wheel"].forEach(function(ev){
+  document.getElementById("stage").addEventListener(ev,wake,{once:true,passive:true});
+});
+function fitAll(){wake();Graph.zoomToFit(700,stack.length?100:130)}
+document.getElementById("fit").addEventListener("click",fitAll);
+
+/* physics: gentle repulsion, short in-cluster links, cluster cohesion, and a
+   containment sphere so leaf files hang near their constellation instead of
+   drifting to infinity. In a dive, symbols sit close and portals ring wide */
+Graph.d3Force("charge").strength(-70);
+function kdist(k){
+  if(k==="f"||k==="c"||k==="m")return 60;
+  if(k==="dep"||k==="use")return 165;
+  return 0;
+}
+Graph.d3Force("link").distance(function(l){
+  var s=l.source,t=l.target;
+  if(typeof s!=="object"||typeof t!=="object")return 60;
+  var d=Math.max(kdist(s.kind),kdist(t.kind));
+  if(d)return d;
+  return s.grp===t.grp?34:95;
+});
+var nds=[];
+function fCluster(alpha){
+  var c={};
+  nds.forEach(function(n){
+    var b=c[n.grp]||(c[n.grp]={x:0,y:0,z:0,m:0});
+    b.x+=n.x;b.y+=n.y;b.z+=n.z;b.m++;
+  });
+  var k=alpha*0.07;
+  nds.forEach(function(n){
+    var b=c[n.grp];if(b.m<2)return;
+    n.vx+=(b.x/b.m-n.x)*k;n.vy+=(b.y/b.m-n.y)*k;n.vz+=(b.z/b.m-n.z)*k;
+  });
+}
+fCluster.initialize=function(a){nds=a};
+function fContain(alpha){
+  var R=250;
+  nds.forEach(function(n){
+    var r=Math.hypot(n.x,n.y,n.z);
+    if(r>R){var k=(r-R)/r*alpha*0.14;n.vx-=n.x*k;n.vy-=n.y*k;n.vz-=n.z*k}
+  });
+}
+fContain.initialize=function(a){nds=a};
+Graph.d3Force("cluster",fCluster);
+Graph.d3Force("contain",fContain);
+
+/* lighting: reshape the stock ambient+directional rig into a key/fill/rim
+   trio — warm key from above, cool fill, a faint coral rim from below —
+   so the spheres read as lit objects instead of flat blobs */
+(function(){
+  var amb=null,dir=null,scene=Graph.scene();
+  scene.traverse(function(o){
+    if(o.type==="AmbientLight")amb=amb||o;
+    else if(o.type==="DirectionalLight")dir=dir||o;
+  });
+  if(amb){amb.color.set("#cdd0dc");amb.intensity*=0.65}
+  if(dir){
+    dir.color.set("#fff3e4");dir.intensity*=0.95;
+    dir.position.set(650,900,420);
+    var fill=dir.clone();
+    fill.color.set("#8fa6d9");fill.intensity=dir.intensity*0.35;
+    fill.position.set(-450,250,720);scene.add(fill);
+    var rim=dir.clone();
+    rim.color.set("#d97757");rim.intensity=dir.intensity*0.4;
+    rim.position.set(-600,-700,-500);scene.add(rim);
+  }
+})();
+
+/* a whisper of self-illumination per node so shadowed sides keep their
+   cluster color; scaled by material opacity so dimmed nodes stay dim */
+function glaze(){
+  var seen=[];
+  curNodes.forEach(function(n){
+    var o=n.__threeObj;
+    if(!o||!o.material||!o.material.emissive)return;
+    var m=o.material;
+    if(seen.indexOf(m)>=0)return;seen.push(m);
+    m.emissive.copy(m.color).multiplyScalar(0.24*(m.opacity==null?1:m.opacity));
+  });
+}
+
+function refresh(){Graph.nodeColor(Graph.nodeColor());}
+
+function esc(s){var d=document.createElement("i");d.textContent=s;return d.innerHTML}
+function chip(id){return '<span class="chip" data-go="'+esc(id)+'">'+esc(id.split("/").pop())+"</span>"}
+
+/* what a click means depends on where you are: on the surface it selects,
+   in a dive symbols open their docs and outer files dive deeper */
+function nodeAct(n){
+  if(stack.length){
+    if(n.url||n.kind==="file")openDoc(n);
+    else dive(n.id);
+  }else select(n,true);
+}
+
+/* labels: on the surface, every cluster hub plus the highest-degree files;
+   in a dive, everything (or just the file and its portals when the API is
+   huge). Quiet until hover or selection brings them forward */
+var important={};
+(function(){
+  var hubs={};
+  D.nodes.forEach(function(n){
+    if(!hubs[n.grp]||deg[n.id]>deg[hubs[n.grp].id])hubs[n.grp]=n;
+  });
+  Object.keys(hubs).forEach(function(g){important[hubs[g].id]=1});
+  D.nodes.slice().sort(function(a,b){return deg[b.id]-deg[a.id]})
+    .slice(0,18).forEach(function(n){important[n.id]=1});
+})();
+var labWrap=document.getElementById("labels"),labs={};
+function ensureLab(n){
+  var L=labs[n.id];
+  if(L){L.n=n;return}
+  var el=document.createElement("div");
+  el.className="lab"+(n.url?" lab-s":"");
+  el.textContent=n.name;
+  el.addEventListener("click",function(){nodeAct(labs[n.id].n)});
+  labWrap.appendChild(el);
+  labs[n.id]={el:el,n:n};
+}
+labWrap.addEventListener("wheel",function(e){
+  try{
+    var cv=document.querySelector("#stage canvas");
+    if(cv)cv.dispatchEvent(new WheelEvent("wheel",e));
+  }catch(x){}
+},{passive:true});
+function syncLabs(){
+  var want={};
+  if(stack.length){
+    if(curNodes.length<=52)curNodes.forEach(function(n){want[n.id]=n});
+    else curNodes.forEach(function(n){if(!n.url)want[n.id]=n});
+  }else{
+    Object.keys(important).forEach(function(k){want[k]=byId[k]});
+    if(sel&&byId[sel]){
+      want[sel]=byId[sel];
+      Object.keys(near).forEach(function(k){if(byId[k])want[k]=byId[k]});
+    }
+  }
+  Object.keys(labs).forEach(function(id){
+    if(!want[id]){labWrap.removeChild(labs[id].el);delete labs[id]}
+  });
+  Object.keys(want).forEach(function(id){ensureLab(want[id])});
+}
+syncLabs();
+var camDirV=null;
+(function tick(){
+  requestAnimationFrame(tick);
+  glaze();
+  if(ctr.update)ctr.update();
+  var cam=Graph.camera();
+  if(!camDirV)camDirV=cam.position.clone();
+  cam.getWorldDirection(camDirV);
+  Object.keys(labs).forEach(function(id){
+    var n=labs[id].n,el=labs[id].el;
+    if(typeof n.x!=="number"){el.style.opacity=0;return}
+    var dx=n.x-cam.position.x,dy=n.y-cam.position.y,dz=n.z-cam.position.z;
+    if(dx*camDirV.x+dy*camDirV.y+dz*camDirV.z<=0||!visible(n)){el.style.opacity=0;return}
+    var dist=Math.sqrt(dx*dx+dy*dy+dz*dz)||1;
+    var a;
+    if(sel)a=n.id===sel?1:(near[n.id]?0.8:0.05);
+    else if(hov&&hov.id===n.id)a=1;
+    else{var t=Math.max(0,Math.min(1,(950-dist)/650));a=0.12+0.34*t}
+    var s=(sel&&n.id===sel)||(hov&&hov.id===n.id)?1.1
+      :Math.max(0.85,Math.min(1.05,520/dist));
+    var p=Graph.graph2ScreenCoords(n.x,n.y,n.z);
+    el.style.opacity=a;
+    el.style.transform="translate("+p.x+"px,"+p.y+"px) translate(-50%,-150%) scale("+s+")";
+  });
+})();
+
+function select(n,fly){
+  sel=n?n.id:null;near={};
+  var panel=document.getElementById("panel");
+  if(!n){panel.classList.remove("on");syncLabs();refresh();return}
+  outs[n.id].forEach(function(t){near[t]=1});
+  ins[n.id].forEach(function(t){near[t]=1});
+  document.getElementById("pey").innerHTML='<i style="--c:'+colOf[n.grp]+'"></i>'+esc(n.grp);
+  document.getElementById("pname").textContent=n.name;
+  document.getElementById("ppath").textContent=n.id;
+  var b="";
+  if(n.blurb)b+="<p>"+esc(n.blurb)+"</p>";
+  if(outs[n.id].length)b+='<div class="p-cap">Depends on &middot; '+outs[n.id].length+
+    '</div><div class="chips">'+outs[n.id].map(chip).join("")+"</div>";
+  if(ins[n.id].length)b+='<div class="p-cap">Used by &middot; '+ins[n.id].length+
+    '</div><div class="chips">'+ins[n.id].map(chip).join("")+"</div>";
+  var syms=D.syms[n.slug]||[];
+  if(syms.length){
+    b+='<div class="p-cap p-dive" data-dive="'+esc(n.id)+'">API surface &middot; '+
+      syms.length+" &mdash; explore in 3D &#8600;</div>";
+    syms.forEach(function(s){
+      b+='<div class="sym"><b>'+{f:"F",c:"T",m:"#"}[s[0]]+"</b><a data-k=\""+s[0]+
+        "\" target=\"_blank\" rel=\"noopener\" href=\""+esc(s[2])+'">'+esc(s[1])+"</a></div>";
+    });
+  }
+  document.getElementById("pbody").innerHTML=b;
+  document.getElementById("popen").setAttribute("href",n.slug);
+  panel.classList.add("on");
+  syncLabs();
+  refresh();
+  if(fly&&typeof n.x==="number"){
+    wake();
+    var d=70+Math.sqrt(deg[n.id])*8,r=Math.hypot(n.x,n.y,n.z)||1,k=1+d/r;
+    Graph.cameraPosition({x:n.x*k,y:n.y*k,z:n.z*k},n,900);
+  }
+}
+document.getElementById("pbody").addEventListener("click",function(e){
+  var t=e.target;
+  var dv=t.closest("[data-dive]");
+  if(dv){dive(dv.getAttribute("data-dive"));return}
+  var a=t.closest(".sym a");
+  if(a){
+    e.preventDefault();
+    openDoc({name:a.textContent,url:a.getAttribute("href"),kind:a.getAttribute("data-k")});
+    return;
+  }
+  var go=t.getAttribute&&t.getAttribute("data-go");
+  if(go&&byId[go])select(byId[go],true);
+});
+document.getElementById("px").addEventListener("click",function(){select(null)});
+
+/* the dive: one file becomes a fixed sun, its API symbols the close orbit,
+   its dependencies and users an outer ring of portals to dive on through */
+function layerData(id){
+  var f=byId[id],nodes=[],links=[],seen={};
+  nodes.push({id:f.id,name:f.name,grp:f.grp,slug:f.slug,blurb:f.blurb,
+    kind:"file",val:16,fx:0,fy:0,fz:0});
+  seen[id]=1;
+  (D.syms[f.slug]||[]).forEach(function(s){
+    var sid="s:"+s[2];
+    nodes.push({id:sid,name:s[1],kind:s[0],url:s[2],grp:f.grp,val:1.5});
+    links.push({source:id,target:sid});
+  });
+  outs[id].forEach(function(t){
+    if(seen[t])return;seen[t]=1;var o=byId[t];
+    nodes.push({id:t,name:o.name,grp:o.grp,slug:o.slug,blurb:o.blurb,kind:"dep",val:5});
+    links.push({source:id,target:t});
+  });
+  ins[id].forEach(function(t){
+    if(seen[t])return;seen[t]=1;var o=byId[t];
+    nodes.push({id:t,name:o.name,grp:o.grp,slug:o.slug,blurb:o.blurb,kind:"use",val:5});
+    links.push({source:t,target:id});
+  });
+  return {nodes:nodes,links:links};
+}
+function dive(id){
+  if(!byId[id])return;
+  stack.push(id);
+  setMode();
+}
+function renderCrumbs(){
+  var h='<span class="cr" data-i="0">The whole surface</span>';
+  stack.forEach(function(id,i){
+    h+='<span class="sep">&#8250;</span><span class="cr" data-i="'+(i+1)+'">'+
+      esc(byId[id].name)+"</span>";
+  });
+  document.getElementById("crumbs").innerHTML=h;
+}
+document.getElementById("crumbs").addEventListener("click",function(e){
+  var i=e.target.getAttribute&&e.target.getAttribute("data-i");
+  if(i==null)return;
+  i=+i;
+  if(i===stack.length)return;
+  stack=stack.slice(0,i);
+  setMode();
+});
+function setMode(){
+  select(null);
+  closeDoc();
+  iso=null;
+  var legendEl=document.getElementById("legend");
+  Array.prototype.forEach.call(legendEl.children,function(c){c.classList.remove("on")});
+  var top=stack.length?stack[stack.length-1]:null;
+  if(top){
+    var L=layerData(top);
+    curNodes=L.nodes;
+    legendEl.style.display="none";
+    Graph.graphData(L);
+    Graph.cameraPosition({x:0,y:60,z:430},{x:0,y:0,z:0},700);
+  }else{
+    curNodes=D.nodes;
+    legendEl.style.display="";
+    Graph.graphData({nodes:D.nodes,links:D.links});
+  }
+  document.getElementById("hint").innerHTML=stack.length
+    ?"click a symbol for its docs &middot; click an outer file to dive on &middot; Esc backs out"
+    :"drag to orbit &middot; right-drag to pan &middot; scroll to zoom &middot; F fits &middot; double-click dives";
+  renderCrumbs();
+  fitted=false;
+  wake();
+  syncLabs();
+  refresh();
+}
+
+/* the doc overlay: the real reference page in a themed card, chrome hidden,
+   scrolled to the symbol — live from the site, closable back to the graph */
+var docEl=document.getElementById("doc"),dframe=document.getElementById("dframe");
+function openDoc(o){
+  var url=o.url||o.slug;
+  if(!url)return;
+  var km=KMETA[o.kind];
+  var badge=document.getElementById("dkind");
+  badge.textContent=km?km[0]:"file";
+  badge.style.setProperty("--kc",km?km[1]:"");
+  document.getElementById("dname").textContent=o.name;
+  document.getElementById("dopen").setAttribute("href",url);
+  dframe.onload=function(){
+    try{
+      var d=dframe.contentDocument;
+      if(!d||d.getElementById("gv3d-strip"))return;
+      var st=d.createElement("style");
+      st.id="gv3d-strip";
+      st.textContent=".side,.topbar,.toc-rail,.scrim,.palette{display:none!important}"+
+        ".app{display:block!important}"+
+        ".content{margin:0!important;max-width:none!important}"+
+        "main.doc{margin:0 auto!important;padding:1.2rem 1.6rem 3rem!important}"+
+        ":target{scroll-margin-top:1.2rem}"+
+        "section.api-entry:target{animation:gvmark 1.8s ease}"+
+        "@keyframes gvmark{0%{background:rgba(217,119,87,.16);"+
+        "box-shadow:0 0 0 10px rgba(217,119,87,.16);border-radius:10px}"+
+        "100%{background:transparent;box-shadow:none}}";
+      d.head.appendChild(st);
+      var anchor=url.split("#")[1];
+      if(anchor){
+        var target=d.getElementById(anchor);
+        if(target)target.scrollIntoView({block:"start"});
+      }
+    }catch(e){}
+  };
+  dframe.src=url;
+  docEl.classList.add("on");
+}
+function closeDoc(){
+  if(!docEl.classList.contains("on"))return;
+  docEl.classList.remove("on");
+  dframe.src="about:blank";
+}
+document.getElementById("dx").addEventListener("click",closeDoc);
+docEl.addEventListener("click",function(e){if(e.target===docEl)closeDoc()});
+document.getElementById("dcopy").addEventListener("click",function(){
+  var self=this,href=document.getElementById("dopen").getAttribute("href");
+  try{
+    navigator.clipboard.writeText(new URL(href,location.href).href).then(function(){
+      self.textContent="Copied ✓";
+      setTimeout(function(){self.textContent="Copy link"},1400);
+    });
+  }catch(e){}
+});
+
+addEventListener("keydown",function(e){
+  if(e.key==="Escape"){
+    if(docEl.classList.contains("on"))closeDoc();
+    else if(sel)select(null);
+    else if(stack.length){stack.pop();setMode()}
+  }
+  else if((e.key==="f"||e.key==="F")&&!/INPUT|TEXTAREA/.test(e.target.tagName))fitAll();
+});
+
+var legend=document.getElementById("legend");
+Object.keys(D.slots).sort().forEach(function(g){
+  if(!D.nodes.some(function(n){return n.grp===g}))return;
+  var el=document.createElement("span");
+  el.className="lg";el.innerHTML='<i style="--c:'+colOf[g]+'"></i>'+esc(g);
+  el.addEventListener("click",function(){
+    iso=iso===g?null:g;
+    Array.prototype.forEach.call(legend.children,function(c){c.classList.remove("on")});
+    if(iso)el.classList.add("on");
+    refresh();
+    if(iso){wake();Graph.zoomToFit(700,110,function(n){return n.grp===g})}
+    else fitAll();
+  });
+  legend.appendChild(el);
+});
+document.getElementById("q").addEventListener("input",function(){
+  q=this.value.trim().toLowerCase();refresh();
+});
+document.getElementById("q").addEventListener("keydown",function(e){
+  if(e.key!=="Enter")return;
+  var s=this.value.trim().toLowerCase();
+  if(!s)return;
+  var best=null,bs=0;
+  curNodes.forEach(function(n){
+    if(!visible(n))return;
+    var nm=n.name.toLowerCase(),sc=
+      nm===s?4:nm.indexOf(s)===0?3:nm.indexOf(s)>=0?2:n.id.toLowerCase().indexOf(s)>=0?1:0;
+    if(sc>bs){bs=sc;best=n}
+  });
+  if(best)nodeAct(best);
+});
+
+/* once the layout settles, frame everything from a step further back; the
+   auto-orbit carries on until the first touch */
+var fitted=false;
+Graph.onEngineStop(function(){
+  if(fitted)return;fitted=true;
+  Graph.zoomToFit(800,stack.length?100:130);
+});
+addEventListener("resize",function(){Graph.width(innerWidth).height(innerHeight)});
+})();
+</script>
+</body>
+</html>

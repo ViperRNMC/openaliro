@@ -96,6 +96,12 @@ python3 tools/docs_graph.py
 echo "==> reference fill"
 python3 tools/docs_api.py
 
+echo "==> 3d surface"
+python3 tools/docs_3d.py
+
+echo "==> theme"
+python3 tools/docs_theme.py
+
 echo "==> link pass"
 python3 tools/docs_links.py
 
