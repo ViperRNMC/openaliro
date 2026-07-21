@@ -100,6 +100,11 @@ static void compute_reader_group_x(void)
 static woz_mutex_t s_prov_lock;
 static bool s_prov_lock_ready;
 
+/* Set when a standard phase minted a fresh Kpersistent (s_trust updated in RAM,
+ * guarded by s_prov_lock); persisted to NVS on disconnect so the flash write
+ * stays off the walk-up critical path. */
+static bool s_kp_dirty;
+
 /* Where the credential-auth transaction has got to on this connection. Advances
  * strictly forward from PH_IDLE as each command's response arrives; PH_FAILED is
  * terminal until the peer reconnects. */
@@ -150,6 +155,9 @@ static struct aliro_session {
 	uint8_t reader_eph_priv[ALIRO_P256_SCALAR];
 	uint8_t reader_eph_pub[ALIRO_P256_POINT];
 	uint8_t txid[ALIRO_TXID_LEN];
+	/* AUTH0 command_parameters as transmitted: 0x01 = fast requested. Feeds
+	 * every salt build as the flag field (§8.3.1.12/.13), also on fallback. */
+	uint8_t exp_phase_sent;
 	uint8_t device_eph_pub[ALIRO_P256_POINT];
 	uint8_t z[32];
 	struct aliro_secchan sc;     /* AP secure channel (ExpeditedSK) */
@@ -288,11 +296,18 @@ static void start_auth(struct aliro_session *s)
 	uint8_t apdu[160];
 	size_t n;
 
-	/* Standard-path AUTH0: ExpeditedPhaseType 0 (encoded as an empty 41 00) and
-	 * UserAuthenticationPolicy 0x01 — values confirmed from the reference
-	 * AUTH0Command::Serialize. These same two values feed the session-key salt below. */
-	if (aliro_apdu_build_auth0(0x00u, 0x01u, ALIRO_VERSION, s->reader_eph_pub, s->txid,
-				   s_id.reader_id, apdu, sizeof(apdu), &n) != 0) {
+	/* ExpeditedPhaseType: request the fast phase (bit 0, §8.1.1.2) when any
+	 * trusted credential holds a Kpersistent from an earlier standard phase; a
+	 * phone that kept the matching key answers with a cryptogram (tag 0x9D),
+	 * anything else continues into the standard phase. The byte lives in the
+	 * session because it feeds every salt as the flag field, which per
+	 * §8.3.1.12/.13 is command_parameters AS TRANSMITTED — also on fallback.
+	 * UserAuthenticationPolicy stays 0x01 (reference AUTH0Command::Serialize). */
+	woz_mutex_lock(&s_prov_lock);
+	s->exp_phase_sent = (s_trust.kp_valid != 0u) ? 0x01u : 0x00u;
+	woz_mutex_unlock(&s_prov_lock);
+	if (aliro_apdu_build_auth0(s->exp_phase_sent, 0x01u, ALIRO_VERSION, s->reader_eph_pub,
+				   s->txid, s_id.reader_id, apdu, sizeof(apdu), &n) != 0) {
 		LOG_ERR("[conn %u] AUTH0 build failed", s->conn_handle);
 		s->phase = PH_FAILED;
 		return;
@@ -300,6 +315,127 @@ static void start_auth(struct aliro_session *s)
 	send_ap_command(s->conn_handle, ALIRO_INS_AUTH0, apdu, n);
 	aliro_lat_mark(ALIRO_LAT_AUTH0_TX);
 	s->phase = PH_SENT_AUTH0;
+}
+
+/* Derive + init the BleSK ranging channel (§11.8.1) off a 160-byte key block;
+ * BleSK sits at offset 96 in both the standard and the fast block. Salt =
+ * reader_supported_versions || user_device_selected_version — we advertise and
+ * select v1.0 only, so salt = 01 00 01 00. Its own counters (fresh from 1) live
+ * in s->sc_ble and carry across AP-Completed + M1..M4. Returns 0 on success. */
+static int init_ble_channel(struct aliro_session *s, const uint8_t block[ALIRO_KEY_BLOCK_LEN])
+{
+	uint8_t ble_r[ALIRO_SESSION_KEY_LEN], ble_d[ALIRO_SESSION_KEY_LEN];
+	uint8_t ble_salt[sizeof(k_proto_versions) + 2];
+	size_t bsl = 0;
+
+	for (size_t i = 0; i < sizeof(k_proto_versions) / sizeof(k_proto_versions[0]); i++) {
+		ble_salt[bsl++] = (uint8_t)(k_proto_versions[i] >> 8);
+		ble_salt[bsl++] = (uint8_t)(k_proto_versions[i] & 0xffu);
+	}
+	ble_salt[bsl++] = (uint8_t)(ALIRO_VERSION >> 8); /* selected = only version */
+	ble_salt[bsl++] = (uint8_t)(ALIRO_VERSION & 0xffu);
+	if (aliro_crypto_derive_ble_keys(block, ble_salt, bsl, ble_r, ble_d) != 0) {
+		LOG_ERR("[conn %u] BleSK derivation failed", s->conn_handle);
+		return -1;
+	}
+	aliro_secchan_init(&s->sc_ble, ble_r, ble_d);
+	return 0;
+}
+
+/* Seal + send the EXCHANGE URSK-ready trigger; both auth paths land here once
+ * the secure channels + URSK are up. The AP then waits for the EXCHANGE
+ * response: §11.1.1 requires Reader-Status-AP-Completed (BleSK-sealed) after
+ * EXCHANGE succeeds, otherwise the device stalls and drops (URSK_Unavailable);
+ * on_exchange_response drives that + ranging. */
+static void send_exchange(struct aliro_session *s)
+{
+	uint8_t ex[16], ct[16], tag[ALIRO_GCM_TAG_LEN], payload[32];
+	size_t exn;
+
+	if (aliro_apdu_build_exchange(0, 0, 1, ex, sizeof(ex), &exn) != 0 ||
+	    aliro_secchan_seal(&s->sc, NULL, 0, ex, exn, ct, tag) != 0) {
+		LOG_ERR("[conn %u] EXCHANGE seal failed", s->conn_handle);
+		s->phase = PH_FAILED;
+		return;
+	}
+	memcpy(payload, ct, exn);
+	memcpy(payload + exn, tag, ALIRO_GCM_TAG_LEN);
+	send_ap_command(s->conn_handle, ALIRO_INS_EXCHANGE, payload, exn + ALIRO_GCM_TAG_LEN);
+
+	s->phase = PH_SENT_EXCHANGE;
+	/* end of the auth segment on both paths (the fast path has no AUTH1) */
+	aliro_lat_mark(ALIRO_LAT_AUTH1_DONE);
+	LOG_INF("[conn %u] URSK derived; EXCHANGE sent, awaiting response", s->conn_handle);
+	LOG_HEXDUMP_DBG(s->ursk, ALIRO_URSK_LEN, "");
+}
+
+/* Expedited-fast trial (§8.3.1.10-.12): the cryptogram proves the phone holds a
+ * Kpersistent agreed in an earlier standard phase with one of our trusted
+ * credentials. Trial-derive the fast block under each stored Kpersistent and
+ * try the AES-GCM open; a match authenticates the session with no ECDH, no
+ * signatures and no AUTH1 round-trip, and identifies the credential for the
+ * unlock attribution. Returns 0 when the session was consumed (EXCHANGE sent,
+ * or a hard failure); -1 when nothing matched and the caller should continue
+ * with the standard phase. */
+static int try_fast_auth(struct aliro_session *s, const struct aliro_auth0_response *r)
+{
+	uint8_t salt[ALIRO_SALT_MAX], block[ALIRO_KEY_BLOCK_LEN];
+	uint8_t plain[ALIRO_CRYPTOGRAM_LEN];
+	size_t slen;
+	const uint8_t *a5 = s->a5_len ? s->a5_tlv : k_a5_csa_v1;
+	size_t a5n = s->a5_len ? s->a5_len : sizeof(k_a5_csa_v1);
+	int match = -1;
+
+	if (!s_have_group_x) {
+		return -1;
+	}
+	woz_mutex_lock(&s_prov_lock);
+	for (uint8_t i = 0; i < s_trust.count && i < ALIRO_TRUST_MAX; i++) {
+		if ((s_trust.kp_valid & (1u << i)) == 0u) {
+			continue;
+		}
+		if (aliro_salt_build(ALIRO_SALT_CRYPTOGRAM, s->txid, s_reader_group_x,
+				     s->reader_eph_pub + 1, s_id.reader_id, ALIRO_IFACE_BLE,
+				     ALIRO_VERSION, s->exp_phase_sent, 0x01u,
+				     s_trust.cred_pub[i] + 1, a5, a5n, salt, &slen) != 0 ||
+		    aliro_crypto_derive_block(s_trust.kpersistent[i], salt, slen,
+					      s->device_eph_pub + 1, block) != 0) {
+			continue;
+		}
+		if (aliro_crypto_verify_cryptogram(block + ALIRO_CRYPTOGRAM_SK_OFFSET,
+						   r->cryptogram, ALIRO_CRYPTOGRAM_LEN,
+						   plain) == 0) {
+			match = i;
+			break;
+		}
+	}
+	if (match >= 0) {
+		/* the match identifies the credential: record it for the bench
+		 * command and the Matter LockOperation attribution */
+		memcpy(s_last_cred_pub, s_trust.cred_pub[match], ALIRO_CRED_PUB_LEN);
+		s_have_last_cred = true;
+		memcpy(s_auth_cred_pub, s_trust.cred_pub[match], ALIRO_CRED_PUB_LEN);
+		s_have_auth_cred = true;
+	}
+	woz_mutex_unlock(&s_prov_lock);
+	if (match < 0) {
+		return -1;
+	}
+
+	/* Fast block layout: split(.,0) = ExpeditedSKReader/Device (offsets 32/64);
+	 * BleSK@96 and URSK@128 sit at the standard offsets (§8.3.1.12). */
+	uint8_t enc[ALIRO_SESSION_KEY_LEN], dec[ALIRO_SESSION_KEY_LEN];
+
+	aliro_crypto_split(block, 0, enc, dec, s->ursk);
+	aliro_secchan_init(&s->sc, enc, dec);
+	if (init_ble_channel(s, block) != 0) {
+		s->phase = PH_FAILED;
+		return 0;
+	}
+	LOG_INF("[conn %u] expedited-FAST cryptogram match (cred %d): AUTH1 skipped",
+		s->conn_handle, match);
+	send_exchange(s);
+	return 0;
 }
 
 // Handles an inbound AUTH0Response: strips the APDU status word, parses the device's ephemeral
@@ -330,6 +466,18 @@ static void on_auth0_response(struct aliro_session *s, const uint8_t *pl, size_t
 		return;
 	}
 	memcpy(s->device_eph_pub, r.device_eph_pub, ALIRO_P256_POINT);
+
+	/* Fast-phase trial: only when we asked (command_parameters bit 0) and the
+	 * phone answered with a cryptogram. A failed trial is not fatal — §8.2
+	 * allows continuing with the standard phase. */
+	if (s->exp_phase_sent == 0x01u && r.have_cryptogram) {
+		if (try_fast_auth(s, &r) == 0) {
+			return;
+		}
+		LOG_WRN("[conn %u] fast cryptogram matched no stored Kpersistent; "
+			"continuing with the standard phase",
+			s->conn_handle);
+	}
 
 	uint8_t shared[ALIRO_SHARED_SECRET_LEN];
 
@@ -408,8 +556,8 @@ static void on_auth1_response(struct aliro_session *s, const uint8_t *pl, size_t
 		return;
 	}
 	if (aliro_salt_build(ALIRO_SALT_SESSION, s->txid, s_reader_group_x, s->reader_eph_pub + 1,
-			     s_id.reader_id, ALIRO_IFACE_BLE, ALIRO_VERSION, 0x00u, 0x01u, NULL, a5,
-			     a5n, salt, &slen) != 0 ||
+			     s_id.reader_id, ALIRO_IFACE_BLE, ALIRO_VERSION, s->exp_phase_sent,
+			     0x01u, NULL, a5, a5n, salt, &slen) != 0 ||
 	    aliro_crypto_derive_block(s->z, salt, slen, s->device_eph_pub + 1, block) != 0) {
 		LOG_ERR("[conn %u] key-block derivation failed", s->conn_handle);
 		s->phase = PH_FAILED;
@@ -418,28 +566,10 @@ static void on_auth1_response(struct aliro_session *s, const uint8_t *pl, size_t
 	aliro_crypto_split(block, 1, enc, dec, s->ursk);
 	aliro_secchan_init(&s->sc, enc, dec);
 
-	/* Ranging channel keys (§11.8.1): BleSKReader/BleSKDevice off BleSK (block
-	 * offset 96); salt = reader_supported_versions || user_device_selected_version.
-	 * We advertise and select v1.0 only, so salt = 01 00 01 00. Its own counters
-	 * (fresh from 1) live in s->sc_ble and carry across AP-Completed + M1..M4. */
-	{
-		uint8_t ble_r[ALIRO_SESSION_KEY_LEN], ble_d[ALIRO_SESSION_KEY_LEN];
-		uint8_t ble_salt[sizeof(k_proto_versions) + 2];
-		size_t bsl = 0;
-
-		for (size_t i = 0; i < sizeof(k_proto_versions) / sizeof(k_proto_versions[0]);
-		     i++) {
-			ble_salt[bsl++] = (uint8_t)(k_proto_versions[i] >> 8);
-			ble_salt[bsl++] = (uint8_t)(k_proto_versions[i] & 0xffu);
-		}
-		ble_salt[bsl++] = (uint8_t)(ALIRO_VERSION >> 8); /* selected = only version */
-		ble_salt[bsl++] = (uint8_t)(ALIRO_VERSION & 0xffu);
-		if (aliro_crypto_derive_ble_keys(block, ble_salt, bsl, ble_r, ble_d) != 0) {
-			LOG_ERR("[conn %u] BleSK derivation failed", s->conn_handle);
-			s->phase = PH_FAILED;
-			return;
-		}
-		aliro_secchan_init(&s->sc_ble, ble_r, ble_d);
+	/* Ranging channel keys (§11.8.1) off the block's BleSK segment. */
+	if (init_ble_channel(s, block) != 0) {
+		s->phase = PH_FAILED;
+		return;
 	}
 
 	/* Decrypt the body: <ciphertext || 16-byte GCM tag>, the first inbound message
@@ -528,28 +658,39 @@ static void on_auth1_response(struct aliro_session *s, const uint8_t *pl, size_t
 	s_have_auth_cred = true;
 	woz_mutex_unlock(&s_prov_lock);
 
-	/* EXCHANGE: seal the URSK-ready trigger and frame it. */
-	uint8_t ex[16], ct[16], tag[ALIRO_GCM_TAG_LEN], payload[32];
-	size_t exn;
+	/* Mint/refresh this credential's Kpersistent (§8.3.1.13): keyed off this
+	 * session's Kdh, so every standard phase re-agrees it with the phone and the
+	 * next walk-up can take the expedited-fast path. RAM only here — the NVS
+	 * write happens on disconnect, off the walk-up critical path. Dev-accepted
+	 * (untrusted) credentials have no store slot to bind to. */
+	if (tv == 0) {
+		uint8_t kp[ALIRO_KPERSISTENT_LEN];
+		int ki = -1;
 
-	if (aliro_apdu_build_exchange(0, 0, 1, ex, sizeof(ex), &exn) != 0 ||
-	    aliro_secchan_seal(&s->sc, NULL, 0, ex, exn, ct, tag) != 0) {
-		LOG_ERR("[conn %u] EXCHANGE seal failed", s->conn_handle);
-		s->phase = PH_FAILED;
-		return;
+		if (aliro_salt_build(ALIRO_SALT_KPERSISTENT, s->txid, s_reader_group_x,
+				     s->reader_eph_pub + 1, s_id.reader_id, ALIRO_IFACE_BLE,
+				     ALIRO_VERSION, s->exp_phase_sent, 0x01u, cred_pub + 1, a5, a5n,
+				     salt, &slen) == 0 &&
+		    aliro_crypto_derive_key32(s->z, salt, slen, s->device_eph_pub + 1, kp) == 0) {
+			woz_mutex_lock(&s_prov_lock);
+			ki = aliro_prov_trust_find(&s_trust, cred_pub);
+			if (ki >= 0 && aliro_prov_kpersistent_set(&s_trust, ki, kp) != 0) {
+				ki = -1;
+			}
+			if (ki >= 0) {
+				s_kp_dirty = true;
+			}
+			woz_mutex_unlock(&s_prov_lock);
+		}
+		if (ki >= 0) {
+			LOG_INF("[conn %u] Kpersistent agreed (cred %d): next unlock can go fast",
+				s->conn_handle, ki);
+		}
 	}
-	memcpy(payload, ct, exn);
-	memcpy(payload + exn, tag, ALIRO_GCM_TAG_LEN);
-	send_ap_command(s->conn_handle, ALIRO_INS_EXCHANGE, payload, exn + ALIRO_GCM_TAG_LEN);
 
-	/* Auth + both channels + URSK are ready. Wait for the EXCHANGE response before
-	 * completing the AP: §11.1.1 requires the reader to send Reader-Status-AP-Completed
-	 * (BleSK-sealed) after EXCHANGE succeeds, otherwise the device stalls and drops
-	 * (URSK_Unavailable). on_exchange_response drives that + ranging. */
-	s->phase = PH_SENT_EXCHANGE;
-	aliro_lat_mark(ALIRO_LAT_AUTH1_DONE);
-	LOG_INF("[conn %u] URSK derived; EXCHANGE sent, awaiting response", s->conn_handle);
-	LOG_HEXDUMP_DBG(s->ursk, ALIRO_URSK_LEN, "");
+	/* EXCHANGE: seal + send the URSK-ready trigger (send_exchange also drives
+	 * the §11.1.1 AP-Completed sequencing via on_exchange_response). */
+	send_exchange(s);
 }
 
 /* Reader-Status-Access-Protocol-Completed (§11.1.1 / §11.7.3.4.1): a proto-2
@@ -840,6 +981,31 @@ static void on_disconnected(uint16_t conn_handle)
 	if (!s_spare_eph.valid) {
 		spare_eph_refill();
 	}
+	/* A standard phase may have minted a Kpersistent (RAM only until here).
+	 * Persist it now, where the flash write can't cost the walk-up anything;
+	 * left dirty on failure so a later disconnect retries. All touch points run
+	 * on the BLE-host task, so dirty can't be re-set mid-persist. */
+	bool kp_dirty;
+	struct aliro_reader_identity id;
+	struct aliro_trust_store ts;
+
+	woz_mutex_lock(&s_prov_lock);
+	kp_dirty = s_kp_dirty;
+	if (kp_dirty) {
+		id = s_id;
+		ts = s_trust;
+	}
+	woz_mutex_unlock(&s_prov_lock);
+	if (kp_dirty) {
+		if (aliro_prov_store(&id, &ts) == 0) {
+			woz_mutex_lock(&s_prov_lock);
+			s_kp_dirty = false;
+			woz_mutex_unlock(&s_prov_lock);
+			LOG_INF("Kpersistent trust store persisted");
+		} else {
+			LOG_WRN("Kpersistent persist failed; will retry on next disconnect");
+		}
+	}
 }
 
 // BLE data-received callback: looks up the session for conn_handle and feeds the data into its
@@ -1029,7 +1195,7 @@ void aliro_reader_prov_print(void)
 		for (unsigned j = 0; j < ALIRO_CRED_PUB_LEN; j++) {
 			printf("%02x", ts.cred_pub[i][j]);
 		}
-		printf("\n");
+		printf(" kpersistent=%s\n", ((ts.kp_valid >> i) & 1u) ? "yes" : "no");
 	}
 	printf("last cred : ");
 	if (have) {

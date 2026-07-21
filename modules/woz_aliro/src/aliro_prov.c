@@ -34,7 +34,8 @@ static const uint8_t k_dev_sign_priv[ALIRO_READER_PRIV_LEN] = {
 };
 
 static const uint8_t k_magic[4] = {'A', 'P', 'R', 'V'};
-#define ALIRO_PROV_VERSION   0x02u /* current: includes grk(16) */
+#define ALIRO_PROV_VERSION   0x03u /* current: adds kp_valid + kpersistent rows */
+#define ALIRO_PROV_VERSION_2 0x02u /* legacy: grk but no kpersistent (still parsed) */
 #define ALIRO_PROV_VERSION_1 0x01u /* legacy: no grk (still parsed) */
 #define ALIRO_PROV_FLAG_DEV  0x01u
 
@@ -61,7 +62,8 @@ int aliro_prov_serialize(const struct aliro_reader_identity *id, const struct al
 	}
 
 	size_t need = ALIRO_PROV_BLOB_HDR + ALIRO_READER_ID_LEN + ALIRO_READER_PRIV_LEN +
-		      ALIRO_GRK_LEN + 1u + (size_t)count * ALIRO_CRED_PUB_LEN;
+		      ALIRO_GRK_LEN + 1u + (size_t)count * ALIRO_CRED_PUB_LEN + 1u +
+		      (size_t)count * ALIRO_KPERSISTENT_LEN;
 
 	if (out == NULL || cap < need) {
 		return -1;
@@ -85,6 +87,18 @@ int aliro_prov_serialize(const struct aliro_reader_identity *id, const struct al
 		p += ALIRO_CRED_PUB_LEN;
 	}
 
+	uint8_t mask = (ts != NULL) ? (uint8_t)(ts->kp_valid & ((1u << count) - 1u)) : 0u;
+
+	*p++ = mask;
+	for (uint8_t i = 0; i < count; i++) {
+		if (mask & (1u << i)) {
+			memcpy(p, ts->kpersistent[i], ALIRO_KPERSISTENT_LEN);
+		} else {
+			memset(p, 0, ALIRO_KPERSISTENT_LEN); /* never stale key bytes */
+		}
+		p += ALIRO_KPERSISTENT_LEN;
+	}
+
 	if (out_len != NULL) {
 		*out_len = (size_t)(p - out);
 	}
@@ -99,9 +113,14 @@ int aliro_prov_deserialize(const uint8_t *buf, size_t len, struct aliro_reader_i
 		return -1;
 	}
 
-	/* grk was added in v2; v1 blobs (no grk) are still parsed for back-compat. */
+	/* grk was added in v2, the kpersistent tail in v3; v1/v2 blobs are still
+	 * parsed for back-compat (their credentials simply have no Kpersistent). */
 	size_t grk_len;
+	int has_kp = 0;
 	if (buf[4] == ALIRO_PROV_VERSION) {
+		grk_len = ALIRO_GRK_LEN;
+		has_kp = 1;
+	} else if (buf[4] == ALIRO_PROV_VERSION_2) {
 		grk_len = ALIRO_GRK_LEN;
 	} else if (buf[4] == ALIRO_PROV_VERSION_1) {
 		grk_len = 0u;
@@ -117,8 +136,12 @@ int aliro_prov_deserialize(const uint8_t *buf, size_t len, struct aliro_reader_i
 	}
 
 	uint8_t count = buf[fixed - 1u];
+	size_t want = fixed + (size_t)count * ALIRO_CRED_PUB_LEN;
 
-	if (count > ALIRO_TRUST_MAX || len != fixed + (size_t)count * ALIRO_CRED_PUB_LEN) {
+	if (has_kp) {
+		want += 1u + (size_t)count * ALIRO_KPERSISTENT_LEN;
+	}
+	if (count > ALIRO_TRUST_MAX || len != want) {
 		return -1;
 	}
 
@@ -143,6 +166,13 @@ int aliro_prov_deserialize(const uint8_t *buf, size_t len, struct aliro_reader_i
 		for (uint8_t i = 0; i < count; i++) {
 			memcpy(ts->cred_pub[i], k, ALIRO_CRED_PUB_LEN);
 			k += ALIRO_CRED_PUB_LEN;
+		}
+		if (has_kp) {
+			ts->kp_valid = (uint8_t)(*k++ & ((1u << count) - 1u));
+			for (uint8_t i = 0; i < count; i++) {
+				memcpy(ts->kpersistent[i], k, ALIRO_KPERSISTENT_LEN);
+				k += ALIRO_KPERSISTENT_LEN;
+			}
 		}
 	}
 	return 0;
@@ -174,6 +204,34 @@ int aliro_prov_trust_add(struct aliro_trust_store *ts, const uint8_t cred_pub[AL
 		return -1; /* full */
 	}
 	memcpy(ts->cred_pub[ts->count], cred_pub, ALIRO_CRED_PUB_LEN);
+	/* the new slot has no Kpersistent yet (a stale bit would alias an old key) */
+	ts->kp_valid &= (uint8_t)~(1u << ts->count);
+	memset(ts->kpersistent[ts->count], 0, ALIRO_KPERSISTENT_LEN);
 	ts->count++;
+	return 0;
+}
+
+int aliro_prov_trust_find(const struct aliro_trust_store *ts,
+			  const uint8_t cred_pub[ALIRO_CRED_PUB_LEN])
+{
+	if (ts == NULL) {
+		return -1;
+	}
+	for (uint8_t i = 0; i < ts->count && i < ALIRO_TRUST_MAX; i++) {
+		if (memcmp(ts->cred_pub[i], cred_pub, ALIRO_CRED_PUB_LEN) == 0) {
+			return i;
+		}
+	}
+	return -1;
+}
+
+int aliro_prov_kpersistent_set(struct aliro_trust_store *ts, int idx,
+			       const uint8_t kp[ALIRO_KPERSISTENT_LEN])
+{
+	if (ts == NULL || kp == NULL || idx < 0 || (unsigned)idx >= ts->count) {
+		return -1;
+	}
+	memcpy(ts->kpersistent[idx], kp, ALIRO_KPERSISTENT_LEN);
+	ts->kp_valid |= (uint8_t)(1u << idx);
 	return 0;
 }
