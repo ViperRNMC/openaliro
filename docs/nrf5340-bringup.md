@@ -27,10 +27,14 @@ That file is the source of truth. If it changes, the wiring changes with it.
 ## Build, flash, console
 
 ```bash
-make build   # image lands in ./build/merged.hex
-make flash-erase   # first flash; plain `make flash` after
-make term   # console on the DK's VCOM1 (VCOM0 is silent)
+make build
+make flash-erase
+make term
 ```
+
+The image lands in `./build/merged.hex`. The first flash needs the erase;
+plain `make flash` after. The console is on the DK's VCOM1; VCOM0 is
+silent.
 
 A net-core config change also needs `make flash-erase`. A plain `make flash`
 keeps the old net-core image.

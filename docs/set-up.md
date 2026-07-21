@@ -8,12 +8,13 @@ are ports of the same engine. Nothing needs hardware until you flash.
 Two commands. One per machine, one per checkout:
 
 ```bash
-nrfutil sdk-manager toolchain install --ncs-version v3.3.0   # once per machine
-make bootstrap   # fetches ~6.5 GB into ./workspace
+nrfutil sdk-manager toolchain install --ncs-version v3.3.0
+make bootstrap
 ```
 
-`make bootstrap` fetches NCS v3.3.0 plus the Nordic door-lock add-on, then
-applies this repo's patches. The workspace is git-ignored. Knobs:
+The first command runs once per machine. `make bootstrap` fetches NCS v3.3.0
+plus the Nordic door-lock add-on, then applies this repo's patches: about
+6.5 GB, into `./workspace` (git-ignored). Knobs:
 
 | Knob | Effect |
 |---|---|
@@ -25,10 +26,13 @@ applies this repo's patches. The workspace is git-ignored. Knobs:
 Then:
 
 ```bash
-make build   # image lands in ./build/merged.hex
-make flash-erase   # first flash; plain `make flash` after
-make term   # serial console
+make build
+make flash-erase
+make term
 ```
+
+The image lands in `./build/merged.hex`. The first flash needs the erase;
+plain `make flash` after. `make term` opens the serial console.
 
 Build options live in [configuring.md](configuring.md). Board setup lives in
 [nrf5340-bringup.md](nrf5340-bringup.md).
@@ -38,8 +42,8 @@ Build options live in [configuring.md](configuring.md). Board setup lives in
 A plain C compiler is enough. Runs in about a second:
 
 ```bash
-make test   # host KAT suite
-make coverage   # same suite under gcov
+make test
+make coverage
 ```
 
 ## ESP32-S3 ports
@@ -53,21 +57,24 @@ esp-matter revision pinned in
 
 ```bash
 cd ports/esp32/apps/reader
-make set-target   # once per checkout
+make set-target
 make build
 make flash
 ```
+
+`make set-target` runs once per checkout.
 
 **Matter door lock** (`../ports/esp32/apps/matter-lock`). Also needs
 esp-matter at `~/esp/esp-matter` (override: `ESP_MATTER_PATH=`):
 
 ```bash
 cd ports/esp32/apps/matter-lock
-make set-target   # once per checkout
-make go   # build + flash + monitor
+make set-target
+make go
 ```
 
-`flash` and `monitor` refuse SEGGER/J-Link ports. They can never write to an
+`make go` builds, flashes and opens the monitor. `flash` and `monitor`
+refuse SEGGER/J-Link ports. They can never write to an
 nRF5340 DK on the same bench.
 
 Wiring: [esp32-bringup.md](esp32-bringup.md). Traps:
@@ -77,8 +84,10 @@ Wiring: [esp32-bringup.md](esp32-bringup.md). Traps:
 
 ```bash
 brew install doxygen graphviz
-make docs   # builds this site into ./site
+make docs
 ```
+
+The site lands in `./site`.
 
 ## If something fails
 

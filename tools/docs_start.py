@@ -51,11 +51,12 @@ def repo_url() -> str:
     return f"https://github.com/{m.group(1)}/{m.group(2)}" if m else ""
 
 
-def chip(cmd: str, note: str = "") -> str:
-    n = f'<span class="t-c">  # {note}</span>' if note else ""
+def chip(cmd: str) -> str:
+    # Command only — no `# comment` in or next to anything copyable. Context
+    # goes in prose around the chip instead.
     return (
         f'<div class="cmdchip"><span class="t-p">$</span>'
-        f'<span class="c-cmd">{cmd}{n}</span>'
+        f'<span class="c-cmd">{cmd}</span>'
         f'<button type="button" class="js-copycmd" data-cmd="{cmd}">Copy</button></div>'
     )
 
@@ -140,9 +141,11 @@ def main_html(gh: str) -> str:
     tracks.append(("dl", "Software &amp; toolchain", "Everything to install, per target", (
         '<details class="p-sub" open><summary>nRF5340 — the primary target</summary>'
         '<div class="s-body">'
-        + chip("nrfutil sdk-manager toolchain install --ncs-version v3.3.0",
-               "once per machine")
-        + chip("make bootstrap", "NCS v3.3.0 + Nordic add-on (~6.5 GB) into ./workspace")
+        + chip("nrfutil sdk-manager toolchain install --ncs-version v3.3.0")
+        + chip("make bootstrap")
+        + "<p>The first command runs once per machine. "
+          "<code>make bootstrap</code> pulls ~6.5 GB into "
+          "<code>./workspace</code>.</p>"
         + "</div></details>"
         '<details class="p-sub"><summary>ESP32-S3 port</summary>'
         '<div class="s-body"><p>ESP-IDF with esp-matter; the roadmap and the '
@@ -153,8 +156,9 @@ def main_html(gh: str) -> str:
         + "</ul></div></details>"
         '<details class="p-sub"><summary>Docs tooling</summary>'
         '<div class="s-body">'
-        + chip("brew install doxygen graphviz", "reference-tree generators")
-        + chip("make docs", "build this site into ./site")
+        + chip("brew install doxygen graphviz")
+        + chip("make docs")
+        + "<p>The site lands in <code>./site</code>.</p>"
         + "</div></details>"
         '<ul class="rows">'
         + row("set-up.html", "Installing",
@@ -164,10 +168,13 @@ def main_html(gh: str) -> str:
         '<a href="index.html#get-running">landing page</a>.</p>'
     )))
     tracks.append(("play", "Build, flash &amp; test", "The make targets that drive everything", (
-        chip("make build", "merged image lands in ./build/merged.hex")
-        + chip("make flash-erase", "first flash of a net-core image; plain make flash after")
-        + chip("make test", "host test suite — no toolchain or hardware needed")
-        + chip("make coverage", "the suite under gcov, with the CI floor")
+        chip("make build")
+        + chip("make flash-erase")
+        + chip("make test")
+        + chip("make coverage")
+        + "<p>The image lands in <code>./build/merged.hex</code>; the first "
+          "flash needs the erase, plain <code>make flash</code> after. The "
+          "tests run on the host — no toolchain, no hardware.</p>"
         + '<ul class="rows">'
         + row("configuring.html", "Configuring",
               "Build options, Kconfig overlays, and the runtime consoles.")

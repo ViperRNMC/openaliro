@@ -36,11 +36,12 @@ CSS = """<style id="gv-cmds-css">
 </style>"""
 
 
-def chip(cmd: str, note: str) -> str:
-    n = f'<span class="t-c">  # {html.escape(note)}</span>' if note else ""
+def chip(cmd: str) -> str:
+    # No trailing `# comment`, rendered or copied: a chip is the command and
+    # nothing else. Whatever the comment said belongs in the guide's prose.
     return (
         f'<div class="cmdchip"><span class="t-p">$</span>'
-        f'<span class="c-cmd">{html.escape(cmd)}{n}</span>'
+        f'<span class="c-cmd">{html.escape(cmd)}</span>'
         f'<button type="button" class="js-copycmd" '
         f'data-cmd="{html.escape(cmd, quote=True)}">Copy</button></div>'
     )
@@ -53,8 +54,8 @@ def rewrite(match: re.Match[str], counter: list[int]) -> str:
         return match.group(0)
     chips = []
     for line in body:
-        cmd, *note = re.split(r"\s+#\s*", line, maxsplit=1)
-        chips.append(chip(cmd.rstrip(), note[0] if note else ""))
+        cmd = re.split(r"\s+#\s*", line, maxsplit=1)[0]
+        chips.append(chip(cmd.rstrip()))
     counter[0] += 1
     return "".join(chips)
 
