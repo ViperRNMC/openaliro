@@ -154,6 +154,10 @@ def main_html(gh: str) -> str:
         + chip("brew install doxygen graphviz", "reference-tree generators")
         + chip("make docs", "build this site into ./site")
         + "</div></details>"
+        '<ul class="rows">'
+        + row("set-up.html", "Installing",
+              "The full install guide — every target, every knob.")
+        + "</ul>"
         '<p>The five-step version of this track sits on the '
         '<a href="index.html#get-running">landing page</a>.</p>'
     )))
@@ -163,7 +167,9 @@ def main_html(gh: str) -> str:
         + chip("make test", "host test suite — no toolchain or hardware needed")
         + chip("make coverage", "the suite under gcov, with the CI floor")
         + '<ul class="rows">'
-        + row("troubleshooting.html", "Troubleshooting and FAQ",
+        + row("configuring.html", "Configuring",
+              "Build options, Kconfig overlays, and the runtime consoles.")
+        + row("troubleshooting.html", "Troubleshooting",
               "Common issues, grouped by where they show up.")
         + "</ul>"
     )))
