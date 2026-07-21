@@ -265,6 +265,13 @@ jobs:
             git submodule update --init --depth 1 &&
             ./connectedhomeip/connectedhomeip/scripts/checkout_submodules.py \
               --platform esp32 linux --shallow &&
+            # CHIP pins cffi==1.15.0 (python<3.13), which ships no wheel for
+            # the environment's CIPD python 3.11, and its from-source build
+            # breaks in this container. 1.15.1 is the same release line with
+            # cp311 wheels, so pip never has to compile it.
+            sed -i 's/cffi==1.15.0/cffi==1.15.1/' \
+              connectedhomeip/connectedhomeip/scripts/setup/constraints.txt \
+              connectedhomeip/connectedhomeip/scripts/setup/requirements.all.txt &&
             ./install.sh --no-host-tool
           )
           setup || {
