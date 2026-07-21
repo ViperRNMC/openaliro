@@ -112,7 +112,9 @@ if(CONFIG_WOZ_UWB)
 
   # All layer subfolders on the include path so the flat #include "sibling.h"
   # style resolves across layers (headers moved into src/{driver,fira,ccc,facade,shell}).
+  # The platform contract (woz_port.h / woz_log.h) lives in modules/woz_port.
   zephyr_include_directories(
+    ${CMAKE_CURRENT_SOURCE_DIR}/../woz_port/include
     ${SRC}/driver ${SRC}/fira ${SRC}/ccc ${SRC}/facade ${SRC}/shell)
 
 endif()

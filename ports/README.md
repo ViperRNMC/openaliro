@@ -5,7 +5,7 @@ platform-neutral engine in [`modules/`](../modules) and the vendor driver in
 [`deps/dw3000`](../deps/dw3000), and keeps all target-specific code inside its
 own directory.
 
-The platform contract is [`modules/woz_uwb/src/facade/woz_port.h`](../modules/woz_uwb/src/facade/woz_port.h):
+The platform contract is [`modules/woz_port/include/woz_port.h`](../modules/woz_port/include/woz_port.h):
 eight functions (heap, monotonic clock, two sleeps, cycle counter, a mutex), plus
 `woz_log.h` for logging. A new RTOS is a new branch in those two headers; a new board
 on an existing RTOS is a DW3000 SPI/GPIO backend. See [`docs/porting.md`](../docs/porting.md)

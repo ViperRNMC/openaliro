@@ -1,7 +1,7 @@
 # Woz UWB (Aliro DS-TWR responder) engine as an ESP-IDF component.
 # Additive: reuses modules/woz_uwb/src + deps/dw3000 from the repo unchanged.
 # The engine is platform-neutral: it takes its OS surface from woz_port.h and
-# its logging from woz_log.h (both in src/facade), which select the ESP-IDF
+# its logging from woz_log.h (modules/woz_port/include), which select the ESP-IDF
 # backend on ESP_PLATFORM. No Zephyr compat layer is involved. The DW3000
 # platform SPI/GPIO layer is the ESP-IDF backend in port/.
 # Source set mirrors modules/woz_uwb/CMakeLists.txt + deps/dw3000/CMakeLists.txt
@@ -9,6 +9,7 @@
 
 get_filename_component(REPO_ROOT "${CMAKE_CURRENT_LIST_DIR}/../../../.." ABSOLUTE)
 set(WOZ "${REPO_ROOT}/modules/woz_uwb/src")
+set(WOZ_PORT "${REPO_ROOT}/modules/woz_port/include")
 set(DW  "${REPO_ROOT}/deps/dw3000")
 
 set(WOZ_SRCS
@@ -49,6 +50,7 @@ set(WOZ_SRCS
 idf_component_register(
     SRCS ${WOZ_SRCS}
     INCLUDE_DIRS
+        "${WOZ_PORT}"          # woz_port.h / woz_log.h — the platform contract
         "${WOZ}/facade"        # woz_uwb_facade.h — public API for the app
         "${WOZ}/aliro/include" # aliro_uwb_adapter/ + cherry/ — reader ranging-setup API
     PRIV_INCLUDE_DIRS

@@ -16,6 +16,7 @@ echo "== host: port headers unit test =="
 BIN="$(mktemp -t woz_port_headers.XXXXXX)"
 trap 'rm -f "$BIN" "${CBIN:-}"' EXIT
 cc -std=c11 -O1 -Wall -Wextra \
+   -I "$HERE/../../../modules/woz_port/include" \
    -I "$HERE/../../../modules/woz_uwb/src/facade" \
    "$HERE/test_port_headers.c" -o "$BIN"
 "$BIN"
