@@ -35,14 +35,14 @@ links are absolute or flash-local, so it needs no rewriting. docs.sh drives it.
 ## API
 
 ### `repo_slug() -> str`
-`tools/docs_flash.py:72`
+`tools/docs_flash.py:80`
 
 owner/repo for the origin remote, or '' if none.
 
 **called by** `main`
 
 ### `inject(page: Path, anchor: str, addition: str, before: bool) -> str`
-`tools/docs_flash.py:94`
+`tools/docs_flash.py:102`
 
 Insert addition next to anchor in page, once; report what happened.
 

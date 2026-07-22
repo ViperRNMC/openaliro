@@ -57,15 +57,23 @@ HUB_ROW = (
 )
 
 QS_ANCHOR = '<div class="section-h"><h2>Get running</h2><span class="rule"></span></div>'
+# Same card the digital twin uses at the foot of this section: the twin pass
+# leaves its .twin-cta styles on the landing page, so reusing the class keeps
+# the two cards identical by construction. Only the margins differ — the twin
+# card closes the section, this one opens it, ahead of the toolchain steps.
 QS_LEDE = (
-    MARK + '<p class="qs-flash">No toolchain handy? <a href="flash/">Flash '
-    "the ESP32-S3 build straight from the browser</a>, then pick up at "
-    "commissioning.</p>"
+    MARK + '<a class="twin-cta qs-flash" href="flash/">'
+    '<span class="tc-ic">&#x26A1;</span>'
+    '<span class="tc-t"><b>No toolchain handy?</b><span>Flash the ESP32-S3 '
+    "build straight from the browser &mdash; this site writes the firmware "
+    "over WebSerial (Chrome, Edge, or Firefox), then pick up at "
+    "commissioning.</span></span>"
+    '<span class="tc-go">Open the flasher &rarr;</span></a>'
 )
 
 QS_CSS = (
     "\n/* flash-page */\n"
-    ".qs-flash{margin:.1rem 0 1.6rem;color:var(--muted)}\n"
+    ".qs-flash{margin:1.4rem 0 2.4rem}\n"
 )
 
 
@@ -112,6 +120,8 @@ def link_site() -> None:
     if qs == "linked" and sheet.is_file() and "/* flash-page */" not in sheet.read_text():
         with sheet.open("a") as f:
             f.write(QS_CSS)
+    if qs == "linked" and ".twin-cta{" not in (SITE / "index.html").read_text():
+        print("    note: no .twin-cta styles on the landing page — flash card unstyled")
     print(f"    site links: get-started hub {hub}, landing quickstart {qs}")
 
 
