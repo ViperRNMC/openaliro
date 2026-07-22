@@ -16,6 +16,10 @@ sys.path.insert(0, os.path.join(ROOT, "tools"))
 import aliro_lab  # noqa: E402
 
 SAMPLE = os.path.join(ROOT, "tests", "host", "data", "aliro_lab_sample.log")
+# A real reader serial capture, present once one is committed. Unlike the
+# synthetic sample the suite does not assert exact timings against it (real
+# jitter would make that brittle) — only that it is a clean walk-up.
+CAPTURE = os.path.join(ROOT, "tests", "host", "data", "aliro_lab_capture.log")
 
 
 def analyze(text):
@@ -201,6 +205,29 @@ class ParsingTest(unittest.TestCase):
         txns, _ = analyze("I (99) app: [ALAB] t=1000 ev=session.start\n"
                           + lines((2000, "session.end")))
         self.assertEqual(len(txns), 1)
+
+
+@unittest.skipUnless(os.path.exists(CAPTURE),
+                     "no real capture committed yet (see tests/host/data/README.md)")
+class CaptureArtifactTest(unittest.TestCase):
+    """Activates once a real reader capture is checked in: the committed
+    artifact must parse and score clean (a full walk-up, no FAIL check)."""
+
+    def setUp(self):
+        with open(CAPTURE) as f:
+            self.txns, self.checks = analyze(f.read())
+
+    def test_has_transactions(self):
+        self.assertGreaterEqual(len(self.txns), 1,
+                                "capture has no [ALAB] transactions")
+
+    def test_no_failing_check(self):
+        self.assertNotEqual(aliro_lab.worst_status(self.checks), "fail",
+                            "committed capture must be a clean run (no FAIL)")
+
+    def test_reached_bolt(self):
+        self.assertTrue(any("bolt" in t.phases for t in self.txns),
+                        "capture should be a full walk-up (a bolt was driven)")
 
 
 class MainTest(unittest.TestCase):
