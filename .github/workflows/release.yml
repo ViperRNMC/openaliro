@@ -145,6 +145,18 @@ jobs:
           idf.py set-target esp32s3
           idf.py build
           idf.py merge-bin -o openaliro-matter-lock.bin
+      - name: build the matter-lock app (esp32c5) and merge one image
+        # Own build dir + sdkconfig so the S3 build above stays untouched
+        # (set-target wipes both otherwise). sdkconfig.defaults.esp32c5 is
+        # picked up automatically once the target is esp32c5.
+        working-directory: ports/esp32/apps/matter-lock
+        run: |
+          . "$IDF_PATH/export.sh"
+          . "$ESP_MATTER_PATH/export.sh"
+          idf.py -B build-c5 -D SDKCONFIG=build-c5/sdkconfig set-target esp32c5
+          idf.py -B build-c5 -D SDKCONFIG=build-c5/sdkconfig build
+          idf.py -B build-c5 -D SDKCONFIG=build-c5/sdkconfig \
+            merge-bin -o openaliro-matter-lock-esp32c5.bin
       - name: assemble the bundle
         env:
           REF_NAME: ${{ github.ref_name }}
@@ -153,6 +165,7 @@ jobs:
           out=dist/openaliro-esp32-matter-lock
           mkdir -p "$out"
           cp ports/esp32/apps/matter-lock/build/openaliro-matter-lock.bin "$out"/
+          cp ports/esp32/apps/matter-lock/build-c5/openaliro-matter-lock-esp32c5.bin "$out"/
           cp release/esp32-matter-lock/FLASH.md release/esp32-matter-lock/FLASH.html \
             release/esp32-matter-lock/flash.sh "$out"/
           # ESP Web Tools manifest for the browser flasher (web-flasher/):
@@ -196,6 +209,7 @@ jobs:
           # latest release, and a bare `esptool write_flash 0x0` needs only
           # the .bin.
           cp dist/openaliro-esp32-matter-lock/openaliro-matter-lock.bin out/
+          cp dist/openaliro-esp32-matter-lock/openaliro-matter-lock-esp32c5.bin out/
           cp dist/openaliro-esp32-matter-lock/manifest.json \
             out/openaliro-matter-lock.manifest.json
           (cd out && sha256sum ./*.zip ./*.bin ./*.json > SHA256SUMS.txt)
@@ -213,14 +227,15 @@ jobs:
             echo "(open it in a browser) covering tools, wiring, flashing, and Apple"
             echo "Home setup. Evaluation firmware with Matter test certificates."
             echo
-            echo "The ESP32-S3 image also flashes straight from the browser, no tools"
-            echo "at all: https://${REPO%%/*}.github.io/${REPO#*/}/flash/ (Chrome or"
-            echo "Edge). The loose .bin/.manifest.json assets below feed that page."
+            echo "The ESP32 images (S3 and C5) also flash straight from the browser,"
+            echo "no tools at all: https://${REPO%%/*}.github.io/${REPO#*/}/flash/"
+            echo "(Chrome or Edge). The loose .bin/.manifest.json assets below feed"
+            echo "that page."
             echo
             echo "| Bundle | Hardware | What you get |"
             echo "|---|---|---|"
             echo "| openaliro-nrf5340dk | nRF5340 DK + DWM3000EVB + X-NUCLEO-NFC12A1 | NFC tap + UWB approach unlock, Matter over Thread |"
-            echo "| openaliro-esp32-matter-lock | ESP32-S3 + DWM3000EVB | Matter lock over Wi-Fi, BLE + UWB approach unlock |"
+            echo "| openaliro-esp32-matter-lock | ESP32-S3 or ESP32-C5 + DWM3000EVB | Matter lock over Wi-Fi, BLE + UWB approach unlock |"
             echo
             echo '```'
             cat out/SHA256SUMS.txt

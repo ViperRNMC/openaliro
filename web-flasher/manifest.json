@@ -1,5 +1,5 @@
 {
-  "name": "openaliro ESP32-S3 Matter lock",
+  "name": "openaliro ESP32 Matter lock",
   "version": "dev",
   "new_install_prompt_erase": true,
   "new_install_improv_wait_time": 0,
@@ -7,6 +7,10 @@
     {
       "chipFamily": "ESP32-S3",
       "parts": [{ "path": "openaliro-matter-lock.bin", "offset": 0 }]
+    },
+    {
+      "chipFamily": "ESP32-C5",
+      "parts": [{ "path": "openaliro-matter-lock-esp32c5.bin", "offset": 0 }]
     }
   ]
 }

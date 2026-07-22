@@ -28,6 +28,7 @@ bench.env
 # Local merged firmware for bench-testing the browser flasher; the published
 # copy comes from CI (release.yml) via tools/docs_flash.py.
 /web-flasher/openaliro-matter-lock.bin
+/web-flasher/openaliro-matter-lock-esp32c5.bin
 
 # macOS
 .DS_Store

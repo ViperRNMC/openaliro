@@ -1,8 +1,13 @@
-# web-flasher: browser flashing for the ESP32-S3 Matter lock
+# web-flasher: browser flashing for the ESP32 Matter lock (S3 and C5)
 
-A static page that flashes `openaliro-matter-lock.bin` over WebSerial with
+A static page that flashes the merged lock image over WebSerial with
 [ESP Web Tools](https://esphome.github.io/esp-web-tools/): plug in the board,
-click Install, boot a working lock. No ESP-IDF, no esptool, no drivers beyond
+click Install, boot a working lock. One manifest carries a build per chip
+(`openaliro-matter-lock.bin` for the ESP32-S3,
+`openaliro-matter-lock-esp32c5.bin` for the ESP32-C5); ESP Web Tools flashes
+the one matching the connected chip, and the page's Board dropdown can pin a
+chip explicitly (it serves the button a single-build manifest built
+client-side, so a mismatched board fails loudly). No ESP-IDF, no esptool, no drivers beyond
 the browser. Chrome or Edge on a computer; WebSerial does not exist in Safari
 or Firefox. The nRF5340 DK target stays out of scope: it programs over a
 J-Link probe, which no browser API reaches.
@@ -12,7 +17,7 @@ J-Link probe, which no browser API reaches.
 | Piece | Where | Job |
 |---|---|---|
 | `index.html` | committed here | the page: install button, wiring, first-boot checklist |
-| `manifest.json` | committed here | ESP Web Tools manifest: one merged image at offset 0, version `dev` |
+| `manifest.json` | committed here | ESP Web Tools manifest: one merged image per chip at offset 0, version `dev` |
 | merged firmware | never committed | CI builds it (`idf.py merge-bin` in release.yml); locally `idf.py merge-bin` in the app dir |
 | `tools/docs_flash.py` | committed | stages page + firmware into `site/flash/` during `make docs` |
 
@@ -33,9 +38,15 @@ stages it at site-build time, preferring in order:
 
 1. `web-flasher/openaliro-matter-lock.bin` (gitignored): a local
    `idf.py merge-bin` output, published with the committed `dev` manifest.
-2. The latest GitHub release's loose assets (`openaliro-matter-lock.bin` and
+   A sibling `openaliro-matter-lock-esp32c5.bin` rides along when present.
+2. The latest GitHub release's loose assets (`openaliro-matter-lock.bin`,
+   `openaliro-matter-lock-esp32c5.bin` and
    `openaliro-matter-lock.manifest.json`, uploaded by release.yml), fetched
    server side where CORS does not apply.
+
+Either way `tools/docs_flash.py` prunes manifest builds whose image was not
+staged (an older release without the C5 asset, a bench run that merged only
+one target), so the page never offers a firmware that would 404.
 3. Neither: the flash page is skipped, loudly. Before the first release that
    is the normal state of a fresh checkout.
 
@@ -49,6 +60,11 @@ cd ports/esp32/apps/matter-lock
 idf.py set-target esp32s3 && idf.py build
 idf.py merge-bin -o openaliro-matter-lock.bin
 cp build/openaliro-matter-lock.bin ../../../../web-flasher/
+# ESP32-C5 variant, own build dir so the S3 build survives:
+#   idf.py -B build-c5 -D SDKCONFIG=build-c5/sdkconfig set-target esp32c5
+#   idf.py -B build-c5 -D SDKCONFIG=build-c5/sdkconfig build merge-bin \
+#     -o openaliro-matter-lock-esp32c5.bin
+#   cp build-c5/openaliro-matter-lock-esp32c5.bin ../../../../web-flasher/
 cd ../../../../web-flasher
 python3 -m http.server 8000
 ```

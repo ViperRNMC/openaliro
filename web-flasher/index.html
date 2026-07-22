@@ -3,7 +3,7 @@
 <head>
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1">
-<title>Flash openaliro to an ESP32-S3 from the browser</title>
+<title>Flash openaliro to an ESP32 from the browser</title>
 <style>
 /* Self-contained copy of the site theme (tools/docs_theme.py): this page is
    staged into site/flash/ but must also render standalone from web-flasher/
@@ -109,6 +109,12 @@ th{border-bottom:1px solid var(--line); font-weight:600; color:var(--strong)}
 /* The install row: terracotta button; the component swaps in the alert when
    the browser has no WebSerial or the page is not a secure context. */
 .flashrow{text-align:center; margin:1.8rem 0}
+.boardrow{text-align:center; margin:1.2rem 0 0}
+.boardrow label{margin-right:.5rem}
+.boardrow select{
+  font:inherit; padding:.45rem .7rem; border-radius:8px;
+  border:1px solid var(--line); background:var(--card); color:var(--ink);
+}
 esp-web-install-button button.btn{
   background:var(--accent); color:var(--accent-fg); border:0; cursor:pointer;
   font:inherit; font-weight:600; font-size:1rem;
@@ -141,17 +147,19 @@ esp-web-install-button button.btn:hover{background:var(--accent-hover)}
 <header class="hero-band"><div class="hero-in">
   <div class="eyebrow">Get started</div>
   <h1>Flash openaliro from your browser</h1>
-  <p class="lede">The complete Aliro Matter lock on a single ESP32-S3: it
-  commissions into Apple Home over Wi-Fi, your iPhone carries the key in
-  Wallet, and the lock opens as you walk up (BLE + UWB approach unlock).
-  This page flashes the firmware over WebSerial. Nothing to install, no
-  ESP-IDF.</p>
+  <p class="lede">The complete Aliro Matter lock on a single ESP32-S3 or
+  ESP32-C5: it commissions into Apple Home over Wi-Fi, your iPhone carries
+  the key in Wallet, and the lock opens as you walk up (BLE + UWB approach
+  unlock). This page detects which chip you plugged in and flashes the right
+  firmware over WebSerial. Nothing to install, no ESP-IDF.</p>
 </div></header>
 
 <main>
 <h2>What you need</h2>
 <ul>
-  <li>ESP32-S3 dev board (validated on ESP32-S3-WROOM N16R8; smaller variants untested)</li>
+  <li>ESP32-S3 dev board (validated on ESP32-S3-WROOM N16R8; smaller variants
+  untested) or ESP32-C5 dev board (DevKitC-1-compatible pinout; builds, not
+  yet bench-validated)</li>
   <li>Qorvo DWM3000EVB (DW3110), the UWB radio, hand-wired over SPI</li>
   <li>11 jumper wires and a USB <strong>data</strong> cable</li>
   <li>Chrome, Edge, or Firefox on a computer (WebSerial; Safari and mobile
@@ -169,20 +177,22 @@ bench once.</div>
 3.3&nbsp;V part), share ground, and wire:</p>
 <div class="tablewrap">
 <table>
-<tr><th>DWM3000EVB (Arduino pin)</th><th>Signal</th><th>ESP32-S3</th></tr>
-<tr><td>D13</td><td>SCLK</td><td>GPIO12</td></tr>
-<tr><td>D11</td><td>MOSI</td><td>GPIO11</td></tr>
-<tr><td>D12</td><td>MISO</td><td>GPIO13</td></tr>
-<tr><td>D10</td><td>CS</td><td>GPIO10</td></tr>
-<tr><td>D8</td><td>IRQ</td><td>GPIO5</td></tr>
-<tr><td>D7</td><td>RSTn</td><td>GPIO4</td></tr>
-<tr><td>D9</td><td>WAKEUP</td><td>GPIO6</td></tr>
-<tr><td>3V3</td><td>power</td><td>3V3</td></tr>
-<tr><td>GND</td><td>ground</td><td>GND</td></tr>
-<tr><td>D1</td><td>SPI-POL</td><td>GND (mode-0 strap)</td></tr>
-<tr><td>D0</td><td>SPI-PHA</td><td>GND (mode-0 strap)</td></tr>
+<tr><th>DWM3000EVB (Arduino pin)</th><th>Signal</th><th>ESP32-S3</th><th>ESP32-C5</th></tr>
+<tr><td>D13</td><td>SCLK</td><td>GPIO12</td><td>GPIO8</td></tr>
+<tr><td>D11</td><td>MOSI</td><td>GPIO11</td><td>GPIO9</td></tr>
+<tr><td>D12</td><td>MISO</td><td>GPIO13</td><td>GPIO23</td></tr>
+<tr><td>D10</td><td>CS</td><td>GPIO10</td><td>GPIO10</td></tr>
+<tr><td>D8</td><td>IRQ</td><td>GPIO5</td><td>GPIO5</td></tr>
+<tr><td>D7</td><td>RSTn</td><td>GPIO4</td><td>GPIO4</td></tr>
+<tr><td>D9</td><td>WAKEUP</td><td>GPIO6</td><td>GPIO6</td></tr>
+<tr><td>3V3</td><td>power</td><td>3V3</td><td>3V3</td></tr>
+<tr><td>GND</td><td>ground</td><td>GND</td><td>GND</td></tr>
+<tr><td>D1</td><td>SPI-POL</td><td>GND (mode-0 strap)</td><td>same</td></tr>
+<tr><td>D0</td><td>SPI-PHA</td><td>GND (mode-0 strap)</td><td>same</td></tr>
 </table>
 </div>
+<p>The C5 data pins differ because the S3's GPIO11/12 are the C5's UART0
+console and GPIO13 is its USB-Serial-JTAG.</p>
 <p>The two straps hold the DW3000 in SPI mode 0; skip them if your EVB
 revision already fixes the mode (check its manual).</p>
 
@@ -191,6 +201,12 @@ revision already fixes the mode (check its manual).</p>
 merged image (bootloader, partition table, app) is written at offset 0x0.
 Reflashing wipes any previous commissioning either way; "erase device" also
 clears everything beyond the image, which is the safe pick on a used board.</p>
+<div class="boardrow">
+  <label for="board">Board</label>
+  <select id="board">
+    <option value="">Auto-detect (recommended)</option>
+  </select>
+</div>
 <div class="flashrow">
   <esp-web-install-button manifest="manifest.json">
     <button slot="activate" class="btn">Connect &amp; Install</button>
@@ -253,5 +269,47 @@ of scope here: it programs over a SEGGER J-Link probe, not WebSerial. Use its
 instead. Source and docs:
 <a href="https://github.com/asxeem/openaliro">github.com/asxeem/openaliro</a>.</p>
 </main>
+<script>
+/* Board dropdown: auto-detect uses the committed manifest as-is (ESP Web
+ * Tools matches the connected chip against builds[]); picking a board serves
+ * the button a single-build manifest built client-side from the same file,
+ * so a wrong board fails loudly instead of silently flashing the other
+ * image. Blob manifests lose the page's base URL, hence the absolutized
+ * part paths. Options come from builds[] so the list always mirrors the
+ * firmware actually staged next to the page. */
+(async () => {
+  const sel = document.getElementById("board");
+  const btn = document.querySelector("esp-web-install-button");
+  let manifest;
+  try {
+    manifest = await (await fetch("manifest.json")).json();
+  } catch {
+    sel.closest(".boardrow").style.display = "none";
+    return;
+  }
+  for (const b of manifest.builds) {
+    const o = document.createElement("option");
+    o.value = b.chipFamily;
+    o.textContent = b.chipFamily + " only";
+    sel.append(o);
+  }
+  let blob = "";
+  sel.addEventListener("change", () => {
+    if (blob) URL.revokeObjectURL(blob);
+    blob = "";
+    if (!sel.value) {
+      btn.setAttribute("manifest", "manifest.json");
+      return;
+    }
+    const m = structuredClone(manifest);
+    m.builds = m.builds.filter((b) => b.chipFamily === sel.value);
+    for (const b of m.builds)
+      for (const p of b.parts) p.path = new URL(p.path, location.href).href;
+    blob = URL.createObjectURL(
+      new Blob([JSON.stringify(m)], { type: "application/json" }));
+    btn.setAttribute("manifest", blob);
+  });
+})();
+</script>
 </body>
 </html>

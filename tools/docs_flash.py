@@ -31,6 +31,7 @@ links are absolute or flash-local, so it needs no rewriting. docs.sh drives it.
 
 from __future__ import annotations
 
+import json
 import re
 import shutil
 import subprocess
@@ -41,6 +42,10 @@ from pathlib import Path
 SITE = Path("site")
 SRC = Path("web-flasher")
 FIRMWARE = "openaliro-matter-lock.bin"
+# The C5 image is optional: releases predating the ESP32-C5 build lack it,
+# and a bench checkout may have merged only one target. The manifest gets
+# pruned to whatever was staged, so the page never advertises a 404.
+FIRMWARE_C5 = "openaliro-matter-lock-esp32c5.bin"
 RELEASE_MANIFEST = "openaliro-matter-lock.manifest.json"
 
 # Site links to the staged page, each anchored on markup the generator emits
@@ -50,10 +55,10 @@ MARK = "<!-- flash-page -->"
 
 HUB_ANCHOR = '<li><a href="hardware-validation.html">'
 HUB_ROW = (
-    MARK + '<li><a href="flash/"><span class="row-name">Flash ESP32-S3 from '
-    "the browser</span><span class=\"row-desc\">No toolchain: this site writes "
-    "the merged firmware image over WebSerial (Chrome, Edge, or "
-    "Firefox).</span></a></li>"
+    MARK + '<li><a href="flash/"><span class="row-name">Flash an ESP32 lock '
+    "from the browser</span><span class=\"row-desc\">No toolchain: this site "
+    "writes the merged firmware image (ESP32-S3 or ESP32-C5) over WebSerial "
+    "(Chrome, Edge, or Firefox).</span></a></li>"
 )
 
 QS_ANCHOR = '<div class="section-h"><h2>Get running</h2><span class="rule"></span></div>'
@@ -65,8 +70,8 @@ QS_LEDE = (
     MARK + '<a class="twin-cta qs-flash" href="flash/">'
     '<span class="tc-ic">&#x26A1;</span>'
     '<span class="tc-t"><b>No toolchain handy?</b><span>Flash the ESP32-S3 '
-    "build straight from the browser &mdash; this site writes the firmware "
-    "over WebSerial (Chrome, Edge, or Firefox), then pick up at "
+    "or ESP32-C5 build straight from the browser &mdash; this site writes "
+    "the firmware over WebSerial (Chrome, Edge, or Firefox), then pick up at "
     "commissioning.</span></span>"
     '<span class="tc-go">Open the flasher &rarr;</span></a>'
 )
@@ -125,6 +130,22 @@ def link_site() -> None:
     print(f"    site links: get-started hub {hub}, landing quickstart {qs}")
 
 
+def prune_manifest(dst: Path) -> None:
+    """Drop manifest builds whose firmware did not get staged."""
+    path = dst / "manifest.json"
+    manifest = json.loads(path.read_text())
+    kept = [
+        b
+        for b in manifest.get("builds", [])
+        if all((dst / p["path"]).is_file() for p in b.get("parts", []))
+    ]
+    dropped = [b["chipFamily"] for b in manifest.get("builds", []) if b not in kept]
+    if dropped:
+        manifest["builds"] = kept
+        path.write_text(json.dumps(manifest, indent=2) + "\n")
+        print(f"    no firmware for {', '.join(dropped)} — pruned from manifest")
+
+
 def main() -> int:
     if not SITE.is_dir():
         print("docs_flash: site/ not found — run the generators first", file=sys.stderr)
@@ -137,6 +158,8 @@ def main() -> int:
     if local.is_file():
         dst.mkdir(parents=True)
         shutil.copyfile(local, dst / FIRMWARE)
+        if (SRC / FIRMWARE_C5).is_file():
+            shutil.copyfile(SRC / FIRMWARE_C5, dst / FIRMWARE_C5)
         shutil.copyfile(SRC / "manifest.json", dst / "manifest.json")
         source = f"local {local} (manifest version dev)"
     else:
@@ -156,7 +179,12 @@ def main() -> int:
         dst.mkdir(parents=True)
         (dst / FIRMWARE).write_bytes(image)
         (dst / "manifest.json").write_bytes(manifest)
+        try:
+            (dst / FIRMWARE_C5).write_bytes(fetch(base + FIRMWARE_C5))
+        except OSError:
+            pass
         source = f"latest release ({len(image)} bytes)"
+    prune_manifest(dst)
 
     shutil.copyfile(SRC / "index.html", dst / "index.html")
     print(f"    {dst / 'index.html'} (firmware: {source})")
