@@ -56,4 +56,7 @@ int uwb_min_twr_poll(uint32_t n, uint32_t period_ms, struct uwb_twr_result *out)
 /** @brief Ensure the DW3110 is fully initialised (probe + initialise + configure + LEDs). */
 int uwb_min_radio_init(void);
 
+/** @brief Count of fresh radio inits; changes whenever the base config was re-applied. */
+uint32_t uwb_min_radio_generation(void);
+
 #endif /* WOZ_UWB_MIN_H_ */

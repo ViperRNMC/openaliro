@@ -1326,10 +1326,20 @@ static void prepoll_rx_rearm(const dwt_cb_data_t *cb)
  * (07 01 09 = SYNC_Code_Index=9). */
 #define CCC_RX_PREPOLL_CODE 9u
 
-// Initialize the DW3000 radio for permanent SP0 Pre-POLL listen: configure PHY (6.8 Mbps, preamble
-// length 64, SFD 4a, no STS), install RX callbacks that self-rearm on every frame outcome, and
-// enable all RX/TX interrupts; returns 0 on success.
-int ccc_prepoll_listen(uint8_t channel, uint8_t preamble_code)
+/* PHY-config cache: dwt_configure is the long pole of session start, and every Aliro
+ * session negotiates the same PHY in practice (the reader's M1 offers exactly one
+ * config). Remember what was last applied, keyed to the radio-init generation so a
+ * re-probe/reset invalidates it, and skip the reconfigure when identical.
+ * ccc_prepoll_prewarm() lets the reader apply the expected PHY while the phone is
+ * still deciding to Initiate-Ranging-Session, off the M4 critical path. */
+static uint8_t g_phy_chan;
+static uint8_t g_phy_code;
+static uint32_t g_phy_gen;
+static bool g_phy_valid;
+
+/* Radio init + forcetrxoff + (cached) dwt_configure. Session-start context only —
+ * never the RX re-arm path. */
+static int prepoll_apply_phy(uint8_t channel, uint8_t preamble_code)
 {
 	dwt_config_t cfg = {
 		.chan = channel,
@@ -1350,12 +1360,6 @@ int ccc_prepoll_listen(uint8_t channel, uint8_t preamble_code)
 		.stsLength = DWT_STS_LEN_64,
 		.pdoaMode = DWT_PDOA_M0,
 	};
-	dwt_callbacks_s cbs = {
-		.cbRxOk = prepoll_rx_rearm,
-		.cbRxTo = prepoll_rx_rearm,
-		.cbRxErr = prepoll_rx_rearm,
-		.cbTxDone = resp_tx_done, /* Response_0 TXFRS -> revert to SP0 listen */
-	};
 	int rc = uwb_min_radio_init();
 
 	if (rc != 0) {
@@ -1363,9 +1367,47 @@ int ccc_prepoll_listen(uint8_t channel, uint8_t preamble_code)
 		return rc;
 	}
 	dwt_forcetrxoff();
+	if (g_phy_valid && g_phy_gen == uwb_min_radio_generation() && g_phy_chan == channel &&
+	    g_phy_code == preamble_code) {
+		DIAGK("prepoll: PHY cached (ch=%u code=%u) — dwt_configure skipped\n",
+		      (unsigned)channel, (unsigned)preamble_code);
+		return 0;
+	}
 	if (dwt_configure(&cfg) != DWT_SUCCESS) {
 		DIAGK("prepoll_listen: dwt_configure failed\n");
+		g_phy_valid = false;
 		return -EIO;
+	}
+	g_phy_chan = channel;
+	g_phy_code = preamble_code;
+	g_phy_gen = uwb_min_radio_generation();
+	g_phy_valid = true;
+	return 0;
+}
+
+/* Pre-apply the expected session PHY ahead of M4. Leaves the radio configured with
+ * TRX off: no callbacks are (re)installed and RX is not enabled, so nothing can fire
+ * until ccc_prepoll_listen() arms the listener. */
+int ccc_prepoll_prewarm(uint8_t channel, uint8_t preamble_code)
+{
+	return prepoll_apply_phy(channel, preamble_code);
+}
+
+// Initialize the DW3000 radio for permanent SP0 Pre-POLL listen: configure PHY (6.8 Mbps, preamble
+// length 64, SFD 4a, no STS), install RX callbacks that self-rearm on every frame outcome, and
+// enable all RX/TX interrupts; returns 0 on success.
+int ccc_prepoll_listen(uint8_t channel, uint8_t preamble_code)
+{
+	dwt_callbacks_s cbs = {
+		.cbRxOk = prepoll_rx_rearm,
+		.cbRxTo = prepoll_rx_rearm,
+		.cbRxErr = prepoll_rx_rearm,
+		.cbTxDone = resp_tx_done, /* Response_0 TXFRS -> revert to SP0 listen */
+	};
+	int rc = prepoll_apply_phy(channel, preamble_code);
+
+	if (rc != 0) {
+		return rc;
 	}
 	/* Permanent listen: no RX timeout; the callbacks self-re-arm so a missed/errored frame
 	 * doesn't stop the search for the next Pre-POLL. */

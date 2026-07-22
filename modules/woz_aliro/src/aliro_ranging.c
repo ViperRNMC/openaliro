@@ -246,6 +246,14 @@ int aliro_ranging_start(uint16_t conn_handle, uint32_t session_id, const uint8_t
 	 * session (the engine re-starts it with M1-M4 params at M4). */
 	woz_uwb_stop();
 
+	/* Pre-apply the session PHY now, while the phone spends ~400 ms deciding to
+	 * send Initiate-Ranging-Session: our M1 offers exactly one UWB config
+	 * (channel 9, SYNC code 9 — same values as probe_cfg above), so the M4-time
+	 * start hits the shim's PHY cache and skips the dwt_configure long pole,
+	 * arming RX in time for the earliest phone ranging block. Best-effort: on
+	 * failure M4 falls back to the full configure. */
+	(void)woz_uwb_prewarm(9u, 9u);
+
 	struct aliro_uwb_session *sess = aliro_uwb_session_create(
 		s_adapter, session_id, uwb_ev_cb, uwb_tx_cb, (void *)(uintptr_t)conn_handle);
 

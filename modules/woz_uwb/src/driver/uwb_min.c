@@ -15,7 +15,10 @@
 
 LOG_MODULE_REGISTER(uwb_min, LOG_LEVEL_INF);
 
-/* Idempotent-init flags: g_probed covers the chipid path, g_radio_ready the radio path. */
+/* Idempotent-init flags: g_probed covers the chipid path, g_radio_ready the radio path.
+ * g_radio_generation counts fresh radio inits so PHY-config caches upstream can tell
+ * when the base dwt_configure ran again underneath them. */
+static uint32_t g_radio_generation;
 static bool g_probed;
 static bool g_radio_ready;
 
@@ -146,12 +149,18 @@ static int uwb_radio_ensure_init(void)
 	(void)dw3000_hw_init_interrupt();
 
 	g_radio_ready = true;
+	g_radio_generation++;
 	return 0;
 }
 
 int uwb_min_radio_init(void)
 {
 	return uwb_radio_ensure_init();
+}
+
+uint32_t uwb_min_radio_generation(void)
+{
+	return g_radio_generation;
 }
 
 int uwb_min_hw_reset(void)

@@ -176,6 +176,11 @@ int uwb_min_radio_init(void)
 	return 0; /* radio is "up" on the host */
 }
 
+uint32_t uwb_min_radio_generation(void)
+{
+	return 1u; /* single init, never reset, on the host */
+}
+
 bool uwb_rxdiag_stream_get(void)
 {
 	return false;

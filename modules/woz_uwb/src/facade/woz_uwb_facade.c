@@ -83,6 +83,18 @@ int woz_uwb_start_aliro(const struct woz_uwb_aliro_cfg *c)
 }
 
 /**
+ * @brief Pre-apply the expected session PHY so the M4-time start skips dwt_configure.
+ * @param channel UWB channel the upcoming session is expected to negotiate.
+ * @param sync_code_index Expected SYNC code index.
+ * @return 0 on success; the M4 start recovers with a full configure on any failure.
+ */
+int woz_uwb_prewarm(uint8_t channel, uint8_t sync_code_index)
+{
+	woz_hfclk_ensure_128mhz();
+	return ccc_prepoll_prewarm(channel, sync_code_index);
+}
+
+/**
  * @brief Quiesce the radio and unbind the CCC STS shim.
  */
 void woz_uwb_stop(void)

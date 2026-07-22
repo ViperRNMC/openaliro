@@ -73,6 +73,10 @@ bool ccc_shim_rx_awaiting_poll(void);
 /** BENCH: bring up a raw continuous SP0 receiver for the CCC Pre-POLL (target only). */
 int ccc_prepoll_listen(uint8_t channel, uint8_t preamble_code);
 
+/** Pre-apply the expected session PHY (radio configured, TRX off, RX not armed) so a
+ * following ccc_prepoll_listen() with the same params skips the dwt_configure long pole. */
+int ccc_prepoll_prewarm(uint8_t channel, uint8_t preamble_code);
+
 /** Stop the Pre-POLL listener: close the self-rearm listen-gate, then force the radio off (target
  * only). */
 void ccc_prepoll_stop(void);

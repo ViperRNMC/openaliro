@@ -50,6 +50,10 @@ struct woz_uwb_aliro_cfg {
 /** Start the CCC DS-TWR responder bound to a live Aliro credential; returns 0 on success. */
 int woz_uwb_start_aliro(const struct woz_uwb_aliro_cfg *cfg);
 
+/** Pre-apply the expected session PHY (radio configured, TRX off, RX not armed) so the
+ * M4-time start skips the dwt_configure long pole when the negotiated params match. */
+int woz_uwb_prewarm(uint8_t channel, uint8_t sync_code_index);
+
 /** Quiesce the radio and unbind the CCC STS shim. */
 void woz_uwb_stop(void);
 
