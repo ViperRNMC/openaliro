@@ -254,6 +254,16 @@ jobs:
         with:
           path: /opt/esp/esp-matter
           key: esp-matter-${{ env.ESP_MATTER_REV }}-idf-v5.5.4
+      # Python build headers, unconditionally (both cache paths install pip
+      # deps into the same container). esp-matter's own requirements.txt and
+      # CHIP's setup pin packages whose old versions ship no cp312 wheel, so
+      # pip compiles them from source against the container's python 3.12 — and
+      # this ubuntu:24.04 image has no Python.h. The version seds below only
+      # cover CHIP's files; installing the headers is the root-cause fix that
+      # lets any from-source wheel build succeed, here and in future domino
+      # pins we do not control.
+      - name: install python build headers
+        run: apt-get update -q && apt-get install -y -q python3-dev
       - name: fetch + install esp-matter (cold cache)
         if: steps.esp-matter.outputs.cache-hit != 'true'
         # Pinned-SHA clone (git clone --branch takes no SHA, so init + fetch),
