@@ -1,7 +1,7 @@
 <!-- generated documentation — edit the source, not this file -->
 # openaliro
 
-**114 subsystems in 23 directories · 633/694 symbols documented (91%)**
+**115 subsystems in 23 directories · 634/697 symbols documented (90%)**
 
 **Start here:** [`modules/woz_uwb/src/aliro/aliro_uwb_msg.c`](architecture/modules.woz_uwb.src.aliro/aliro_uwb_msg.c.md), [`modules/woz_aliro/src/aliro_ranging.c`](architecture/modules.woz_aliro.src/aliro_ranging.c.md), [`modules/woz_uwb/src/aliro/aliro_uwb_session.c`](architecture/modules.woz_uwb.src.aliro/aliro_uwb_session.c.md) — the doors into the codebase (nothing else imports them).
 
@@ -64,17 +64,16 @@ flowchart LR
 | [`release/esp32-matter-lock/`](architecture/release.esp32-matter-lock/README.md) | 1 | 0/0 (0%) |
 | [`release/nrf5340dk/`](architecture/release.nrf5340dk/README.md) | 1 | 0/0 (0%) |
 | [`scripts/`](architecture/scripts/README.md) | 6 | 12/16 (75%) |
-| [`tools/`](architecture/tools/README.md) | 11 | 25/67 (37%) |
+| [`tools/`](architecture/tools/README.md) | 12 | 26/70 (37%) |
 
 ## Hotspots
 
-*Mined from git history as of `34bd9af`.*
+*Mined from git history as of `8be1462`.*
 
-**Most-changed:** [`modules/woz_uwb/src/ccc/ccc_shim_rx.c`](architecture/modules.woz_uwb.src.ccc/ccc_shim_rx.c.md) (14 commits), [`tools/docs_start.py`](architecture/tools/docs_start.md) (7 commits), [`scripts/docs.sh`](architecture/scripts/docs.sh.md) (6 commits), [`tools/docs_graph.py`](architecture/tools/docs_graph.md) (6 commits), [`modules/woz_uwb/src/fira/fira_session.h`](architecture/modules.woz_uwb.src.fira/fira_session.h.md) (5 commits).
+**Most-changed:** [`modules/woz_uwb/src/ccc/ccc_shim_rx.c`](architecture/modules.woz_uwb.src.ccc/ccc_shim_rx.c.md) (14 commits), [`scripts/docs.sh`](architecture/scripts/docs.sh.md) (7 commits), [`tools/docs_start.py`](architecture/tools/docs_start.md) (7 commits), [`tools/docs_graph.py`](architecture/tools/docs_graph.md) (6 commits), [`modules/woz_uwb/src/fira/fira_session.h`](architecture/modules.woz_uwb.src.fira/fira_session.h.md) (5 commits).
 
 **Change together without importing each other:**
 
 - [`modules/woz_uwb/src/aliro/aliro_uwb_msg.c`](architecture/modules.woz_uwb.src.aliro/aliro_uwb_msg.c.md) ↔ [`modules/woz_uwb/src/ccc/ccc_shim_rx.c`](architecture/modules.woz_uwb.src.ccc/ccc_shim_rx.c.md) (3 shared commits)
 - [`scripts/bootstrap.sh`](architecture/scripts/bootstrap.sh.md) ↔ [`scripts/build.sh`](architecture/scripts/build.sh.md) (3 shared commits)
-- [`scripts/docs.sh`](architecture/scripts/docs.sh.md) ↔ [`tools/docs_start.py`](architecture/tools/docs_start.md) (3 shared commits)
 - [`tools/docs_cmds.py`](architecture/tools/docs_cmds.md) ↔ [`tools/docs_start.py`](architecture/tools/docs_start.md) (3 shared commits)
