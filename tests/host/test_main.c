@@ -6,6 +6,9 @@
 
 #include "test.h"
 
+/* The modules' per-frame UWB diag gate (woz_diag.h); on for host builds. */
+extern volatile int woz_uwb_diag_on;
+
 struct suite {
 	const char *name;
 	void (*fn)(void);
@@ -22,6 +25,13 @@ static void rule(const char *dim, const char *rst, int n)
 
 int main(void)
 {
+	/* run.sh sets WOZ_TEST_QUIET so `make test` shows the summary table, not
+	 * the UWB diag firehose. Unset (coverage, a manual run, debugging a
+	 * suite), the diag default is untouched. */
+	if (getenv("WOZ_TEST_QUIET") != NULL) {
+		woz_uwb_diag_on = 0;
+	}
+
 	static const struct suite suites[] = {
 		{ "ccc_kdf", test_ccc_kdf },
 		{ "ccc_mac", test_ccc_mac },
