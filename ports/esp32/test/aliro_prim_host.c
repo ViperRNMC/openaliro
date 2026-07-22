@@ -127,6 +127,80 @@ static void aes256_encrypt(const uint8_t rk[240], const uint8_t in[16],
 	memcpy(out, s, 16);
 }
 
+/* ---- AES-128 (FIPS-197): 10 rounds, 44-word (176-byte) key schedule ---- */
+
+static void aes128_expand(const uint8_t key[16], uint8_t rk[176])
+{
+	static const uint8_t rcon[10] = { 0x01, 0x02, 0x04, 0x08, 0x10,
+					  0x20, 0x40, 0x80, 0x1b, 0x36 };
+	memcpy(rk, key, 16);
+	int rc = 0;
+	for (int i = 16; i < 176; i += 4) {
+		uint8_t t[4];
+
+		memcpy(t, rk + i - 4, 4);
+		if (i % 16 == 0) {
+			uint8_t tmp = t[0];
+
+			t[0] = (uint8_t)(sbox[t[1]] ^ rcon[rc++]);
+			t[1] = sbox[t[2]];
+			t[2] = sbox[t[3]];
+			t[3] = sbox[tmp];
+		}
+		for (int j = 0; j < 4; j++) {
+			rk[i + j] = (uint8_t)(rk[i - 16 + j] ^ t[j]);
+		}
+	}
+}
+
+static void aes128_encrypt(const uint8_t rk[176], const uint8_t in[16], uint8_t out[16])
+{
+	uint8_t s[16];
+
+	for (int i = 0; i < 16; i++) {
+		s[i] = (uint8_t)(in[i] ^ rk[i]);
+	}
+	for (int round = 1; round <= 10; round++) {
+		uint8_t t[16];
+
+		for (int i = 0; i < 16; i++) {
+			t[i] = sbox[s[i]];
+		}
+		/* ShiftRows (state is column-major: byte = col*4 + row). */
+		uint8_t r[16];
+		static const int shift[16] = { 0, 5, 10, 15, 4, 9, 14, 3,
+					       8, 13, 2, 7, 12, 1, 6, 11 };
+		for (int i = 0; i < 16; i++) {
+			r[i] = t[shift[i]];
+		}
+		if (round < 10) {
+			for (int c = 0; c < 4; c++) {
+				uint8_t *col = r + c * 4;
+				uint8_t a0 = col[0], a1 = col[1], a2 = col[2], a3 = col[3];
+				uint8_t x = (uint8_t)(a0 ^ a1 ^ a2 ^ a3);
+
+				col[0] ^= (uint8_t)(x ^ xtime((uint8_t)(a0 ^ a1)));
+				col[1] ^= (uint8_t)(x ^ xtime((uint8_t)(a1 ^ a2)));
+				col[2] ^= (uint8_t)(x ^ xtime((uint8_t)(a2 ^ a3)));
+				col[3] ^= (uint8_t)(x ^ xtime((uint8_t)(a3 ^ a0)));
+			}
+		}
+		for (int i = 0; i < 16; i++) {
+			s[i] = (uint8_t)(r[i] ^ rk[round * 16 + i]);
+		}
+	}
+	memcpy(out, s, 16);
+}
+
+int aliro_aes128_ecb_encrypt(const uint8_t key[16], const uint8_t in[16], uint8_t out[16])
+{
+	uint8_t rk[176];
+
+	aes128_expand(key, rk);
+	aes128_encrypt(rk, in, out);
+	return 0;
+}
+
 /* ---- GHASH (GF(2^128)) ---- */
 
 static void ghash_mul(uint8_t x[16], const uint8_t h[16])

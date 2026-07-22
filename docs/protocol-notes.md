@@ -88,10 +88,15 @@ more than the window therefore kills unlock-on-approach for every phone, while
 NFC and Matter keep working. Both of this repo's time fixes create exactly
 that state (the restored clock understates real time by the accumulated
 power-off duration; a ratcheted clock understates it by the presented
-document's age), so `ports/nrf5340dk/overlays/woz-aliro.conf` disables the Dynamic
-Tag until a real time source exists. Stock firmware never hits this: its clock
+document's age), so `ports/nrf5340dk/overlays/woz-aliro.conf` disabled the Dynamic
+Tag while no real time source existed. With the Matter-timesync seeding merged
+(the clock steps up on sync) the overlay is back to `=y`, bench-gated on the
+seeded clock. Stock firmware never hits this: its clock
 is either fresh (before the first reboot) or invalid (after), never
-valid-but-stale.
+valid-but-stale. The ESP32 port derives the same tag from its live clock
+(SNTP-fed; `aliro_ble.c` + `aliro_advtag.c`), re-derives at half the 900 s
+window, immediately on a time step, and falls back to the "expiry unavailable"
+form whenever the clock is not yet valid.
 
 ### Deferred: network time (SNTP / DefaultNTP)
 

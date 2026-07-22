@@ -14,6 +14,7 @@
 #include <stdio.h>
 #include <string.h>
 
+#include "aliro_advtag.h"
 #include "aliro_crypto.h"
 #include "aliro_hash.h"
 #include "aliro_prim.h"
@@ -390,6 +391,43 @@ int main(void)
 		csk[0] ^= 1;
 		T_OK("cryptogram.wrong-key-rejected",
 		     aliro_crypto_verify_cryptogram(csk, crg, ALIRO_CRYPTOGRAM_LEN, pt) < 0);
+	}
+
+	/* BLE advertisement Dynamic Tag (Aliro 1.0 sect. 11.3.1 / sect. 20 examples).
+	 * First pin the host AES-128 double itself (FIPS-197 appendix C.1), then the
+	 * derivation layout against all three spec worked examples (same expiry
+	 * 0x7a4b8500), then the no-clock form as a pinned self-consistency vector
+	 * (expected bytes recomputed with an independent AES implementation). */
+	{
+		uint8_t k16[16], adva[6], tag[ALIRO_ADVTAG_LEN];
+
+		uh(k16, "000102030405060708090a0b0c0d0e0f");
+		uh(msg, "00112233445566778899aabbccddeeff");
+		T_OK("aes128.ecb", aliro_aes128_ecb_encrypt(k16, msg, out) == 0);
+		chk("aes128.fips197-c1", out, 16, "69c4e0d86a7b0430d8cdb78070b4c55a");
+
+		uh(k16, "f5b165224a58b791df6af1d8303e61cd");
+		uh(adva, "c4bb86c32710");
+		T_OK("advtag.derive", aliro_advtag_derive(k16, adva, 0x7a4b8500u, tag) == 0);
+		chk("advtag.spec20-1", tag, sizeof(tag), "7b7f4a82557990");
+
+		uh(k16, "3c344c4189eb2f1e7bd5d47e446fcec2");
+		uh(adva, "a3d81173e578");
+		T_OK("advtag.derive-2", aliro_advtag_derive(k16, adva, 0x7a4b8500u, tag) == 0);
+		chk("advtag.spec20-2", tag, sizeof(tag), "ef67e4681a7783");
+
+		uh(k16, "1bcccea696762e6116c6e9c92d99bf35");
+		uh(adva, "8c2e0718e47c");
+		T_OK("advtag.derive-3", aliro_advtag_derive(k16, adva, 0x7a4b8500u, tag) == 0);
+		chk("advtag.spec20-3", tag, sizeof(tag), "d4dd12a45037ba");
+
+		/* No-clock form: expiry = 0xFFFFFFFF with the sect. 20-1 key/AdvA. Not a
+		 * spec vector; pinned from an independent AES recompute. */
+		uh(k16, "f5b165224a58b791df6af1d8303e61cd");
+		uh(adva, "c4bb86c32710");
+		T_OK("advtag.derive-noclk",
+		     aliro_advtag_derive(k16, adva, ALIRO_ADVTAG_EXPIRY_UNAVAILABLE, tag) == 0);
+		chk("advtag.no-clock", tag, sizeof(tag), "1bee7962570be1");
 	}
 
 	if (fails) {

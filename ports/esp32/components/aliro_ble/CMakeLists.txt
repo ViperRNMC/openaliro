@@ -9,5 +9,7 @@ set(ALIRO "${REPO_ROOT}/modules/woz_aliro")
 idf_component_register(
 	SRCS "aliro_ble.c"
 	INCLUDE_DIRS "${ALIRO}/include"
-	REQUIRES bt nvs_flash mbedtls
+	REQUIRES bt nvs_flash
+	# aliro_advtag_derive (the Dynamic Tag) lives in the shared crypto component.
+	PRIV_REQUIRES aliro_crypto
 )

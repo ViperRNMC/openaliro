@@ -39,6 +39,9 @@ int aliro_aes256_gcm_decrypt(const uint8_t key[32], const uint8_t *nonce, size_t
 			     const uint8_t *aad, size_t aad_len, const uint8_t *ct, size_t ct_len,
 			     const uint8_t *tag, size_t tag_len, uint8_t *pt);
 
+/* AES-128-ECB, one block (the BLE advertisement Dynamic Tag, aliro_advtag.c). */
+int aliro_aes128_ecb_encrypt(const uint8_t key[16], const uint8_t in[16], uint8_t out[16]);
+
 /* P-256 ephemeral key pair: priv = 32-byte scalar, pub = 65-byte point. */
 int aliro_ec_p256_keygen(uint8_t priv[ALIRO_P256_SCALAR], uint8_t pub[ALIRO_P256_POINT]);
 

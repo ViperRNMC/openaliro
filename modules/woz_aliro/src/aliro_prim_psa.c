@@ -107,6 +107,31 @@ int aliro_aes256_gcm_decrypt(const uint8_t key[32], const uint8_t *nonce, size_t
 	return rc;
 }
 
+// Encrypt one AES-128-ECB block via PSA Crypto (the BLE advertisement Dynamic Tag).
+// Returns 0 on success, -1 if key import or the cipher operation fails.
+int aliro_aes128_ecb_encrypt(const uint8_t key[16], const uint8_t in[16], uint8_t out[16])
+{
+	psa_key_attributes_t attr = PSA_KEY_ATTRIBUTES_INIT;
+	psa_key_id_t k = 0;
+	size_t olen = 0;
+	int rc = -1;
+
+	psa_set_key_usage_flags(&attr, PSA_KEY_USAGE_ENCRYPT);
+	psa_set_key_algorithm(&attr, PSA_ALG_ECB_NO_PADDING);
+	psa_set_key_type(&attr, PSA_KEY_TYPE_AES);
+	psa_set_key_bits(&attr, 128);
+	if (psa_import_key(&attr, key, 16, &k) != PSA_SUCCESS) {
+		return -1;
+	}
+	/* ECB has no IV, so the one-shot output is exactly the 16-byte block. */
+	if (psa_cipher_encrypt(k, PSA_ALG_ECB_NO_PADDING, in, 16, out, 16, &olen) == PSA_SUCCESS &&
+	    olen == 16) {
+		rc = 0;
+	}
+	psa_destroy_key(k);
+	return rc;
+}
+
 // Generate a new NIST P-256 key pair via PSA Crypto.
 // Writes the private scalar to priv and the uncompressed public point to pub. Returns 0 on success,
 // -1 if key generation or export fails.

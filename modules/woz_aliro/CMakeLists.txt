@@ -19,6 +19,7 @@ if(CONFIG_WOZ_ALIRO_STACK)
   zephyr_library_sources(
     ${SRC}/aliro_hash.c
     ${SRC}/aliro_crypto.c
+    ${SRC}/aliro_advtag.c
     ${SRC}/aliro_prim_psa.c
     # BER-TLV / ISO7816 / BLE-envelope wire codec.
     ${SRC}/aliro_apdu.c

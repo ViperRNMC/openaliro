@@ -13,7 +13,9 @@
 set -euo pipefail
 
 HERE="$(cd "$(dirname "$0")" && pwd)"
-PROJ="$(cd "$HERE/.." && pwd)"
+# The bench project moved to apps/reader in the ports/ refactor; its build
+# still produces the woz_uwb_esp32s3.* artifacts checked below.
+PROJ="$(cd "$HERE/../apps/reader" && pwd)"
 BUILD="$PROJ/build"
 fail=0
 note() { printf '  %-4s %s\n' "$1" "$2"; }

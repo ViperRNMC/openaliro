@@ -96,6 +96,11 @@ void aliro_ble_set_adv_params(const uint8_t group_id8[8], const uint8_t sub_id2[
  *  start_attached() has brought the advertiser up. */
 void aliro_ble_readvertise(void);
 
+/** The wall clock just stepped (e.g. SNTP first sync): re-derive the dynamic
+ *  advertisement tag now instead of waiting out the refresh period. Safe from
+ *  any task; marshaled onto the host task. No-op until start_attached(). */
+void aliro_ble_time_updated(void);
+
 #ifdef __cplusplus
 }
 #endif

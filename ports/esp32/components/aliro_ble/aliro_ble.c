@@ -17,6 +17,7 @@
  * See SPEC.md.
  */
 #include <string.h>
+#include <time.h>
 
 #include "esp_log.h"
 #include "nvs_flash.h"
@@ -30,8 +31,7 @@
 #include "services/gatt/ble_svc_gatt.h"
 #include "host/ble_hs_id.h"
 
-#include "mbedtls/aes.h"
-
+#include "aliro_advtag.h"
 #include "aliro_ble.h"
 #include "aliro_lat.h"
 
@@ -81,6 +81,21 @@ static uint8_t s_adv_sub_id[2];
 static uint8_t s_adv_grk[16];
 static int8_t s_adv_tx_power;
 static bool s_adv_aliro;
+
+/* Dynamic-tag freshness. The spec (11.3) leaves the window to the reader and
+ * says only "re-derive at expiry"; 900 s matches the nRF add-on's default.
+ * Re-deriving at half the window keeps the advertised expiry always >= 450 s in
+ * the future while the clock is valid, so a phone never scans a boundary tag. */
+#define ALIRO_ADV_TAG_VALID_S	900
+#define ALIRO_ADV_TAG_REFRESH_S (ALIRO_ADV_TAG_VALID_S / 2)
+
+/* Wall-clock sanity floor (2000-01-01, CHIP's VALID_REAL_TIME_THRESHOLD): an
+ * unset ESP32 clock sits at the 1970 epoch; any real source lands far above.
+ * Below the floor the advert carries the spec's "expiry unavailable" form. */
+#define ALIRO_ADV_TIME_FLOOR ((time_t)946684800)
+
+static struct ble_npl_callout s_adv_refresh;
+static bool s_adv_refresh_init;
 
 static void aliro_advertise(void);
 
@@ -403,6 +418,32 @@ static int gap_event(struct ble_gap_event *event, void *arg)
 	}
 }
 
+/* Re-derive + re-emit the advertisement on the host task. Runs only while the
+ * advertiser is actually up: if a connection paused advertising, the next
+ * aliro_advertise() (GAP disconnect / adv-complete) re-derives anyway. */
+static void adv_refresh_ev(struct ble_npl_event *ev)
+{
+	(void)ev;
+	if (!s_adv_aliro || !ble_gap_adv_active()) {
+		return;
+	}
+	(void)ble_gap_adv_stop();
+	aliro_advertise();
+}
+
+/* Arm (or re-arm) the periodic dynamic-tag refresh. Host task only. The chain
+ * self-sustains: every aliro_advertise() with a valid clock lands back here. */
+static void adv_tag_schedule_refresh(void)
+{
+	if (!s_adv_refresh_init) {
+		ble_npl_callout_init(&s_adv_refresh, nimble_port_get_dflt_eventq(), adv_refresh_ev,
+				     NULL);
+		s_adv_refresh_init = true;
+	}
+	ble_npl_callout_reset(&s_adv_refresh,
+			      ble_npl_time_ms_to_ticks32(ALIRO_ADV_TAG_REFRESH_S * 1000));
+}
+
 /* Assemble the 0xFFF2 service data (26 B = 2-byte UUID + 24-byte payload) with the
  * GroupResolvingKey dynamic tag. Payload layout (bytes 0..23):
  *   [0]      flags: bit7 = BLE+UWB supported, bits2:0 = version (0)
@@ -411,9 +452,13 @@ static int gap_event(struct ble_gap_event *event, void *arg)
  *   [10..11] truncated reader group sub id (2) = reader_id[16..17]
  *   [12..15] dynamic-tag expiry, big-endian (0xFFFFFFFF = no clock)
  *   [16]     reserved (0)
- *   [17..23] dynamic tag = AES-128(GRK, 00*6 ‖ reverse(AdvA) ‖ BE32(expiry))[0..6]
- * Reverse-engineered from libaliro_ble.a (AliroStack::GenerateAdvertisingData +
- * BleDynamicTag::Generate). AdvA orientation is the top bench-tunable. */
+ *   [17..23] dynamic tag (aliro_advtag.c; KAT'd against the spec sect. 20 vectors)
+ * Layout also cross-checked against libaliro_ble.a (AliroStack::
+ * GenerateAdvertisingData + BleDynamicTag::Generate); NimBLE hands out AdvA
+ * LSB-first, the derivation wants it MSB-first.
+ * With a valid wall clock the expiry is live (now + window) and the periodic
+ * re-derivation is armed; phones silently ignore an expiry in their past, so a
+ * clock that cannot be trusted must advertise the "unavailable" form instead. */
 static bool build_aliro_svc_data(uint8_t out[26])
 {
 	uint8_t id_addr_type =
@@ -425,23 +470,25 @@ static bool build_aliro_svc_data(uint8_t out[26])
 		return false;
 	}
 
-	uint8_t block[16] = {0}; /* first 6 bytes are the zero pad */
+	uint8_t adva_msb[6];
+
 	for (int i = 0; i < 6; i++) {
-		block[6 + i] = adva[5 - i]; /* reverse(AdvA) */
+		adva_msb[i] = adva[5 - i];
 	}
-	block[12] = block[13] = block[14] = block[15] = 0xFFu; /* BE32 expiry = no clock */
 
-	uint8_t enc[16];
-	mbedtls_aes_context aes;
+	uint32_t expiry = ALIRO_ADVTAG_EXPIRY_UNAVAILABLE;
+	time_t now = time(NULL);
+	bool have_clock = (now >= ALIRO_ADV_TIME_FLOOR);
 
-	mbedtls_aes_init(&aes);
-	int rc = mbedtls_aes_setkey_enc(&aes, s_adv_grk, 128);
-	if (rc == 0) {
-		rc = mbedtls_aes_crypt_ecb(&aes, MBEDTLS_AES_ENCRYPT, block, enc);
+	if (have_clock) {
+		expiry = (uint32_t)now + ALIRO_ADV_TAG_VALID_S;
 	}
-	mbedtls_aes_free(&aes);
+
+	uint8_t dyn_tag[ALIRO_ADVTAG_LEN];
+	int rc = aliro_advtag_derive(s_adv_grk, adva_msb, expiry, dyn_tag);
+
 	if (rc != 0) {
-		ESP_LOGE(TAG, "adv: dynamic-tag AES rc=%d", rc);
+		ESP_LOGE(TAG, "adv: dynamic-tag derive rc=%d", rc);
 		return false;
 	}
 
@@ -455,12 +502,16 @@ static bool build_aliro_svc_data(uint8_t out[26])
 	p += sizeof(s_adv_group_id);
 	memcpy(p, s_adv_sub_id, sizeof(s_adv_sub_id));
 	p += sizeof(s_adv_sub_id);
-	*p++ = 0xFFu;
-	*p++ = 0xFFu;
-	*p++ = 0xFFu;
-	*p++ = 0xFFu; /* expiry BE32 = 0xFFFFFFFF */
+	*p++ = (uint8_t)(expiry >> 24); /* expiry BE32 */
+	*p++ = (uint8_t)(expiry >> 16);
+	*p++ = (uint8_t)(expiry >> 8);
+	*p++ = (uint8_t)expiry;
 	*p++ = 0x00u; /* reserved */
-	memcpy(p, enc, 7); /* dynamic tag (first 7 bytes) */
+	memcpy(p, dyn_tag, ALIRO_ADVTAG_LEN);
+
+	if (have_clock) {
+		adv_tag_schedule_refresh();
+	}
 	return true;
 }
 
@@ -754,4 +805,27 @@ void aliro_ble_post_reader_status(void (*cb)(bool unsecured), bool unsecured)
 	s_reader_status_unsecured = unsecured;
 	ble_npl_event_init(&s_reader_status_ev, reader_status_ev_cb, NULL);
 	ble_npl_eventq_put(nimble_port_get_dflt_eventq(), &s_reader_status_ev);
+}
+
+/* ---- Wall-clock step notification (SNTP / future Matter time sync) --------- */
+
+static struct ble_npl_event s_time_updated_ev;
+
+// Notify the transport that the wall clock just stepped (e.g. SNTP first sync), so the
+// dynamic advertisement tag is re-derived immediately instead of waiting out the refresh
+// period. Safe from any task (marshaled onto the host task via the default event queue).
+// No-op before aliro_ble_start_attached(): the attach path derives with the then-current
+// clock, and the queue may not exist yet while the owning stack is still booting.
+void aliro_ble_time_updated(void)
+{
+	static bool init;
+
+	if (!s_attached) {
+		return;
+	}
+	if (!init) {
+		ble_npl_event_init(&s_time_updated_ev, adv_refresh_ev, NULL);
+		init = true;
+	}
+	ble_npl_eventq_put(nimble_port_get_dflt_eventq(), &s_time_updated_ev);
 }

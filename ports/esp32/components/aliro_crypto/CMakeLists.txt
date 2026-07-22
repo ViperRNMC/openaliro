@@ -10,6 +10,7 @@ idf_component_register(
 	SRCS
 		"${ALIRO}/src/aliro_hash.c"
 		"${ALIRO}/src/aliro_crypto.c"
+		"${ALIRO}/src/aliro_advtag.c"
 		"${ALIRO}/src/aliro_prim_psa.c"
 	INCLUDE_DIRS "${ALIRO}/include"
 	PRIV_INCLUDE_DIRS "${ALIRO}/src"

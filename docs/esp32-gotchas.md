@@ -110,8 +110,10 @@ one thing guarded by a FreeRTOS mutex. (commit `04bd8cc`)
 ### 3.4 Advertising service data
 The reader advertises the Aliro 0xFFF2 service with a dynamic tag for phone
 approach-connect. Note the separate `DYNAMIC_TAG` staleness trap: approach-unlock dies
-when the clock is valid but far behind real time (advertisement expiry tag), fixed on
-the nRF side by disabling the dynamic tag — watch for the analogue here. (commit
+when the clock is valid but far behind real time (advertisement expiry tag), first hit
+on the nRF side. The analogue is handled here: the tag expiry is live (SNTP-fed wall
+clock, `now + 900 s`), re-derived at half the window and immediately on a time step,
+with the spec's "expiry unavailable" form as the no-clock fallback. (commit
 `5a4e6c4`)
 
 ---

@@ -29,7 +29,7 @@ CBIN="$(mktemp -t aliro_crypto_kat.XXXXXX)"
 cc -std=c11 -O1 -Wall -Wextra \
    -I "$ALIRO/include" -I "$ALIRO/src" \
    "$HERE/test_aliro_crypto.c" \
-   "$ALIRO/src/aliro_hash.c" "$ALIRO/src/aliro_crypto.c" \
+   "$ALIRO/src/aliro_hash.c" "$ALIRO/src/aliro_crypto.c" "$ALIRO/src/aliro_advtag.c" \
    "$HERE/aliro_prim_host.c" -o "$CBIN"
 "$CBIN"
 
